@@ -37,3 +37,11 @@ func newHtmlResponder(html string) httpmock.Responder {
 		return resp, nil
 	}
 }
+
+func newRedirectResponder(status int, location string) httpmock.Responder {
+	return func(req *http.Request) (*http.Response, error) {
+		resp := httpmock.NewStringResponse(status, "")
+		resp.Header.Add("Location", location)
+		return resp, nil
+	}
+}

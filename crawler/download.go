@@ -16,13 +16,14 @@ import (
 
 // Downloaded struct contains parsed data after downloading an url.
 type Downloaded struct {
-	BaseURL     *neturl.URL
-	BodyString  string
-	BodyBytes   []byte
-	ContentType string
-	Error       error
-	Links       []Link
-	StatusCode  int
+	BaseURL        *neturl.URL
+	BodyString     string
+	BodyBytes      []byte
+	ContentType    string
+	Error          error
+	HeaderLocation *neturl.URL
+	Links          []Link
+	StatusCode     int
 
 	buffer *bytes.Buffer
 }
@@ -72,6 +73,12 @@ func Download(client *http.Client, url string) *Downloaded {
 		return &result
 	}
 
+	// http://stackoverflow.com/questions/23297520/how-can-i-make-the-go-http-client-not-follow-redirects-automatically
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		// do not follow redirects
+		return http.ErrUseLastResponse
+	}
+
 	resp, err := client.Get(url)
 	if err != nil {
 		result.Error = err
@@ -80,23 +87,25 @@ func Download(client *http.Client, url string) *Downloaded {
 	defer resp.Body.Close()
 
 	result.StatusCode = resp.StatusCode
-	parseBody(resp, &result)
+	if result.StatusCode >= 200 && result.StatusCode <= 299 {
+		result.Error = parseBody(resp, &result)
+	} else if result.StatusCode >= 300 && result.StatusCode <= 399 {
+		result.Error = parseRedirect(resp, &result)
+	}
 
 	return &result
 }
 
 func parseBody(resp *http.Response, result *Downloaded) error {
-	if headers, ok := resp.Header["Content-Type"]; ok {
-		header := headers[0]
-		parts := strings.Split(header, ";")
-		result.ContentType = parts[0]
+	contentType := resp.Header.Get("Content-Type")
+	parts := strings.Split(contentType, ";")
+	result.ContentType = parts[0]
 
-		switch result.ContentType {
-		case "text/css":
-			return parseBodyCSS(resp, result)
-		case "text/html":
-			return parseBodyHTML(resp, result)
-		}
+	switch result.ContentType {
+	case "text/css":
+		return parseBodyCSS(resp, result)
+	case "text/html":
+		return parseBodyHTML(resp, result)
 	}
 
 	return parseBodyRaw(resp, result)
@@ -270,6 +279,14 @@ func parseBodyHTMLTagStyleAndWrite(tokenizer *html.Tokenizer, result *Downloaded
 func parseBodyRaw(resp *http.Response, result *Downloaded) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	result.BodyBytes = body
+	return err
+}
+
+func parseRedirect(resp *http.Response, result *Downloaded) error {
+	location := resp.Header.Get("Location")
+	url, err := neturl.Parse(location)
+	result.HeaderLocation = url
+
 	return err
 }
 

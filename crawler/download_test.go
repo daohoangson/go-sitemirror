@@ -112,6 +112,32 @@ var _ = Describe("Download", func() {
 		})
 	})
 
+	Describe("HeaderLocation", func() {
+		It("should work with 301 response status", func() {
+			status := 301
+			url := fmt.Sprintf("http://domain.com/download/header/location/%d", status)
+			targetUrl := "http://domain.com/download/target/url"
+			httpmock.RegisterResponder("GET", url, newRedirectResponder(status, targetUrl))
+			downloaded := Download(http.DefaultClient, url)
+
+			Expect(downloaded.StatusCode).To(Equal(status))
+			Expect(downloaded.HeaderLocation.String()).To(Equal(targetUrl))
+		})
+
+		It("should not work with invalid url", func() {
+			// have to use 399 status code otherwise http.Client will parse
+			// the location header itself and trigger error too soon
+			status := 399
+			url := "http://domain.com/download/header/location/invalid"
+			targetUrl := invalidUrl
+			httpmock.RegisterResponder("GET", url, newRedirectResponder(status, targetUrl))
+			downloaded := Download(http.DefaultClient, url)
+
+			Expect(downloaded.StatusCode).To(Equal(status))
+			Expect(downloaded.HeaderLocation).To(BeNil())
+		})
+	})
+
 	Describe("Links", func() {
 		It("should pick up css url() value", func() {
 			url := "http://domain.com/download/urls/css/url"

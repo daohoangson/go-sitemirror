@@ -1,0 +1,297 @@
+package crawler
+
+import (
+	"bytes"
+	"errors"
+	"io/ioutil"
+	"net/http"
+	neturl "net/url"
+	"regexp"
+	"strings"
+
+	cssScanner "github.com/gorilla/css/scanner"
+	"golang.org/x/net/html"
+	htmlAtom "golang.org/x/net/html/atom"
+)
+
+// Downloaded struct contains parsed data after downloading an url.
+type Downloaded struct {
+	BaseURL     *neturl.URL
+	BodyString  string
+	BodyBytes   []byte
+	ContentType string
+	Error       error
+	Links       []Link
+	StatusCode  int
+
+	buffer *bytes.Buffer
+}
+
+// Link struct is an extracted link from download result.
+type Link struct {
+	Context urlContext
+	Offset  int
+	URL     *neturl.URL
+}
+
+const (
+	// CSSUri url from url()
+	CSSUri urlContext = 1 + iota
+	// HTMLTagA url from <a href=""></a>
+	HTMLTagA
+	// HTMLTagImg url from <img src="" />
+	HTMLTagImg
+	// HTMLTagLinkStylesheet url from <link rel="stylesheet" href="" />
+	HTMLTagLinkStylesheet
+	// HTMLTagScript url from <script src="" />
+	HTMLTagScript
+)
+
+type urlContext int
+
+var cssURIRegexp = regexp.MustCompile(`^url\((.+)\)$`)
+
+const htmlAttrHref = "href"
+const htmlAttrRel = "rel"
+const htmlAttrRelStylesheet = "stylesheet"
+const htmlAttrSrc = "src"
+
+// Download returns parsed data after downloading the specified url.
+func Download(client *http.Client, url string) *Downloaded {
+	result := Downloaded{Links: make([]Link, 0)}
+
+	parsedURL, err := neturl.Parse(url)
+	if err != nil {
+		result.Error = err
+		return &result
+	}
+	result.BaseURL = parsedURL
+
+	if !parsedURL.IsAbs() {
+		result.Error = errors.New("URL must be absolute")
+		return &result
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		result.Error = err
+		return &result
+	}
+	defer resp.Body.Close()
+
+	result.StatusCode = resp.StatusCode
+	parseBody(resp, &result)
+
+	return &result
+}
+
+func parseBody(resp *http.Response, result *Downloaded) error {
+	if headers, ok := resp.Header["Content-Type"]; ok {
+		header := headers[0]
+		parts := strings.Split(header, ";")
+		result.ContentType = parts[0]
+
+		switch result.ContentType {
+		case "text/css":
+			return parseBodyCSS(resp, result)
+		case "text/html":
+			return parseBodyHTML(resp, result)
+		}
+	}
+
+	return parseBodyRaw(resp, result)
+}
+
+func parseBodyCSS(resp *http.Response, result *Downloaded) error {
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	var buffer bytes.Buffer
+	defer buffer.Reset()
+	result.buffer = &buffer
+
+	err := parseBodyCSSString(string(body), result)
+
+	result.BodyString = buffer.String()
+	result.buffer = nil
+
+	return err
+}
+
+func parseBodyCSSString(css string, result *Downloaded) error {
+	scanner := cssScanner.New(css)
+	for {
+		token := scanner.Next()
+		if token.Type == cssScanner.TokenEOF || token.Type == cssScanner.TokenError {
+			break
+		}
+
+		if token.Type == cssScanner.TokenURI {
+			if m := cssURIRegexp.FindStringSubmatch(token.Value); m != nil {
+				url := strings.Trim(m[1], `'"`)
+				result.appendURL(CSSUri, result.buffer.Len(), url)
+			}
+		}
+
+		result.buffer.WriteString(token.Value)
+	}
+
+	return nil
+}
+
+func parseBodyHTML(resp *http.Response, result *Downloaded) error {
+	var buffer bytes.Buffer
+	defer buffer.Reset()
+	result.buffer = &buffer
+
+	tokenizer := html.NewTokenizer(resp.Body)
+	for {
+		if parseBodyHTMLToken(tokenizer, result) {
+			break
+		}
+	}
+
+	result.BodyString = buffer.String()
+	result.buffer = nil
+
+	return nil
+}
+
+func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
+	tokenType := tokenizer.Next()
+	if tokenType == html.ErrorToken {
+		return true
+	}
+
+	token := tokenizer.Token()
+	raw := tokenizer.Raw()
+
+	switch tokenType {
+	case html.StartTagToken:
+		switch token.DataAtom {
+		case htmlAtom.A:
+			parseBodyHTMLTagA(&token, raw, result)
+		case htmlAtom.Script:
+			parseBodyHTMLTagScript(&token, raw, result)
+		case htmlAtom.Style:
+			parseBodyHTMLTagStyleAndWrite(tokenizer, result)
+			return false
+		}
+	case html.SelfClosingTagToken:
+		switch token.DataAtom {
+		case htmlAtom.Base:
+			parseBodyHTMLTagBase(&token, result)
+		case htmlAtom.Img:
+			parseBodyHTMLTagImg(&token, raw, result)
+		case htmlAtom.Link:
+			parseBodyHTMLTagLink(&token, raw, result)
+		}
+	}
+
+	result.buffer.Write(raw)
+	return false
+}
+
+func parseBodyHTMLTagA(token *html.Token, raw []byte, result *Downloaded) {
+	for _, attr := range token.Attr {
+		if attr.Key == htmlAttrHref {
+			offset := result.buffer.Len() + strings.Index(string(raw), attr.Val)
+			result.appendURL(HTMLTagA, offset, attr.Val)
+		}
+	}
+}
+
+func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) {
+	for _, attr := range token.Attr {
+		if attr.Key == htmlAttrHref {
+			if url, err := neturl.Parse(attr.Val); err == nil {
+				result.BaseURL = url
+			}
+		}
+	}
+}
+
+func parseBodyHTMLTagImg(token *html.Token, raw []byte, result *Downloaded) {
+	for _, attr := range token.Attr {
+		if attr.Key == htmlAttrSrc {
+			offset := result.buffer.Len() + strings.Index(string(raw), attr.Val)
+			result.appendURL(HTMLTagImg, offset, attr.Val)
+		}
+	}
+}
+
+func parseBodyHTMLTagLink(token *html.Token, raw []byte, result *Downloaded) {
+	var linkHref string
+	var linkRel string
+
+	for _, attr := range token.Attr {
+		switch attr.Key {
+		case htmlAttrHref:
+			linkHref = attr.Val
+		case htmlAttrRel:
+			linkRel = attr.Val
+		}
+	}
+
+	if len(linkHref) > 0 {
+		offset := result.buffer.Len() + strings.Index(string(raw), linkHref)
+		switch linkRel {
+		case htmlAttrRelStylesheet:
+			result.appendURL(HTMLTagLinkStylesheet, offset, linkHref)
+		}
+	}
+}
+
+func parseBodyHTMLTagScript(token *html.Token, raw []byte, result *Downloaded) {
+	for _, attr := range token.Attr {
+		if attr.Key == htmlAttrSrc {
+			offset := result.buffer.Len() + strings.Index(string(raw), attr.Val)
+			result.appendURL(HTMLTagScript, offset, attr.Val)
+		}
+	}
+}
+
+func parseBodyHTMLTagStyleAndWrite(tokenizer *html.Tokenizer, result *Downloaded) {
+	result.buffer.Write(tokenizer.Raw())
+
+	for {
+		tokenType := tokenizer.Next()
+		raw := tokenizer.Raw()
+
+		switch tokenType {
+		case html.EndTagToken:
+			result.buffer.Write(raw)
+			return
+		case html.TextToken:
+			parseBodyCSSString(string(raw), result)
+		}
+	}
+}
+
+func parseBodyRaw(resp *http.Response, result *Downloaded) error {
+	body, err := ioutil.ReadAll(resp.Body)
+	result.BodyBytes = body
+	return err
+}
+
+// GetResolvedURL returns resolved url for the specified link
+func (result *Downloaded) GetResolvedURL(i int) *neturl.URL {
+	if i < 0 || i >= len(result.Links) {
+		return nil
+	}
+
+	return result.BaseURL.ResolveReference(result.Links[i].URL)
+}
+
+func (result *Downloaded) appendURL(context urlContext, offset int, input string) {
+	url, err := neturl.Parse(input)
+	if err != nil {
+		return
+	}
+
+	link := Link{
+		Context: context,
+		Offset:  offset,
+		URL:     url,
+	}
+	result.Links = append(result.Links, link)
+}

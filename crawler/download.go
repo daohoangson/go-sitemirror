@@ -14,42 +14,6 @@ import (
 	htmlAtom "golang.org/x/net/html/atom"
 )
 
-// Downloaded struct contains parsed data after downloading an url.
-type Downloaded struct {
-	BaseURL        *neturl.URL
-	BodyString     string
-	BodyBytes      []byte
-	ContentType    string
-	Error          error
-	HeaderLocation *neturl.URL
-	Links          []Link
-	StatusCode     int
-
-	buffer *bytes.Buffer
-}
-
-// Link struct is an extracted link from download result.
-type Link struct {
-	Context urlContext
-	Offset  int
-	URL     *neturl.URL
-}
-
-const (
-	// CSSUri url from url()
-	CSSUri urlContext = 1 + iota
-	// HTMLTagA url from <a href=""></a>
-	HTMLTagA
-	// HTMLTagImg url from <img src="" />
-	HTMLTagImg
-	// HTMLTagLinkStylesheet url from <link rel="stylesheet" href="" />
-	HTMLTagLinkStylesheet
-	// HTMLTagScript url from <script src="" />
-	HTMLTagScript
-)
-
-type urlContext int
-
 var cssURIRegexp = regexp.MustCompile(`^url\((.+)\)$`)
 
 const htmlAttrHref = "href"

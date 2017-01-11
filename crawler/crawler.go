@@ -7,24 +7,6 @@ import (
 	"sync"
 )
 
-// Crawler must be created with New
-type Crawler interface {
-	init(*http.Client)
-
-	SetWorkerCount(int) error
-	GetWorkerCount() int
-	SetOnDownloaded(downloadedFunc)
-	SetOnURLShouldQueue(urlShouldQueueFunc)
-	IsWorkersRunning() bool
-	GetQueuedCount() int
-	GetDownloadedCount() int
-	GetLinkFoundCount() int
-	Start()
-	Download(string)
-	Next() *Downloaded
-	NextOrNil() *Downloaded
-}
-
 type crawler struct {
 	client            *http.Client
 	autoDownloadDepth int

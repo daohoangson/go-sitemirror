@@ -1,6 +1,7 @@
 package cacher
 
 import (
+	"crypto/md5"
 	"fmt"
 	"net/url"
 	"os"
@@ -30,6 +31,7 @@ func GenerateCachePath(rootPath string, url *url.URL) string {
 		url.Host,
 		dir,
 		queryPath,
+		GetShortHash(url),
 		file,
 	)
 
@@ -48,6 +50,11 @@ func BuildQueryPath(query *url.Values) string {
 	}
 
 	return queryPath
+}
+
+func GetShortHash(url *url.URL) string {
+	sum := md5.Sum([]byte(url.Path))
+	return fmt.Sprintf("%x", sum[:3])
 }
 
 func getQuerySortedKeys(query *url.Values) []string {

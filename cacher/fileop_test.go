@@ -66,11 +66,13 @@ var _ = Describe("Fileop", func() {
 
 		It("should keep url scheme + host + path", func() {
 			scheme := "http"
-			hostAndPath := "domain.com/fileop/keep/scheme/host/path"
-			url, _ := url.Parse(scheme + "://" + hostAndPath)
+			hostAndDir := "domain.com/fileop/keep/scheme/host/path"
+			file := "file"
+			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file)
 			path := GenerateCachePath(rootPath, url)
 
-			Expect(path).To(Equal(rootPath + "/" + scheme + "/" + hostAndPath))
+			Expect(path).To(HavePrefix(rootPath + "/" + scheme + "/" + hostAndDir + "/"))
+			Expect(path).To(HaveSuffix("/" + file))
 		})
 
 		It("should keep query", func() {
@@ -81,7 +83,17 @@ var _ = Describe("Fileop", func() {
 			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
 			path := GenerateCachePath(rootPath, url)
 
-			Expect(path).To(Equal(rootPath + "/" + scheme + "/" + hostAndDir + "/" + query + "/" + file))
+			Expect(path).To(HavePrefix(rootPath + "/" + scheme + "/" + hostAndDir + "/" + query + "/"))
+			Expect(path).To(HaveSuffix("/" + file))
+		})
+
+		It("should generate different path for slashes", func() {
+			url0, _ := url.Parse("http://domain.com/fileop/diff/path/for/slashes")
+			url1, _ := url.Parse("http://domain.com/fileop/diff/path/for/slashes/")
+			path0 := GenerateCachePath(rootPath, url0)
+			path1 := GenerateCachePath(rootPath, url1)
+
+			Expect(path0).ToNot(Equal(path1))
 		})
 	})
 

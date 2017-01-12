@@ -16,6 +16,7 @@ type Crawler interface {
 	GetWorkerCount() int
 
 	SetOnURLShouldQueue(func(*url.URL) bool)
+	SetOnDownload(func(*url.URL))
 	SetOnDownloaded(func(*Downloaded))
 
 	IsWorkersRunning() bool

@@ -13,6 +13,7 @@ type crawler struct {
 	workerCount       int
 
 	onURLShouldQueue *func(*neturl.URL) bool
+	onDownload       *func(*neturl.URL)
 	onDownloaded     *func(*Downloaded)
 
 	output          chan *Downloaded
@@ -75,6 +76,10 @@ func (c *crawler) SetOnURLShouldQueue(f func(*neturl.URL) bool) {
 	c.onURLShouldQueue = &f
 }
 
+func (c *crawler) SetOnDownload(f func(*neturl.URL)) {
+	c.onDownload = &f
+}
+
 func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
 	if c.onDownloaded == nil && c.workersRunning {
 		go func() {
@@ -122,8 +127,12 @@ func (c *crawler) Start() {
 		}()
 
 		for i := 0; i < c.workerCount; i++ {
-			go func() {
+			go func(workerId int) {
 				for queuedItem := range c.queue {
+					if c.onDownload != nil {
+						(*c.onDownload)(queuedItem.url)
+					}
+
 					downloaded := Download(c.client, queuedItem.url)
 					c.downloadedCount++
 
@@ -157,7 +166,7 @@ func (c *crawler) Start() {
 						requeue <- newItem
 					}
 				}
-			}()
+			}(i)
 		}
 
 		c.workersRunning = true

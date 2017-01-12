@@ -51,6 +51,9 @@ func New(client *http.Client) Crawler {
 }
 
 func (c *crawler) init(client *http.Client) {
+	if client == nil {
+		client = http.DefaultClient
+	}
 	c.client = client
 
 	c.autoDownloadDepth = 1

@@ -86,21 +86,31 @@ var _ = Describe("Crawler", func() {
 		})
 	})
 
+	It("should work with init(nil)", func() {
+		url := "http://domain.com/crawl/init/nil"
+		httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
+
+		c := New(nil)
+		c.Download(url)
+		downloaded := c.Next()
+		Expect(downloaded.BaseURL.String()).To(Equal(url))
+	})
+
 	Describe("WorkerCount", func() {
 		It("should not accept zero", func() {
-			c := New(http.DefaultClient)
+			c := New(nil)
 			err := c.SetWorkerCount(0)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should not accept negative value", func() {
-			c := New(http.DefaultClient)
+			c := New(nil)
 			err := c.SetWorkerCount(-1)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should not work after Start", func() {
-			c := New(http.DefaultClient)
+			c := New(nil)
 			c.Start()
 			err := c.SetWorkerCount(1)
 			Expect(err).To(HaveOccurred())
@@ -109,7 +119,7 @@ var _ = Describe("Crawler", func() {
 		It("should work", func() {
 			workerCount := 1
 
-			c := New(http.DefaultClient)
+			c := New(nil)
 			err := c.SetWorkerCount(workerCount)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(c.GetWorkerCount()).To(Equal(workerCount))
@@ -212,12 +222,12 @@ var _ = Describe("Crawler", func() {
 
 	Describe("WorkersRunning", func() {
 		It("should work before start", func() {
-			c := New(http.DefaultClient)
+			c := New(nil)
 			Expect(c.IsWorkersRunning()).To(BeFalse())
 		})
 
 		It("should work after start", func() {
-			c := New(http.DefaultClient)
+			c := New(nil)
 			c.Start()
 			Expect(c.IsWorkersRunning()).To(BeTrue())
 		})

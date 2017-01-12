@@ -96,6 +96,15 @@ var _ = Describe("Crawler", func() {
 		Expect(downloaded.BaseURL.String()).To(Equal(url))
 	})
 
+	It("should set auto download depth", func() {
+		autoDownloadDepth := 2
+
+		c := New(nil)
+		c.SetAutoDownloadDepth(autoDownloadDepth)
+
+		Expect(c.GetAutoDownloadDepth()).To(Equal(autoDownloadDepth))
+	})
+
 	Describe("WorkerCount", func() {
 		It("should not accept zero", func() {
 			c := New(nil)

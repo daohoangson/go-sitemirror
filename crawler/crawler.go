@@ -60,6 +60,14 @@ func (c *crawler) init(client *http.Client) {
 	c.workerCount = 4
 }
 
+func (c *crawler) SetAutoDownloadDepth(depth int) {
+	c.autoDownloadDepth = depth
+}
+
+func (c *crawler) GetAutoDownloadDepth() int {
+	return c.autoDownloadDepth
+}
+
 func (c *crawler) SetWorkerCount(workerCount int) error {
 	if workerCount < 1 {
 		return errors.New("workerCount must be greater than 1")

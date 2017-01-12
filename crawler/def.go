@@ -10,14 +10,19 @@ import (
 type Crawler interface {
 	init(*http.Client)
 
+	SetAutoDownloadDepth(int)
+	GetAutoDownloadDepth() int
 	SetWorkerCount(int) error
 	GetWorkerCount() int
+
 	SetOnDownloaded(func(*Downloaded))
 	SetOnURLShouldQueue(func(*url.URL) bool)
+
 	IsWorkersRunning() bool
 	GetQueuedCount() int
 	GetDownloadedCount() int
 	GetLinkFoundCount() int
+
 	Start()
 	Download(string)
 	Next() *Downloaded

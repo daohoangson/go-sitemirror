@@ -269,9 +269,24 @@ func (result *Downloaded) appendURL(context urlContext, offset int, input string
 		return
 	}
 
+	inputLen := len(input)
+
+	fragmentLen := len(url.Fragment)
+	if fragmentLen > 0 {
+		// discard fragment
+		inputLen -= fragmentLen + 1
+		url.Fragment = ""
+	}
+
+	if len(url.String()) == 0 {
+		// empty url, this may happen after fragment removal
+		return
+	}
+
 	link := Link{
 		Context: context,
 		Offset:  offset,
+		Length:  inputLen,
 		URL:     url,
 	}
 	result.Links = append(result.Links, link)

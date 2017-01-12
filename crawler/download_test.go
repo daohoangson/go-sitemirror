@@ -268,6 +268,30 @@ var _ = Describe("Download", func() {
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.Links)).To(Equal(0))
 		})
+
+		It("should not pick up url #fragment part", func() {
+			url := "http://domain.com/download/urls/fragment"
+			targetUrlBase := "http://domain.com/download/target?a=b"
+			targetUrl := targetUrlBase + "#foo=bar"
+			html := newHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", targetUrl))
+			httpmock.RegisterResponder("GET", url, newHtmlResponder(html))
+			downloaded := Download(http.DefaultClient, url)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(downloaded.Links[0].Length).To(Equal(len(targetUrlBase)))
+			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrlBase))
+		})
+
+		It("should not pick up #fragment only url", func() {
+			url := "http://domain.com/download/urls/fragment/only"
+			html := newHtmlMarkup("<a href=\"#\">Text</a>")
+			httpmock.RegisterResponder("GET", url, newHtmlResponder(html))
+			downloaded := Download(http.DefaultClient, url)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(len(downloaded.Links)).To(Equal(0))
+		})
 	})
 
 	Describe("StatusCode", func() {

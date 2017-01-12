@@ -42,6 +42,7 @@ type Downloaded struct {
 type Link struct {
 	Context urlContext
 	Offset  int
+	Length  int
 	URL     *url.URL
 }
 

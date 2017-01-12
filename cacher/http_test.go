@@ -76,28 +76,15 @@ var _ = Describe("Http", func() {
 
 			It("should write body string", func() {
 				input := input2xx
-				input.BodyString = "foo/bar"
+				input.Body = "foo/bar"
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenContentLength := getHeaderValue(written, "Content-Length")
-				Expect(writtenContentLength).To(Equal(fmt.Sprintf("%d", len(input.BodyString))))
+				Expect(writtenContentLength).To(Equal(fmt.Sprintf("%d", len(input.Body))))
 
 				writtenContent := getContent(written)
-				Expect(writtenContent).To(Equal(input.BodyString))
-			})
-
-			It("should write body bytes", func() {
-				input := input2xx
-				input.BodyBytes = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-				WriteHTTP(&buffer, input)
-
-				written := buffer.String()
-				writtenContentLength := getHeaderValue(written, "Content-Length")
-				Expect(writtenContentLength).To(Equal(fmt.Sprintf("%d", len(input.BodyBytes))))
-
-				writtenContent := getContent(written)
-				Expect(writtenContent).To(Equal(string(input.BodyBytes)))
+				Expect(writtenContent).To(Equal(input.Body))
 			})
 		})
 
@@ -105,7 +92,7 @@ var _ = Describe("Http", func() {
 			It("should write Location header", func() {
 				url, _ := neturl.Parse("http://domain.com/http/input/3xx/location")
 				targetUrl, _ := neturl.Parse("http://domain.com/target/url")
-				input := &Input{StatusCode: 301, URL: url, HeaderLocation: targetUrl}
+				input := &Input{StatusCode: 301, URL: url, Redirection: targetUrl}
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()

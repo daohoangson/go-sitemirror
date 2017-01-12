@@ -17,10 +17,9 @@ type Input struct {
 	URL        *url.URL
 
 	ContentType string
-	BodyString  string
-	BodyBytes   []byte
+	Body        string
 
-	HeaderLocation *url.URL
+	Redirection *url.URL
 }
 
 const (

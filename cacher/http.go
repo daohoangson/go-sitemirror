@@ -31,26 +31,17 @@ func writeHTTP2xx(bw *bufio.Writer, input *Input) {
 		bw.WriteString(fmt.Sprintf("Content-Type: %s\n", input.ContentType))
 	}
 
-	bodyStringLen := len(input.BodyString)
-	if bodyStringLen > 0 {
-		bw.WriteString(fmt.Sprintf("Content-Length: %d\n", bodyStringLen))
+	bodyLen := len(input.Body)
+	if bodyLen > 0 {
+		bw.WriteString(fmt.Sprintf("Content-Length: %d\n", bodyLen))
 		bw.WriteString("\n")
-		bw.WriteString(input.BodyString)
-		return
-	}
-
-	bodyBytesLen := len(input.BodyBytes)
-	if bodyBytesLen > 0 {
-		bw.WriteString(fmt.Sprintf("Content-Length: %d\n", bodyBytesLen))
-		bw.WriteString("\n")
-		bw.Write(input.BodyBytes)
-		return
+		bw.WriteString(input.Body)
 	}
 }
 
 func writeHTTP3xx(bw *bufio.Writer, input *Input) {
-	if input.HeaderLocation != nil {
-		bw.WriteString(fmt.Sprintf("Location: %s\n", input.HeaderLocation.String()))
+	if input.Redirection != nil {
+		bw.WriteString(fmt.Sprintf("Location: %s\n", input.Redirection.String()))
 		return
 	}
 }

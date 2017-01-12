@@ -12,11 +12,11 @@ type crawler struct {
 	autoDownloadDepth int
 	workerCount       int
 
-	onDownloaded     *downloadedFunc
-	onURLShouldQueue *urlShouldQueueFunc
+	onDownloaded     *func(*Downloaded)
+	onURLShouldQueue *func(*url.URL) bool
 
-	output          downloadedChan
-	queue           queueChan
+	output          chan *Downloaded
+	queue           chan queueItem
 	workerStartOnce sync.Once
 	workersRunning  bool
 	queuedCount     int
@@ -28,12 +28,6 @@ type queueItem struct {
 	url   string
 	depth int
 }
-
-type downloadedChan chan *Downloaded
-type queueChan chan queueItem
-type workerFunc func(*crawler)
-type urlShouldQueueFunc func(*url.URL) bool
-type downloadedFunc func(*Downloaded)
 
 // Crawl creates a new instance and start crawling the specified urls
 func Crawl(client *http.Client, urls ...string) Crawler {
@@ -80,7 +74,7 @@ func (c *crawler) GetWorkerCount() int {
 	return c.workerCount
 }
 
-func (c *crawler) SetOnDownloaded(f downloadedFunc) {
+func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
 	if c.onDownloaded == nil && c.workersRunning {
 		go func() {
 			for {
@@ -97,7 +91,7 @@ func (c *crawler) SetOnDownloaded(f downloadedFunc) {
 	c.onDownloaded = &f
 }
 
-func (c *crawler) SetOnURLShouldQueue(f urlShouldQueueFunc) {
+func (c *crawler) SetOnURLShouldQueue(f func(*url.URL) bool) {
 	c.onURLShouldQueue = &f
 }
 
@@ -119,9 +113,9 @@ func (c *crawler) GetLinkFoundCount() int {
 
 func (c *crawler) Start() {
 	c.workerStartOnce.Do(func() {
-		c.queue = make(queueChan)
-		c.output = make(downloadedChan)
-		requeue := make(queueChan)
+		c.queue = make(chan queueItem)
+		c.output = make(chan *Downloaded)
+		requeue := make(chan queueItem)
 
 		go func() {
 			for item := range requeue {

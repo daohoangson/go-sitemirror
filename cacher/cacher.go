@@ -35,11 +35,13 @@ func (c *cacher) GetPath() string {
 
 func (c *cacher) CheckCacheExists(url *neturl.URL) bool {
 	cachePath := GenerateCachePath(c.path, url)
-	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+	_, err := os.Stat(cachePath)
+
+	if os.IsNotExist(err) {
 		return false
 	}
 
-	return true
+	return err == nil
 }
 
 func (c *cacher) Write(input *Input) error {

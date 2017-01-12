@@ -65,7 +65,7 @@ var _ = Describe("Download", func() {
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BaseURL.String()).To(Equal(baseHref))
+			Expect(downloaded.BaseURL.String()).To(Equal("http://domain.com/some/where/else"))
 		})
 	})
 

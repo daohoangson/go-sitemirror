@@ -180,7 +180,7 @@ func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) {
 	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
 			if url, err := neturl.Parse(attr.Val); err == nil {
-				result.BaseURL = url
+				result.BaseURL = result.BaseURL.ResolveReference(url)
 			}
 		}
 	}

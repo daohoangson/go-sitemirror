@@ -7,6 +7,7 @@ import (
 	"time"
 
 	. "github.com/daohoangson/go-sitemirror/crawler"
+	t "github.com/daohoangson/go-sitemirror/testing"
 	"gopkg.in/jarcoal/httpmock.v1"
 
 	. "github.com/onsi/ginkgo"
@@ -30,7 +31,8 @@ var _ = Describe("Crawler", func() {
 			body := "foo/bar"
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, body))
 
-			c := Crawl(http.DefaultClient, url)
+			c := New(http.DefaultClient)
+			c.DownloadURL(url)
 			downloaded := c.Next()
 
 			Expect(string(downloaded.BodyBytes)).To(Equal(body))
@@ -43,11 +45,12 @@ var _ = Describe("Crawler", func() {
 		It("should also download link", func() {
 			url := "http://domain.com/crawl/download/link"
 			targetUrl := "http://domain.com/crawl/download/link/target"
-			html := newHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", targetUrl))
-			httpmock.RegisterResponder("GET", url, newHtmlResponder(html))
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", targetUrl))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 			httpmock.RegisterResponder("GET", targetUrl, httpmock.NewStringResponder(200, "foo/bar"))
 
-			c := Crawl(http.DefaultClient, url)
+			c := New(http.DefaultClient)
+			c.DownloadURL(url)
 			downloaded := c.Next()
 			Expect(downloaded.BaseURL.String()).To(Equal(url))
 
@@ -63,12 +66,13 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/crawl/depth/0"
 			urlDepth1 := "http://domain.com/crawl/depth/1"
 			urlDepth2 := "http://domain.com/crawl/depth/2"
-			html := newHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", urlDepth1))
-			html1 := newHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", urlDepth2))
-			httpmock.RegisterResponder("GET", url, newHtmlResponder(html))
-			httpmock.RegisterResponder("GET", urlDepth1, newHtmlResponder(html1))
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", urlDepth1))
+			html1 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", urlDepth2))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", urlDepth1, t.NewHtmlResponder(html1))
 
-			c := Crawl(http.DefaultClient, url)
+			c := New(http.DefaultClient)
+			c.DownloadURL(url)
 			downloaded := c.Next()
 			Expect(downloaded.BaseURL.String()).To(Equal(url))
 
@@ -91,7 +95,7 @@ var _ = Describe("Crawler", func() {
 		httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 		c := New(nil)
-		c.Download(url)
+		c.DownloadURL(url)
 		downloaded := c.Next()
 		Expect(downloaded.BaseURL.String()).To(Equal(url))
 	})
@@ -135,18 +139,57 @@ var _ = Describe("Crawler", func() {
 		})
 	})
 
+	Describe("SetOnURLShouldQueue", func() {
+		It("should download link except one", func() {
+			url := "http://domain.com/SetOnURLShouldQueue/download/except/one"
+			urlDownload := "http://domain.com/SetOnURLShouldQueue/download"
+			urlNotDownload := "http://domain.com/SetOnURLShouldQueue/not/download"
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>"+
+				"<a href=\"%s\">Text</a>", urlDownload, urlNotDownload))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", urlDownload, httpmock.NewStringResponder(200, "foo/bar"))
+			httpmock.RegisterResponder("GET", urlNotDownload, httpmock.NewStringResponder(200, "foo/bar"))
+
+			c := New(http.DefaultClient)
+			urlNotDownloadFound := false
+			c.SetOnURLShouldQueue(func(u *neturl.URL) bool {
+				if u.String() == urlNotDownload {
+					urlNotDownloadFound = true
+					return false
+				}
+
+				return true
+			})
+			c.DownloadURL(url)
+
+			downloaded := c.Next()
+			Expect(downloaded.BaseURL.String()).To(Equal(url))
+
+			time.Sleep(sleepTime)
+			downloaded = c.NextOrNil()
+			Expect(downloaded.BaseURL.String()).To(Equal(urlDownload))
+
+			time.Sleep(sleepTime)
+			downloaded = c.NextOrNil()
+			Expect(downloaded).To(BeNil())
+
+			Expect(urlNotDownloadFound).To(BeTrue())
+		})
+	})
+
 	Describe("SetOnDownloaded", func() {
 		It("should trigger func directly", func() {
 			url := "http://domain.com/SetOnDownloaded"
 			urlTarget0 := "http://domain.com/SetOnDownloaded/target/0"
 			urlTarget1 := "http://domain.com/SetOnDownloaded/target/1"
-			html := newHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>"+
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>"+
 				"<a href=\"%s\">Text</a>", urlTarget0, urlTarget1))
-			httpmock.RegisterResponder("GET", url, newHtmlResponder(html))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 			httpmock.RegisterResponder("GET", urlTarget0, httpmock.NewStringResponder(200, "foo/bar"))
 			httpmock.RegisterResponder("GET", urlTarget1, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := New(http.DefaultClient)
+
 			urlFound := false
 			urlTarget0Found := false
 			urlTarget1Found := false
@@ -160,7 +203,8 @@ var _ = Describe("Crawler", func() {
 					urlTarget1Found = true
 				}
 			})
-			c.Download(url)
+
+			c.DownloadURL(url)
 
 			time.Sleep(sleepTime)
 			downloaded := c.NextOrNil()
@@ -176,7 +220,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := New(http.DefaultClient)
-			c.Download(url)
+			c.DownloadURL(url)
 
 			time.Sleep(sleepTime)
 			urlFound := false
@@ -188,44 +232,6 @@ var _ = Describe("Crawler", func() {
 			time.Sleep(sleepTime)
 
 			Expect(urlFound).To(BeTrue())
-		})
-	})
-
-	Describe("SetOnURLShouldQueue", func() {
-		It("should download link except one", func() {
-			url := "http://domain.com/SetOnURLShouldQueue/download/except/one"
-			urlDownload := "http://domain.com/SetOnURLShouldQueue/download"
-			urlNotDownload := "http://domain.com/SetOnURLShouldQueue/not/download"
-			html := newHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>"+
-				"<a href=\"%s\">Text</a>", urlDownload, urlNotDownload))
-			httpmock.RegisterResponder("GET", url, newHtmlResponder(html))
-			httpmock.RegisterResponder("GET", urlDownload, httpmock.NewStringResponder(200, "foo/bar"))
-			httpmock.RegisterResponder("GET", urlNotDownload, httpmock.NewStringResponder(200, "foo/bar"))
-
-			c := New(http.DefaultClient)
-			urlNotDownloadFound := false
-			c.SetOnURLShouldQueue(func(u *neturl.URL) bool {
-				if u.String() == urlNotDownload {
-					urlNotDownloadFound = true
-					return false
-				}
-
-				return true
-			})
-			c.Download(url)
-
-			downloaded := c.Next()
-			Expect(downloaded.BaseURL.String()).To(Equal(url))
-
-			time.Sleep(sleepTime)
-			downloaded = c.NextOrNil()
-			Expect(downloaded.BaseURL.String()).To(Equal(urlDownload))
-
-			time.Sleep(sleepTime)
-			downloaded = c.NextOrNil()
-			Expect(downloaded).To(BeNil())
-
-			Expect(urlNotDownloadFound).To(BeTrue())
 		})
 	})
 

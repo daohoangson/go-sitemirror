@@ -3,7 +3,7 @@ package crawler
 import (
 	"errors"
 	"net/http"
-	"net/url"
+	neturl "net/url"
 	"sync"
 )
 
@@ -12,8 +12,8 @@ type crawler struct {
 	autoDownloadDepth int
 	workerCount       int
 
+	onURLShouldQueue *func(*neturl.URL) bool
 	onDownloaded     *func(*Downloaded)
-	onURLShouldQueue *func(*url.URL) bool
 
 	output          chan *Downloaded
 	queue           chan queueItem
@@ -25,22 +25,8 @@ type crawler struct {
 }
 
 type queueItem struct {
-	url   string
+	url   *neturl.URL
 	depth int
-}
-
-// Crawl creates a new instance and start crawling the specified urls
-func Crawl(client *http.Client, urls ...string) Crawler {
-	c := New(client)
-
-	if len(urls) > 0 {
-		c.SetWorkerCount(len(urls))
-		for _, url := range urls {
-			c.Download(url)
-		}
-	}
-
-	return c
 }
 
 // New returns a new instance of the crawler
@@ -85,6 +71,10 @@ func (c *crawler) GetWorkerCount() int {
 	return c.workerCount
 }
 
+func (c *crawler) SetOnURLShouldQueue(f func(*neturl.URL) bool) {
+	c.onURLShouldQueue = &f
+}
+
 func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
 	if c.onDownloaded == nil && c.workersRunning {
 		go func() {
@@ -100,10 +90,6 @@ func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
 	}
 
 	c.onDownloaded = &f
-}
-
-func (c *crawler) SetOnURLShouldQueue(f func(*url.URL) bool) {
-	c.onURLShouldQueue = &f
 }
 
 func (c *crawler) IsWorkersRunning() bool {
@@ -165,7 +151,7 @@ func (c *crawler) Start() {
 						}
 
 						newItem := queueItem{
-							url:   foundURL.String(),
+							url:   foundURL,
 							depth: linkDepth,
 						}
 						requeue <- newItem
@@ -178,10 +164,20 @@ func (c *crawler) Start() {
 	})
 }
 
-func (c *crawler) Download(url string) {
+func (c *crawler) Download(url *neturl.URL) {
 	c.Start()
 	c.queue <- queueItem{url: url}
 	c.queuedCount++
+}
+
+func (c *crawler) DownloadURL(url string) error {
+	parsedURL, err := neturl.Parse(url)
+	if err != nil {
+		return err
+	}
+
+	c.Download(parsedURL)
+	return nil
 }
 
 func (c *crawler) Next() *Downloaded {

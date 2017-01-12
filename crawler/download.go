@@ -22,17 +22,20 @@ const htmlAttrRelStylesheet = "stylesheet"
 const htmlAttrSrc = "src"
 
 // Download returns parsed data after downloading the specified url.
-func Download(client *http.Client, url string) *Downloaded {
-	result := Downloaded{Links: make([]Link, 0)}
+func Download(client *http.Client, url *neturl.URL) *Downloaded {
+	result := Downloaded{BaseURL: url, Links: make([]Link, 0)}
 
-	parsedURL, err := neturl.Parse(url)
-	if err != nil {
-		result.Error = err
+	if client == nil {
+		result.Error = errors.New("http.Client cannot be nil")
 		return &result
 	}
-	result.BaseURL = parsedURL
 
-	if !parsedURL.IsAbs() {
+	if url == nil {
+		result.Error = errors.New("url.URL cannot be nil")
+		return &result
+	}
+
+	if !url.IsAbs() {
 		result.Error = errors.New("URL must be absolute")
 		return &result
 	}
@@ -43,7 +46,7 @@ func Download(client *http.Client, url string) *Downloaded {
 		return http.ErrUseLastResponse
 	}
 
-	resp, err := client.Get(url)
+	resp, err := client.Get(url.String())
 	if err != nil {
 		result.Error = err
 		return &result

@@ -63,6 +63,8 @@ const (
 	HTMLTagLinkStylesheet
 	// HTMLTagScript url from <script src="" />
 	HTMLTagScript
+	// HTTP3xxLocation url from HTTP response code 3xx
+	HTTP3xxLocation
 )
 
 type urlContext int

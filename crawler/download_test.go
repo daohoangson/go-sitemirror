@@ -263,6 +263,20 @@ var _ = Describe("Download", func() {
 			Expect(downloaded.Links[0].Context).To(Equal(HTMLTagLinkStylesheet))
 		})
 
+		It("should pick up 3xx response Location header", func() {
+			url := "http://domain.com/download/urls/3xx"
+			targetUrl := "http://domain.com/download/target/url"
+			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(301, targetUrl))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
+			Expect(downloaded.Links[0].Context).To(Equal(HTTP3xxLocation))
+		})
+
 		It("should pick up multiple urls", func() {
 			url := "http://domain.com/download/urls/multiple"
 			targetUrlA := "http://domain.com/download/target/url/a"

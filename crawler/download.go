@@ -252,9 +252,14 @@ func parseBodyRaw(resp *http.Response, result *Downloaded) error {
 func parseRedirect(resp *http.Response, result *Downloaded) error {
 	location := resp.Header.Get("Location")
 	url, err := neturl.Parse(location)
-	result.HeaderLocation = url
+	if err != nil {
+		return err
+	}
 
-	return err
+	result.HeaderLocation = url
+	result.appendURL(HTTP3xxLocation, 0, location)
+
+	return nil
 }
 
 // GetResolvedURL returns resolved url for the specified link

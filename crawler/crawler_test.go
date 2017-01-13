@@ -16,7 +16,10 @@ import (
 )
 
 var _ = Describe("Crawler", func() {
-	const sleepTime = 10 * time.Millisecond
+	const sleepTime = 20 * time.Millisecond
+	const uint64Zero = uint64(0)
+	const uint64One = uint64(1)
+	const uint64Two = uint64(2)
 
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
@@ -41,12 +44,14 @@ var _ = Describe("Crawler", func() {
 
 		c := New(nil, nil)
 		c.QueueURL(url)
-		downloaded := c.Next()
+		defer c.Stop()
+
+		downloaded, _ := c.Downloaded()
 		Expect(downloaded.BaseURL.String()).To(Equal(url))
 	})
 
 	It("should set auto download depth", func() {
-		autoDownloadDepth := 2
+		autoDownloadDepth := uint64(2)
 
 		c := newCrawler()
 		c.SetAutoDownloadDepth(autoDownloadDepth)
@@ -61,21 +66,18 @@ var _ = Describe("Crawler", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
-		It("should not accept negative value", func() {
-			c := newCrawler()
-			err := c.SetWorkerCount(-1)
-			Expect(err).To(HaveOccurred())
-		})
-
 		It("should not work after Start", func() {
 			c := newCrawler()
 			c.Start()
+			defer c.Stop()
+
+			time.Sleep(sleepTime)
 			err := c.SetWorkerCount(1)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should work", func() {
-			workerCount := 1
+			workerCount := uint64One
 
 			c := newCrawler()
 			err := c.SetWorkerCount(workerCount)
@@ -105,18 +107,18 @@ var _ = Describe("Crawler", func() {
 
 				return true
 			})
-			c.QueueURL(url)
 
-			downloaded := c.Next()
+			c.QueueURL(url)
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
 			Expect(downloaded.BaseURL.String()).To(Equal(url))
 
-			time.Sleep(sleepTime)
-			downloaded = c.NextOrNil()
+			downloaded, _ = c.Downloaded()
 			Expect(downloaded.BaseURL.String()).To(Equal(urlDownload))
 
 			time.Sleep(sleepTime)
-			downloaded = c.NextOrNil()
-			Expect(downloaded).To(BeNil())
+			Expect(c.IsBusy()).To(BeFalse())
 
 			Expect(urlNotDownloadFound).To(BeTrue())
 		})
@@ -137,7 +139,9 @@ var _ = Describe("Crawler", func() {
 			})
 
 			c.QueueURL(url)
-			c.Next()
+			defer c.Stop()
+
+			c.Downloaded()
 
 			Expect(urlFound).To(BeTrue())
 		})
@@ -171,9 +175,10 @@ var _ = Describe("Crawler", func() {
 			})
 
 			c.QueueURL(url)
+			defer c.Stop()
 
 			time.Sleep(sleepTime)
-			downloaded := c.NextOrNil()
+			downloaded := c.DownloadedNotBlocking()
 			Expect(downloaded).To(BeNil())
 
 			Expect(urlFound).To(BeTrue())
@@ -187,6 +192,7 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.QueueURL(url)
+			defer c.Stop()
 
 			time.Sleep(sleepTime)
 			urlFound := false
@@ -201,16 +207,98 @@ var _ = Describe("Crawler", func() {
 		})
 	})
 
-	Describe("WorkersRunning", func() {
+	Describe("Life Cycle", func() {
 		It("should work before start", func() {
 			c := newCrawler()
-			Expect(c.IsWorkersRunning()).To(BeFalse())
+			Expect(c.HasStarted()).To(BeFalse())
+			Expect(c.HasStopped()).To(BeFalse())
+			Expect(c.IsRunning()).To(BeFalse())
+			Expect(c.IsBusy()).To(BeFalse())
 		})
 
 		It("should work after start", func() {
 			c := newCrawler()
 			c.Start()
-			Expect(c.IsWorkersRunning()).To(BeTrue())
+			defer c.Stop()
+
+			time.Sleep(sleepTime)
+			Expect(c.HasStarted()).To(BeTrue())
+			Expect(c.HasStopped()).To(BeFalse())
+			Expect(c.IsRunning()).To(BeTrue())
+			Expect(c.IsBusy()).To(BeFalse())
+		})
+
+		It("should report being busy", func() {
+			url1 := "http://domain.com/crawler/IsBusy/queuing/1"
+			url2 := "http://domain.com/crawler/IsBusy/queuing/2"
+			slowResponder := t.NewSlowResponder(sleepTime)
+			httpmock.RegisterResponder("GET", url1, slowResponder)
+			httpmock.RegisterResponder("GET", url2, slowResponder)
+
+			c := newCrawler()
+			c.SetWorkerCount(uint64One)
+
+			c.QueueURL(url1)
+			c.QueueURL(url2)
+			defer c.Stop()
+			time.Sleep(sleepTime)
+
+			// should be busy queuing because url1 request is slow
+			// therefore url2 is still in the queue
+			Expect(c.IsBusy()).To(BeTrue())
+
+			// wait for url1 request to complete, consume its result
+			// in order for url2 request to start
+			c.Downloaded()
+			// should be busy downloading...
+			Expect(c.IsBusy()).To(BeTrue())
+
+			// consume url2 result
+			c.Downloaded()
+			// should no longer be busy
+			Expect(c.IsBusy()).To(BeFalse())
+		})
+
+		It("should work after stop", func() {
+			c := newCrawler()
+			c.Start()
+
+			time.Sleep(sleepTime)
+			c.Stop()
+
+			time.Sleep(sleepTime)
+			Expect(c.HasStarted()).To(BeTrue())
+			Expect(c.HasStopped()).To(BeTrue())
+			Expect(c.IsRunning()).To(BeFalse())
+			Expect(c.IsBusy()).To(BeFalse())
+		})
+
+		It("should not auto-start on stop being called", func() {
+			c := newCrawler()
+			c.Stop()
+
+			time.Sleep(sleepTime)
+			Expect(c.HasStarted()).To(BeFalse())
+			Expect(c.HasStopped()).To(BeFalse())
+		})
+
+		It("should do no op on stop being called twice", func() {
+			c := newCrawler()
+
+			c.Start()
+			time.Sleep(sleepTime)
+			Expect(c.HasStarted()).To(BeTrue())
+			Expect(c.HasStopped()).To(BeFalse())
+
+			c.Stop()
+			time.Sleep(sleepTime)
+			Expect(c.HasStarted()).To(BeTrue())
+			Expect(c.HasStopped()).To(BeTrue())
+
+			c.Stop()
+			time.Sleep(sleepTime)
+			Expect(c.HasStarted()).To(BeTrue())
+			Expect(c.HasStopped()).To(BeTrue())
 		})
 	})
 
@@ -222,13 +310,14 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.QueueURL(url)
-			downloaded := c.Next()
+			defer c.Stop()
 
+			downloaded, _ := c.Downloaded()
 			Expect(string(downloaded.BodyBytes)).To(Equal(body))
 
-			Expect(c.GetQueuedCount()).To(Equal(1))
-			Expect(c.GetDownloadedCount()).To(Equal(1))
-			Expect(c.GetLinkFoundCount()).To(Equal(0))
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64One))
+			Expect(c.GetDownloadedCount()).To(Equal(uint64One))
+			Expect(c.GetLinkFoundCount()).To(Equal(uint64Zero))
 		})
 
 		It("should queue url + found link", func() {
@@ -240,15 +329,17 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.QueueURL(url)
-			downloaded := c.Next()
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
 			Expect(downloaded.BaseURL.String()).To(Equal(url))
 
-			downloaded = c.Next()
+			downloaded, _ = c.Downloaded()
 			Expect(downloaded.BaseURL.String()).To(Equal(targetUrl))
 
-			Expect(c.GetQueuedCount()).To(Equal(2))
-			Expect(c.GetDownloadedCount()).To(Equal(2))
-			Expect(c.GetLinkFoundCount()).To(Equal(1))
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64Two))
+			Expect(c.GetDownloadedCount()).To(Equal(uint64Two))
+			Expect(c.GetLinkFoundCount()).To(Equal(uint64One))
 		})
 
 		It("should queue url + found link at depth 1", func() {
@@ -262,28 +353,29 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.QueueURL(url)
-			downloaded := c.Next()
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
 			Expect(downloaded.BaseURL.String()).To(Equal(url))
 
-			time.Sleep(sleepTime)
-			downloaded = c.NextOrNil()
+			downloaded, _ = c.Downloaded()
 			Expect(downloaded.BaseURL.String()).To(Equal(urlDepth1))
 
 			time.Sleep(sleepTime)
-			downloaded = c.NextOrNil()
-			Expect(downloaded).To(BeNil())
+			Expect(c.IsBusy()).To(BeFalse())
 
-			Expect(c.GetQueuedCount()).To(Equal(2))
-			Expect(c.GetDownloadedCount()).To(Equal(2))
-			Expect(c.GetLinkFoundCount()).To(Equal(2))
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64Two))
+			Expect(c.GetDownloadedCount()).To(Equal(uint64Two))
+			Expect(c.GetLinkFoundCount()).To(Equal(uint64Two))
 		})
 
 		It("should not queue invalid url", func() {
 			c := newCrawler()
 			err := c.QueueURL(t.InvalidURL)
+			defer c.Stop()
 
 			time.Sleep(sleepTime)
-			Expect(c.GetQueuedCount()).To(Equal(0))
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64Zero))
 			Expect(err).To(HaveOccurred())
 		})
 	})

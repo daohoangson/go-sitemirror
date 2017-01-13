@@ -5,7 +5,10 @@ import (
 	"net/http"
 	neturl "net/url"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	nbc "github.com/hectane/go-nonblockingchan"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -14,26 +17,29 @@ type crawler struct {
 	client *http.Client
 	logger *logrus.Logger
 
-	autoDownloadDepth int
-	workerCount       int
+	autoDownloadDepth uint64
+	workerCount       uint64
 
 	onURLShouldQueue *func(*neturl.URL) bool
 	onDownload       *func(*neturl.URL)
 	onDownloaded     *func(*Downloaded)
 
-	output          chan *Downloaded
-	queue           chan queueItem
-	workerStartOnce sync.Once
-	workersRunning  bool
-	queuedCount     int
-	downloadedCount int
-	linkFoundCount  int
+	output           chan *Downloaded
+	queue            *nbc.NonBlockingChan
+	workerStartOnce  sync.Once
+	workersStarted   uint64
+	workersRunning   int64
+	enqueuedCount    uint64
+	queuingCount     int64
+	downloadingCount int64
+	downloadedCount  uint64
+	linkFoundCount   uint64
 }
 
 type queueItem struct {
 	url      *neturl.URL
-	depth    int
-	workerID int
+	depth    uint64
+	workerID uint64
 }
 
 // New returns a new instance of the crawler
@@ -58,7 +64,7 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 	c.logger = logger
 }
 
-func (c *crawler) SetAutoDownloadDepth(depth int) {
+func (c *crawler) SetAutoDownloadDepth(depth uint64) {
 	c.logger.WithFields(logrus.Fields{
 		"old": c.autoDownloadDepth,
 		"new": depth,
@@ -67,16 +73,16 @@ func (c *crawler) SetAutoDownloadDepth(depth int) {
 	c.autoDownloadDepth = depth
 }
 
-func (c *crawler) GetAutoDownloadDepth() int {
+func (c *crawler) GetAutoDownloadDepth() uint64 {
 	return c.autoDownloadDepth
 }
 
-func (c *crawler) SetWorkerCount(count int) error {
+func (c *crawler) SetWorkerCount(count uint64) error {
 	if count < 1 {
 		return errors.New("workerCount must be greater than 1")
 	}
 
-	if c.workersRunning {
+	if c.HasStarted() {
 		return errors.New("Cannot SetWorkerCount after Start")
 	}
 
@@ -90,7 +96,7 @@ func (c *crawler) SetWorkerCount(count int) error {
 	return nil
 }
 
-func (c *crawler) GetWorkerCount() int {
+func (c *crawler) GetWorkerCount() uint64 {
 	return c.workerCount
 }
 
@@ -103,10 +109,10 @@ func (c *crawler) SetOnDownload(f func(*neturl.URL)) {
 }
 
 func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
-	if c.onDownloaded == nil && c.workersRunning {
+	if c.onDownloaded == nil && c.IsRunning() {
 		go func() {
 			for {
-				downloaded := c.NextOrNil()
+				downloaded := c.DownloadedNotBlocking()
 				if downloaded == nil {
 					break
 				}
@@ -119,75 +125,117 @@ func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
 	c.onDownloaded = &f
 }
 
-func (c *crawler) IsWorkersRunning() bool {
-	return c.workersRunning
+func (c *crawler) GetEnqueuedCount() uint64 {
+	return atomic.LoadUint64(&c.enqueuedCount)
 }
 
-func (c *crawler) GetQueuedCount() int {
-	return c.queuedCount
+func (c *crawler) GetDownloadedCount() uint64 {
+	return atomic.LoadUint64(&c.downloadedCount)
 }
 
-func (c *crawler) GetDownloadedCount() int {
-	return c.downloadedCount
+func (c *crawler) GetLinkFoundCount() uint64 {
+	return atomic.LoadUint64(&c.linkFoundCount)
 }
 
-func (c *crawler) GetLinkFoundCount() int {
-	return c.linkFoundCount
+func (c *crawler) HasStarted() bool {
+	return atomic.LoadUint64(&c.workersStarted) > 0
+}
+
+func (c *crawler) HasStopped() bool {
+	if !c.HasStarted() {
+		return false
+	}
+
+	return !c.IsRunning()
+}
+
+func (c *crawler) IsRunning() bool {
+	return atomic.LoadInt64(&c.workersRunning) > 0
+}
+
+func (c *crawler) IsBusy() bool {
+	queuingCount := atomic.LoadInt64(&c.queuingCount)
+	if queuingCount > 0 {
+		c.logger.WithField("queuing", queuingCount).Debug("IsBusy")
+		return true
+	}
+
+	downloadingCount := atomic.LoadInt64(&c.downloadingCount)
+	if downloadingCount > 0 {
+		c.logger.WithField("downloading", downloadingCount).Debug("IsBusy")
+		return true
+	}
+
+	c.logger.Debug("IsBusyNot")
+	return false
 }
 
 func (c *crawler) Start() {
 	c.workerStartOnce.Do(func() {
-		c.queue = make(chan queueItem)
+		workerCount := atomic.LoadUint64(&c.workerCount)
+
+		loggerContext := c.logger.WithFields(logrus.Fields{
+			"workers": workerCount,
+		})
+		loggerContext.Debug("Starting crawler")
+
+		c.queue = nbc.New()
 		c.output = make(chan *Downloaded)
-		requeue := make(chan queueItem)
 
-		go func() {
-			for item := range requeue {
-				c.queue <- item
-				c.queuedCount++
+		for i := uint64(0); i < workerCount; i++ {
+			go func(workerID uint64) {
+				atomic.AddUint64(&c.workersStarted, 1)
+				atomic.AddInt64(&c.workersRunning, 1)
 
-				c.logger.WithFields(logrus.Fields{
-					"url":    item.url,
-					"depth":  item.depth,
-					"worker": item.workerID,
-					"total":  c.queuedCount,
-				}).Debug("Auto-queued")
-			}
-		}()
+				for {
+					if v, ok := <-c.queue.Recv; ok {
+						if item, ok := v.(queueItem); ok {
+							if c.onDownload != nil {
+								(*c.onDownload)(item.url)
+							}
 
-		for i := 0; i < c.workerCount; i++ {
-			go func(workerID int) {
-				for queuedItem := range c.queue {
-					if c.onDownload != nil {
-						(*c.onDownload)(queuedItem.url)
+							downloaded := c.doDownload(workerID, item)
+
+							c.doAutoQueue(workerID, item, downloaded)
+						}
+					} else {
+						break
 					}
-
-					downloaded := c.doDownload(workerID, queuedItem)
-
-					c.doAutoQueue(workerID, queuedItem, downloaded, requeue)
 				}
+
+				atomic.AddInt64(&c.workersRunning, -1)
 			}(i + 1)
 		}
 
-		c.workersRunning = true
+		loggerContext.Info("Started crawler")
 	})
+}
+
+func (c *crawler) Stop() {
+	if !c.HasStarted() {
+		c.logger.Debug("Crawler hasn't started")
+		return
+	}
+
+	if c.HasStopped() {
+		c.logger.Debug("Crawler has already stopped")
+		return
+	}
+
+	close(c.output)
+	close(c.queue.Send)
+	c.logger.Info("Stopped crawler")
 }
 
 func (c *crawler) Queue(url *neturl.URL) {
 	c.Start()
-	c.queue <- queueItem{url: url}
-	c.queuedCount++
-
-	c.logger.WithFields(logrus.Fields{
-		"url":   url,
-		"total": c.queuedCount,
-	}).Debug("Queued")
+	c.doEnqueue(queueItem{url: url}, "Queuing")
 }
 
 func (c *crawler) QueueURL(url string) error {
 	parsedURL, err := neturl.Parse(url)
 	if err != nil {
-		c.logger.WithField("url", url).Error("Cannot download invalid url")
+		c.logger.WithField("url", url).Error("Cannot queue invalid url")
 
 		return err
 	}
@@ -196,13 +244,13 @@ func (c *crawler) QueueURL(url string) error {
 	return nil
 }
 
-func (c *crawler) Next() *Downloaded {
+func (c *crawler) Downloaded() (*Downloaded, bool) {
 	c.Start()
-	result := <-c.output
-	return result
+	result, ok := <-c.output
+	return result, ok
 }
 
-func (c *crawler) NextOrNil() *Downloaded {
+func (c *crawler) DownloadedNotBlocking() *Downloaded {
 	c.Start()
 	select {
 	case result, _ := <-c.output:
@@ -214,8 +262,26 @@ func (c *crawler) NextOrNil() *Downloaded {
 	}
 }
 
-func (c *crawler) doDownload(workerID int, item queueItem) *Downloaded {
+func (c *crawler) doEnqueue(item queueItem, logMessage string) {
+	c.logger.WithFields(logrus.Fields{
+		"url":    item.url,
+		"depth":  item.depth,
+		"worker": item.workerID,
+		"total":  c.enqueuedCount,
+	}).Debug(logMessage)
+
+	atomic.AddUint64(&c.enqueuedCount, 1)
+	atomic.AddInt64(&c.queuingCount, 1)
+
+	c.queue.Send <- item
+}
+
+func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
 	start := time.Now()
+
+	atomic.AddInt64(&c.downloadingCount, 1)
+	atomic.AddInt64(&c.queuingCount, -1)
+
 	c.logger.WithFields(logrus.Fields{
 		"worker":   workerID,
 		"url":      item.url,
@@ -224,7 +290,9 @@ func (c *crawler) doDownload(workerID int, item queueItem) *Downloaded {
 
 	downloaded := Download(c.client, item.url)
 
-	c.downloadedCount++
+	atomic.AddUint64(&c.downloadedCount, 1)
+	atomic.AddInt64(&c.downloadingCount, -1)
+
 	c.logger.WithFields(logrus.Fields{
 		"worker":     workerID,
 		"url":        downloaded.URL,
@@ -242,13 +310,13 @@ func (c *crawler) doDownload(workerID int, item queueItem) *Downloaded {
 	return downloaded
 }
 
-func (c *crawler) doAutoQueue(workerID int, item queueItem, downloaded *Downloaded, requeue chan<- queueItem) {
+func (c *crawler) doAutoQueue(workerID uint64, item queueItem, downloaded *Downloaded) {
 	linksLength := len(downloaded.Links)
 	if linksLength == 0 {
 		return
 	}
 
-	c.linkFoundCount += linksLength
+	c.linkFoundCount += uint64(linksLength)
 
 	nextDepth := item.depth + 1
 	if nextDepth > c.autoDownloadDepth {
@@ -281,6 +349,6 @@ func (c *crawler) doAutoQueue(workerID int, item queueItem, downloaded *Download
 			depth:    nextDepth,
 			workerID: workerID,
 		}
-		requeue <- newItem
+		c.doEnqueue(newItem, "Auto-queuing")
 	}
 }

@@ -12,25 +12,29 @@ import (
 type Crawler interface {
 	init(*http.Client, *logrus.Logger)
 
-	SetAutoDownloadDepth(int)
-	GetAutoDownloadDepth() int
-	SetWorkerCount(int) error
-	GetWorkerCount() int
+	SetAutoDownloadDepth(uint64)
+	GetAutoDownloadDepth() uint64
+	SetWorkerCount(uint64) error
+	GetWorkerCount() uint64
 
 	SetOnURLShouldQueue(func(*url.URL) bool)
 	SetOnDownload(func(*url.URL))
 	SetOnDownloaded(func(*Downloaded))
 
-	IsWorkersRunning() bool
-	GetQueuedCount() int
-	GetDownloadedCount() int
-	GetLinkFoundCount() int
+	GetEnqueuedCount() uint64
+	GetDownloadedCount() uint64
+	GetLinkFoundCount() uint64
+	HasStarted() bool
+	HasStopped() bool
+	IsRunning() bool
+	IsBusy() bool
 
 	Start()
+	Stop()
 	Queue(*url.URL)
 	QueueURL(string) error
-	Next() *Downloaded
-	NextOrNil() *Downloaded
+	Downloaded() (*Downloaded, bool)
+	DownloadedNotBlocking() *Downloaded
 }
 
 // Downloaded struct contains parsed data after downloading an url.

@@ -3,6 +3,7 @@ package testing
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"gopkg.in/jarcoal/httpmock.v1"
 )
@@ -39,6 +40,14 @@ func NewRedirectResponder(status int, location string) httpmock.Responder {
 	return func(req *http.Request) (*http.Response, error) {
 		resp := httpmock.NewStringResponse(status, "")
 		resp.Header.Add("Location", location)
+		return resp, nil
+	}
+}
+
+func NewSlowResponder(duration time.Duration) httpmock.Responder {
+	return func(req *http.Request) (*http.Response, error) {
+		time.Sleep(duration)
+		resp := httpmock.NewStringResponse(200, "")
 		return resp, nil
 	}
 }

@@ -1,12 +1,18 @@
 package cacher
 
-import "net/url"
+import (
+	"net/url"
+
+	"github.com/Sirupsen/logrus"
+)
 
 type Cacher interface {
-	init(cacherMode)
+	init(*logrus.Logger)
 
+	GetMode() cacherMode
 	SetPath(string)
 	GetPath() string
+
 	CheckCacheExists(*url.URL) bool
 	Write(*Input) error
 }
@@ -23,7 +29,7 @@ type Input struct {
 }
 
 const (
-	httpMode cacherMode = 1 + iota
+	HttpMode cacherMode = 1 + iota
 )
 
 type cacherMode int

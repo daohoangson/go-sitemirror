@@ -7,7 +7,7 @@ import (
 )
 
 // WriteHTTP writes cache data in http format
-func WriteHTTP(w io.Writer, input *Input) error {
+func WriteHTTP(w io.Writer, input *Input) {
 	bw := bufio.NewWriter(w)
 	defer bw.Flush()
 
@@ -22,8 +22,6 @@ func WriteHTTP(w io.Writer, input *Input) error {
 	} else if input.StatusCode >= 300 && input.StatusCode <= 399 {
 		writeHTTP3xx(bw, input)
 	}
-
-	return nil
 }
 
 func writeHTTP2xx(bw *bufio.Writer, input *Input) {

@@ -7,15 +7,26 @@ import (
 	"os"
 	"path"
 
+	"github.com/Sirupsen/logrus"
 	. "github.com/daohoangson/go-sitemirror/cacher"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Cacher", func() {
+var _ = Describe("HttpCacher", func() {
 	tmpDir := os.TempDir()
-	rootPath := tmpDir + "/_TestCacher_"
+	rootPath := tmpDir + "/_TestHttpCacher_"
+
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+
+	var newHttpCacherWithRootPath = func() Cacher {
+		c := NewHttpCacher(logger)
+		c.SetPath(rootPath)
+
+		return c
+	}
 
 	BeforeEach(func() {
 		os.Mkdir(rootPath, os.ModePerm)
@@ -26,14 +37,20 @@ var _ = Describe("Cacher", func() {
 	})
 
 	It("should use working directory as default path", func() {
-		c := NewHttpCacher()
+		c := NewHttpCacher(nil)
 		wd, _ := os.Getwd()
 
 		Expect(c.GetPath()).To(Equal(wd))
 	})
 
+	It("should return cacher mode", func() {
+		c := newHttpCacherWithRootPath()
+
+		Expect(c.GetMode()).To(Equal(HttpMode))
+	})
+
 	It("should set path", func() {
-		c := NewHttpCacher()
+		c := NewHttpCacher(logger)
 		c.SetPath(rootPath)
 
 		Expect(c.GetPath()).To(Equal(rootPath))
@@ -48,8 +65,7 @@ var _ = Describe("Cacher", func() {
 			f, _ := os.Create(cachePath)
 			f.Close()
 
-			c := NewHttpCacher()
-			c.SetPath(rootPath)
+			c := newHttpCacherWithRootPath()
 
 			Expect(c.CheckCacheExists(url)).To(BeTrue())
 		})
@@ -57,8 +73,21 @@ var _ = Describe("Cacher", func() {
 		It("should report cache not exists", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/not/exists")
 
-			c := NewHttpCacher()
-			c.SetPath(rootPath)
+			c := newHttpCacherWithRootPath()
+
+			Expect(c.CheckCacheExists(url)).To(BeFalse())
+		})
+
+		It("should report cache not exists (dir as file)", func() {
+			url, _ := url.Parse("http://domain.com/http/cacher/not/write/dir/as/file")
+			cachePath := GenerateCachePath(rootPath, url)
+			cacheDir, _ := path.Split(cachePath)
+			cacheDirParent := path.Dir(path.Dir(cacheDir))
+			os.MkdirAll(cacheDirParent, os.ModePerm)
+			cacheDirAsFile, _ := os.Create(path.Join(cacheDirParent, path.Base(cacheDir)))
+			cacheDirAsFile.Close()
+
+			c := newHttpCacherWithRootPath()
 
 			Expect(c.CheckCacheExists(url)).To(BeFalse())
 		})
@@ -70,8 +99,7 @@ var _ = Describe("Cacher", func() {
 			input := &Input{URL: url, StatusCode: 200}
 			cachePath := GenerateCachePath(rootPath, input.URL)
 
-			c := NewHttpCacher()
-			c.SetPath(rootPath)
+			c := newHttpCacherWithRootPath()
 			c.Write(input)
 
 			written, _ := ioutil.ReadFile(cachePath)
@@ -92,8 +120,7 @@ var _ = Describe("Cacher", func() {
 			cacheDirAsFile, _ := os.Create(path.Join(cacheDirParent, path.Base(cacheDir)))
 			cacheDirAsFile.Close()
 
-			c := NewHttpCacher()
-			c.SetPath(rootPath)
+			c := newHttpCacherWithRootPath()
 
 			writerError := c.Write(input)
 			Expect(writerError).To(HaveOccurred())
@@ -113,8 +140,7 @@ var _ = Describe("Cacher", func() {
 			f.WriteString(content)
 			f.Close()
 
-			c := NewHttpCacher()
-			c.SetPath(rootPath)
+			c := newHttpCacherWithRootPath()
 
 			writerError := c.Write(input)
 			Expect(writerError).To(HaveOccurred())

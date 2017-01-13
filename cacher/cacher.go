@@ -1,39 +1,53 @@
 package cacher
 
 import (
-	"errors"
 	neturl "net/url"
 	"os"
+
+	"github.com/Sirupsen/logrus"
 )
 
-type cacher struct {
-	mode cacherMode
+type httpCacher struct {
+	logger *logrus.Logger
+
 	path string
 }
 
-func NewHttpCacher() Cacher {
-	c := &cacher{}
-	c.init(httpMode)
+func NewHttpCacher(logger *logrus.Logger) Cacher {
+	c := &httpCacher{}
+	c.init(logger)
 	return c
 }
 
-func (c *cacher) init(mode cacherMode) {
-	c.mode = mode
-
+func (c *httpCacher) init(logger *logrus.Logger) {
 	if wd, err := os.Getwd(); err == nil {
 		c.path = wd
 	}
+
+	if logger == nil {
+		logger = logrus.New()
+	}
+	c.logger = logger
 }
 
-func (c *cacher) SetPath(path string) {
+func (c *httpCacher) GetMode() cacherMode {
+	return HttpMode
+}
+
+func (c *httpCacher) SetPath(path string) {
+	c.logger.WithFields(logrus.Fields{
+		"old": c.path,
+		"new": path,
+	}).Info("Updating cacher path")
+
 	c.path = path
 }
 
-func (c *cacher) GetPath() string {
+func (c *httpCacher) GetPath() string {
 	return c.path
 }
 
-func (c *cacher) CheckCacheExists(url *neturl.URL) bool {
+func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
 	cachePath := GenerateCachePath(c.path, url)
 	_, err := os.Stat(cachePath)
 
@@ -41,21 +55,37 @@ func (c *cacher) CheckCacheExists(url *neturl.URL) bool {
 		return false
 	}
 
+	if err != nil {
+		c.logger.WithFields(logrus.Fields{
+			"url":   url,
+			"path":  cachePath,
+			"error": err,
+		}).Error("Error checking for cache existence")
+	}
+
 	return err == nil
 }
 
-func (c *cacher) Write(input *Input) error {
+func (c *httpCacher) Write(input *Input) error {
 	cachePath := GenerateCachePath(c.path, input.URL)
 	f, err := CreateFile(cachePath)
 	if err != nil {
+		c.logger.WithFields(logrus.Fields{
+			"url":   input.URL,
+			"path":  cachePath,
+			"error": err,
+		}).Error("Cannot write HTTP cache")
+
 		return err
 	}
 	defer f.Close()
 
-	switch c.mode {
-	case httpMode:
-		return WriteHTTP(f, input)
-	}
+	WriteHTTP(f, input)
 
-	return errors.New("Unknown mode")
+	c.logger.WithFields(logrus.Fields{
+		"url":  input.URL,
+		"path": cachePath,
+	}).Debug("Written HTTP cache")
+
+	return nil
 }

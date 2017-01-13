@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"net/http"
 	"net/url"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // Crawler must be created with New
 type Crawler interface {
-	init(*http.Client)
+	init(*http.Client, *logrus.Logger)
 
 	SetAutoDownloadDepth(int)
 	GetAutoDownloadDepth() int
@@ -25,8 +27,8 @@ type Crawler interface {
 	GetLinkFoundCount() int
 
 	Start()
-	Download(*url.URL)
-	DownloadURL(string) error
+	Queue(*url.URL)
+	QueueURL(string) error
 	Next() *Downloaded
 	NextOrNil() *Downloaded
 }

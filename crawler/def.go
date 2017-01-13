@@ -41,6 +41,7 @@ type Downloaded struct {
 	HeaderLocation *url.URL
 	Links          []Link
 	StatusCode     int
+	URL            *url.URL
 
 	buffer *bytes.Buffer
 }
@@ -48,8 +49,6 @@ type Downloaded struct {
 // Link struct is an extracted link from download result.
 type Link struct {
 	Context urlContext
-	Offset  int
-	Length  int
 	URL     *url.URL
 }
 

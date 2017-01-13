@@ -14,7 +14,7 @@ import (
 	htmlAtom "golang.org/x/net/html/atom"
 )
 
-var cssURIRegexp = regexp.MustCompile(`^url\((.+)\)$`)
+var cssURIRegexp = regexp.MustCompile(`^(url\(['"]?)([^'"]+)(['"]?\))$`)
 
 const htmlAttrHref = "href"
 const htmlAttrRel = "rel"
@@ -23,7 +23,7 @@ const htmlAttrSrc = "src"
 
 // Download returns parsed data after downloading the specified url.
 func Download(client *http.Client, url *neturl.URL) *Downloaded {
-	result := Downloaded{BaseURL: url, Links: make([]Link, 0)}
+	result := Downloaded{BaseURL: url, Links: make([]Link, 0), URL: url}
 
 	if client == nil {
 		result.Error = errors.New("http.Client cannot be nil")
@@ -103,8 +103,14 @@ func parseBodyCSSString(css string, result *Downloaded) error {
 
 		if token.Type == cssScanner.TokenURI {
 			if m := cssURIRegexp.FindStringSubmatch(token.Value); m != nil {
-				url := strings.Trim(m[1], `'"`)
-				result.appendURL(CSSUri, result.buffer.Len(), url)
+				before, url, after := m[1], m[2], m[3]
+				relative := result.appendURL(CSSUri, url)
+				if relative != url {
+					result.buffer.WriteString(before)
+					result.buffer.WriteString(relative)
+					result.buffer.WriteString(after)
+					continue
+				}
 			}
 		}
 
@@ -145,21 +151,32 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 	case html.StartTagToken:
 		switch token.DataAtom {
 		case htmlAtom.A:
-			parseBodyHTMLTagA(&token, raw, result)
+			if parseBodyHTMLTagA(&token, result) {
+				return false
+			}
 		case htmlAtom.Script:
-			parseBodyHTMLTagScript(&token, raw, result)
+			if parseBodyHTMLTagScript(&token, result) {
+				return false
+			}
 		case htmlAtom.Style:
-			parseBodyHTMLTagStyleAndWrite(tokenizer, result)
-			return false
+			if parseBodyHTMLTagStyle(tokenizer, result) {
+				return false
+			}
 		}
 	case html.SelfClosingTagToken:
 		switch token.DataAtom {
 		case htmlAtom.Base:
-			parseBodyHTMLTagBase(&token, result)
+			if parseBodyHTMLTagBase(&token, result) {
+				return false
+			}
 		case htmlAtom.Img:
-			parseBodyHTMLTagImg(&token, raw, result)
+			if parseBodyHTMLTagImg(&token, result) {
+				return false
+			}
 		case htmlAtom.Link:
-			parseBodyHTMLTagLink(&token, raw, result)
+			if parseBodyHTMLTagLink(&token, result) {
+				return false
+			}
 		}
 	}
 
@@ -167,35 +184,46 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 	return false
 }
 
-func parseBodyHTMLTagA(token *html.Token, raw []byte, result *Downloaded) {
+func parseBodyHTMLTagA(token *html.Token, result *Downloaded) bool {
 	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
-			offset := result.buffer.Len() + strings.Index(string(raw), attr.Val)
-			result.appendURL(HTMLTagA, offset, attr.Val)
+			relative := result.appendURL(HTMLTagA, attr.Val)
+			if relative != attr.Val {
+				return rewriteTokenAttr(token, attr.Key, relative, result)
+			}
 		}
 	}
+
+	return false
 }
 
-func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) {
+func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) bool {
 	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
 			if url, err := neturl.Parse(attr.Val); err == nil {
 				result.BaseURL = result.BaseURL.ResolveReference(url)
+				return rewriteTokenAttr(token, attr.Key, ".", result)
 			}
 		}
 	}
+
+	return false
 }
 
-func parseBodyHTMLTagImg(token *html.Token, raw []byte, result *Downloaded) {
+func parseBodyHTMLTagImg(token *html.Token, result *Downloaded) bool {
 	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrSrc {
-			offset := result.buffer.Len() + strings.Index(string(raw), attr.Val)
-			result.appendURL(HTMLTagImg, offset, attr.Val)
+			relative := result.appendURL(HTMLTagImg, attr.Val)
+			if relative != attr.Val {
+				return rewriteTokenAttr(token, attr.Key, relative, result)
+			}
 		}
 	}
+
+	return false
 }
 
-func parseBodyHTMLTagLink(token *html.Token, raw []byte, result *Downloaded) {
+func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 	var linkHref string
 	var linkRel string
 
@@ -209,24 +237,32 @@ func parseBodyHTMLTagLink(token *html.Token, raw []byte, result *Downloaded) {
 	}
 
 	if len(linkHref) > 0 {
-		offset := result.buffer.Len() + strings.Index(string(raw), linkHref)
 		switch linkRel {
 		case htmlAttrRelStylesheet:
-			result.appendURL(HTMLTagLinkStylesheet, offset, linkHref)
+			relative := result.appendURL(HTMLTagLinkStylesheet, linkHref)
+			if relative != linkHref {
+				return rewriteTokenAttr(token, htmlAttrHref, relative, result)
+			}
 		}
 	}
+
+	return false
 }
 
-func parseBodyHTMLTagScript(token *html.Token, raw []byte, result *Downloaded) {
+func parseBodyHTMLTagScript(token *html.Token, result *Downloaded) bool {
 	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrSrc {
-			offset := result.buffer.Len() + strings.Index(string(raw), attr.Val)
-			result.appendURL(HTMLTagScript, offset, attr.Val)
+			relative := result.appendURL(HTMLTagScript, attr.Val)
+			if relative != attr.Val {
+				return rewriteTokenAttr(token, attr.Key, relative, result)
+			}
 		}
 	}
+
+	return false
 }
 
-func parseBodyHTMLTagStyleAndWrite(tokenizer *html.Tokenizer, result *Downloaded) {
+func parseBodyHTMLTagStyle(tokenizer *html.Tokenizer, result *Downloaded) bool {
 	result.buffer.Write(tokenizer.Raw())
 
 	for {
@@ -236,11 +272,37 @@ func parseBodyHTMLTagStyleAndWrite(tokenizer *html.Tokenizer, result *Downloaded
 		switch tokenType {
 		case html.EndTagToken:
 			result.buffer.Write(raw)
-			return
+			return true
 		case html.TextToken:
 			parseBodyCSSString(string(raw), result)
 		}
 	}
+}
+
+func rewriteTokenAttr(token *html.Token, attrKey string, attrVal string, result *Downloaded) bool {
+	result.buffer.WriteString("<")
+	result.buffer.WriteString(token.Data)
+
+	for _, attr := range token.Attr {
+		val := attr.Val
+		if attr.Key == attrKey {
+			val = attrVal
+		}
+
+		result.buffer.WriteString(" ")
+		result.buffer.WriteString(attr.Key)
+		result.buffer.WriteString("=\"")
+		result.buffer.WriteString(html.EscapeString(val))
+		result.buffer.WriteString("\"")
+	}
+
+	if token.Type == html.SelfClosingTagToken {
+		result.buffer.WriteString(" /")
+	}
+
+	result.buffer.WriteString(">")
+
+	return true
 }
 
 func parseBodyRaw(resp *http.Response, result *Downloaded) error {
@@ -257,7 +319,7 @@ func parseRedirect(resp *http.Response, result *Downloaded) error {
 	}
 
 	result.HeaderLocation = url
-	result.appendURL(HTTP3xxLocation, 0, location)
+	result.appendURL(HTTP3xxLocation, location)
 
 	return nil
 }
@@ -271,31 +333,29 @@ func (result *Downloaded) GetResolvedURL(i int) *neturl.URL {
 	return result.BaseURL.ResolveReference(result.Links[i].URL)
 }
 
-func (result *Downloaded) appendURL(context urlContext, offset int, input string) {
+func (result *Downloaded) appendURL(context urlContext, input string) string {
+	if len(input) == 0 {
+		return input
+	}
+
 	url, err := neturl.Parse(input)
 	if err != nil {
-		return
+		return input
 	}
 
-	inputLen := len(input)
+	fullURL := result.BaseURL.ResolveReference(url)
 
-	fragmentLen := len(url.Fragment)
-	if fragmentLen > 0 {
-		// discard fragment
-		inputLen -= fragmentLen + 1
-		url.Fragment = ""
-	}
-
-	if len(url.String()) == 0 {
-		// empty url, this may happen after fragment removal
-		return
+	filteredURL, _ := neturl.Parse(fullURL.String())
+	filteredURL.Fragment = ""
+	if filteredURL.String() == result.BaseURL.String() {
+		return input
 	}
 
 	link := Link{
 		Context: context,
-		Offset:  offset,
-		Length:  inputLen,
-		URL:     url,
+		URL:     filteredURL,
 	}
 	result.Links = append(result.Links, link)
+
+	return ReduceURL(result.BaseURL, fullURL)
 }

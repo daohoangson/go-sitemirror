@@ -53,19 +53,37 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BaseURL).To(Equal(parsedURL))
+			Expect(downloaded.URL).To(Equal(parsedURL))
 		})
 
 		It("should match base href", func() {
 			url := "http://domain.com/download/url/base/href"
 			baseHref := "/some/where/else"
-			html := fmt.Sprintf("<base href=\"%s\" />", baseHref)
+			htmlTemplate := "<base href=\"%s\" />"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, baseHref))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "."))))
 			Expect(downloaded.BaseURL.String()).To(Equal("http://domain.com/some/where/else"))
+			Expect(downloaded.URL).To(Equal(parsedURL))
+		})
+
+		It("should match url on empty base href", func() {
+			url := "http://domain.com/download/url/base/href/empty"
+			html := t.NewHtmlMarkup("<base />")
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(downloaded.BaseURL).To(Equal(parsedURL))
+			Expect(downloaded.URL).To(Equal(parsedURL))
 		})
 	})
 
@@ -168,15 +186,50 @@ var _ = Describe("Download", func() {
 	Describe("Links", func() {
 		It("should pick up css url() value", func() {
 			url := "http://domain.com/download/urls/css/url"
-			targetUrl := "http://domain.com/download/target/url"
-			css := fmt.Sprintf("body{background:url('%s')}", targetUrl)
+			targetUrl := "http://domain.com/download/urls/css/target"
+			cssTemplate := "body{background:url('%s')}"
+			css := fmt.Sprintf(cssTemplate, targetUrl)
 			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(css))
+			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "target")))
+			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
+			Expect(downloaded.Links[0].Context).To(Equal(CSSUri))
+		})
+
+		It("should pick up css url() value, double quote", func() {
+			url := "http://domain.com/download/urls/css/url/double/quote"
+			targetUrl := "http://domain.com/download/urls/css/url/double/target"
+			cssTemplate := "body{background:url(\"%s\")}"
+			css := fmt.Sprintf(cssTemplate, targetUrl)
+			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "target")))
+			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
+			Expect(downloaded.Links[0].Context).To(Equal(CSSUri))
+		})
+
+		It("should pick up css url() value, no quote", func() {
+			url := "http://domain.com/download/urls/css/url/no/quote"
+			targetUrl := "http://domain.com/download/urls/css/url/no/target"
+			cssTemplate := "body{background:url(%s)}"
+			css := fmt.Sprintf(cssTemplate, targetUrl)
+			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "target")))
 			Expect(len(downloaded.Links)).To(Equal(1))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
 			Expect(downloaded.Links[0].Context).To(Equal(CSSUri))
@@ -184,15 +237,16 @@ var _ = Describe("Download", func() {
 
 		It("should pick up a href", func() {
 			url := "http://domain.com/download/urls/a"
-			targetUrl := "http://domain.com/download/target/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", targetUrl))
+			targetUrl := "http://domain.com/download/urls/target"
+			htmlTemplate := "<a href=\"%s\">Link</a><a>Anchor</a>"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "target"))))
 			Expect(len(downloaded.Links)).To(Equal(1))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
 			Expect(downloaded.Links[0].Context).To(Equal(HTMLTagA))
@@ -200,15 +254,16 @@ var _ = Describe("Download", func() {
 
 		It("should pick up script src", func() {
 			url := "http://domain.com/download/urls/script"
-			targetUrl := "http://domain.com/download/target/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<script src=\"%s\"></script>", targetUrl))
+			targetUrl := "http://domain.com/download/urls/target"
+			htmlTemplate := "<script src=\"%s\"></script><script>alert('hello world');</script>"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "target"))))
 			Expect(len(downloaded.Links)).To(Equal(1))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
 			Expect(downloaded.Links[0].Context).To(Equal(HTMLTagScript))
@@ -216,32 +271,37 @@ var _ = Describe("Download", func() {
 
 		It("should pick up inline css url() value", func() {
 			url := "http://domain.com/download/urls/inline/css/url"
-			targetUrl := "http://domain.com/download/target/url"
-			css := fmt.Sprintf("body{background:url('%s')}", targetUrl)
-			html := t.NewHtmlMarkup(fmt.Sprintf("<style>%s</style>", css))
+			targetUrl := "http://domain.com/download/urls/inline/css/target"
+			cssTemplate := "body{background:url('%s')}"
+			css := fmt.Sprintf(cssTemplate, targetUrl)
+			htmlTemplate := "<style>%s</style>"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, css))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
+			cssNew := fmt.Sprintf(cssTemplate, "target")
+			htmlNew := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, cssNew))
+			Expect(downloaded.BodyString).To(Equal(htmlNew))
 			Expect(len(downloaded.Links)).To(Equal(1))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
 			Expect(downloaded.Links[0].Context).To(Equal(CSSUri))
 		})
 
 		It("should pick up img src", func() {
-			url := "http://domain.com/download/urls/script"
-			targetUrl := "http://domain.com/download/target/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<img src=\"%s\" />", targetUrl))
+			url := "http://domain.com/download/urls/img"
+			targetUrl := "http://domain.com/download/urls/target"
+			htmlTemplate := "<img src=\"%s\" /><img />"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "target"))))
 			Expect(len(downloaded.Links)).To(Equal(1))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
 			Expect(downloaded.Links[0].Context).To(Equal(HTMLTagImg))
@@ -249,15 +309,16 @@ var _ = Describe("Download", func() {
 
 		It("should pick up link[rel=stylesheet] href", func() {
 			url := "http://domain.com/download/urls/link/stylesheet"
-			targetUrl := "http://domain.com/download/target/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<link rel=\"stylesheet\" href=\"%s\" />", targetUrl))
+			targetUrl := "http://domain.com/download/urls/link/target"
+			htmlTemplate := "<link rel=\"stylesheet\" href=\"%s\" /><link />"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "target"))))
 			Expect(len(downloaded.Links)).To(Equal(1))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrl))
 			Expect(downloaded.Links[0].Context).To(Equal(HTMLTagLinkStylesheet))
@@ -286,7 +347,7 @@ var _ = Describe("Download", func() {
 			targetUrlLink := "http://domain.com/download/target/url/link"
 			css := fmt.Sprintf("body{background:url('%s')}", targetUrlCssUri)
 			html := t.NewHtmlMarkup(
-				fmt.Sprintf("<a href=\"%s\">Text</a>", targetUrlA) +
+				fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrlA) +
 					fmt.Sprintf("<script src=\"%s\"></script>", targetUrlScript) +
 					fmt.Sprintf("<style>%s</style>", css) +
 					fmt.Sprintf("<img src=\"%s\" />", targetUrlImg) +
@@ -297,7 +358,6 @@ var _ = Describe("Download", func() {
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.Links)).To(Equal(5))
 
 			urls := downloaded.Links
@@ -321,9 +381,22 @@ var _ = Describe("Download", func() {
 			Expect(urls[0].Context).To(Equal(HTMLTagLinkStylesheet))
 		})
 
+		It("should not pick up an empty url", func() {
+			url := "http://domain.com/download/urls/empty/url"
+			html := t.NewHtmlMarkup("<a href=\"\">Link</a>")
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(len(downloaded.Links)).To(Equal(0))
+		})
+
 		It("should not pick up an invalid url", func() {
 			url := "http://domain.com/download/urls/invalid/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", t.InvalidUrl))
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", t.InvalidUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
@@ -336,24 +409,25 @@ var _ = Describe("Download", func() {
 
 		It("should not pick up url #fragment part", func() {
 			url := "http://domain.com/download/urls/fragment"
-			targetUrlBase := "http://domain.com/download/target?a=b"
-			targetUrl := targetUrlBase + "#foo=bar"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Text</a>", targetUrl))
+			targetUrlBase := "http://domain.com/download/urls/target"
+			fragment := "#foo=bar"
+			targetUrl := targetUrlBase + fragment
+			htmlTemplate := "<a href=\"%s\">Link</a>"
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "target"+fragment))))
 			Expect(len(downloaded.Links)).To(Equal(1))
-			Expect(downloaded.Links[0].Length).To(Equal(len(targetUrlBase)))
 			Expect(downloaded.Links[0].URL.String()).To(Equal(targetUrlBase))
 		})
 
 		It("should not pick up #fragment only url", func() {
 			url := "http://domain.com/download/urls/fragment/only"
-			html := t.NewHtmlMarkup("<a href=\"#\">Text</a>")
+			html := t.NewHtmlMarkup("<a href=\"#\">Link</a>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)

@@ -23,8 +23,34 @@ var _ = Describe("Download", func() {
 		httpmock.DeactivateAndReset()
 	})
 
+	It("should not work with nil http.Client", func() {
+		url := "http://domain.com/client/nil"
+
+		parsedURL, _ := neturl.Parse(url)
+		Expect(parsedURL).ToNot(BeNil())
+		downloaded := Download(nil, parsedURL)
+
+		Expect(downloaded.Error).To(HaveOccurred())
+	})
+
+	It("should not work with nil url.URL", func() {
+		downloaded := Download(http.DefaultClient, nil)
+
+		Expect(downloaded.Error).To(HaveOccurred())
+	})
+
 	It("should not work with relative url", func() {
 		url := "relative/url/"
+		parsedURL, _ := neturl.Parse(url)
+
+		Expect(parsedURL).ToNot(BeNil())
+		downloaded := Download(http.DefaultClient, parsedURL)
+
+		Expect(downloaded.Error).To(HaveOccurred())
+	})
+
+	It("should not work with non http/https url", func() {
+		url := "ftp://domain.com/non/http/url"
 		parsedURL, _ := neturl.Parse(url)
 
 		Expect(parsedURL).ToNot(BeNil())
@@ -171,7 +197,7 @@ var _ = Describe("Download", func() {
 			// the location header itself and trigger error too soon
 			status := 399
 			url := "http://domain.com/download/header/location/invalid"
-			targetUrl := t.InvalidUrl
+			targetUrl := t.InvalidURL
 			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(status, targetUrl))
 
 			parsedURL, _ := neturl.Parse(url)
@@ -341,6 +367,8 @@ var _ = Describe("Download", func() {
 		It("should pick up multiple urls", func() {
 			url := "http://domain.com/download/urls/multiple"
 			targetUrlA := "http://domain.com/download/target/url/a"
+			targetUrlAHttps := "https://domain.com/download/target/url/a/https"
+			targetUrlAProtocolRelative := "//domain.com/download/target/url/a/protocol/relative"
 			targetUrlScript := "http://domain.com/download/target/url/script"
 			targetUrlCssUri := "http://domain.com/download/target/url/css/uri"
 			targetUrlImg := "http://domain.com/download/target/url/img"
@@ -348,6 +376,8 @@ var _ = Describe("Download", func() {
 			css := fmt.Sprintf("body{background:url('%s')}", targetUrlCssUri)
 			html := t.NewHtmlMarkup(
 				fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrlA) +
+					fmt.Sprintf("<a href=\"%s\">Link HTTPS</a>", targetUrlAHttps) +
+					fmt.Sprintf("<a href=\"%s\">Link protocol relative</a>", targetUrlAProtocolRelative) +
 					fmt.Sprintf("<script src=\"%s\"></script>", targetUrlScript) +
 					fmt.Sprintf("<style>%s</style>", css) +
 					fmt.Sprintf("<img src=\"%s\" />", targetUrlImg) +
@@ -358,10 +388,18 @@ var _ = Describe("Download", func() {
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(len(downloaded.Links)).To(Equal(5))
+			Expect(len(downloaded.Links)).To(Equal(7))
 
 			urls := downloaded.Links
 			Expect(urls[0].URL.String()).To(Equal(targetUrlA))
+			Expect(urls[0].Context).To(Equal(HTMLTagA))
+
+			urls = urls[1:]
+			Expect(urls[0].URL.String()).To(Equal(targetUrlAHttps))
+			Expect(urls[0].Context).To(Equal(HTMLTagA))
+
+			urls = urls[1:]
+			Expect(urls[0].URL.String()).To(Equal("http:" + targetUrlAProtocolRelative))
 			Expect(urls[0].Context).To(Equal(HTMLTagA))
 
 			urls = urls[1:]
@@ -381,7 +419,7 @@ var _ = Describe("Download", func() {
 			Expect(urls[0].Context).To(Equal(HTMLTagLinkStylesheet))
 		})
 
-		It("should not pick up an empty url", func() {
+		It("should not pick up empty url", func() {
 			url := "http://domain.com/download/urls/empty/url"
 			html := t.NewHtmlMarkup("<a href=\"\">Link</a>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
@@ -394,9 +432,35 @@ var _ = Describe("Download", func() {
 			Expect(len(downloaded.Links)).To(Equal(0))
 		})
 
-		It("should not pick up an invalid url", func() {
+		It("should not pick up invalid url", func() {
 			url := "http://domain.com/download/urls/invalid/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", t.InvalidUrl))
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", t.InvalidURL))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(len(downloaded.Links)).To(Equal(0))
+		})
+
+		It("should not pick up non http/https url", func() {
+			url := "http://domain.com/download/urls/non/http/url"
+			html := t.NewHtmlMarkup("<a href=\"ftp://domain.com/non/http/url\">Link</a>")
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+			Expect(len(downloaded.Links)).To(Equal(0))
+		})
+
+		It("should not pick up data uri", func() {
+			url := "http://domain.com/download/urls/data/uri"
+			html := t.NewHtmlMarkup(fmt.Sprintf("<img src=\"%s\" />", t.TransparentDataURI))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)

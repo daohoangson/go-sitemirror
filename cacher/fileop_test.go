@@ -64,26 +64,24 @@ var _ = Describe("Fileop", func() {
 
 		const rootPath = "/GenerateCachePath"
 
-		It("should keep url scheme + host + path", func() {
-			scheme := "http"
-			hostAndDir := "domain.com/fileop/keep/scheme/host/path"
+		It("should keep url host + path", func() {
+			hostAndDir := "domain.com/fileop/keep/host/path"
 			file := "file"
-			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file)
+			url, _ := url.Parse("http://" + hostAndDir + "/" + file)
 			path := GenerateCachePath(rootPath, url)
 
-			Expect(path).To(HavePrefix(rootPath + "/" + scheme + "/" + hostAndDir + "/"))
+			Expect(path).To(HavePrefix(rootPath + "/" + hostAndDir + "/"))
 			Expect(path).To(HaveSuffix("/" + file))
 		})
 
 		It("should keep query", func() {
-			scheme := "http"
 			hostAndDir := "domain.com/fileop/keep/scheme/host/path"
 			file := "file"
 			query := "foo=bar"
-			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
+			url, _ := url.Parse("http://" + hostAndDir + "/" + file + "?" + query)
 			path := GenerateCachePath(rootPath, url)
 
-			Expect(path).To(HavePrefix(rootPath + "/" + scheme + "/" + hostAndDir + "/" + query + "/"))
+			Expect(path).To(HavePrefix(rootPath + "/" + hostAndDir + "/" + query + "/"))
 			Expect(path).To(HaveSuffix("/" + file))
 		})
 

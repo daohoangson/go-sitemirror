@@ -27,7 +27,6 @@ func GenerateCachePath(rootPath string, url *url.URL) string {
 
 	path := path.Join(
 		rootPath,
-		url.Scheme,
 		url.Host,
 		dir,
 		queryPath,

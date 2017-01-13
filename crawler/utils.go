@@ -7,9 +7,20 @@ import (
 )
 
 func ReduceURL(base *neturl.URL, url *neturl.URL) string {
-	if base.Host != url.Host {
+	if !base.IsAbs() ||
+		!url.IsAbs() ||
+		base.Host != url.Host {
 		// no hope to reduce the url
 		return url.String()
+	}
+
+	if base.Scheme != url.Scheme {
+		if strings.Index(base.Scheme, "http") == 0 &&
+			strings.Index(url.Scheme, "http") == 0 {
+			// consider http/https to be the same
+		} else {
+			return url.String()
+		}
 	}
 
 	reduced, _ := neturl.Parse(url.String())

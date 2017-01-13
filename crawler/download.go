@@ -40,6 +40,11 @@ func Download(client *http.Client, url *neturl.URL) *Downloaded {
 		return &result
 	}
 
+	if url.Scheme != "http" && url.Scheme != "https" {
+		result.Error = errors.New("URL scheme must be http/https")
+		return &result
+	}
+
 	// http://stackoverflow.com/questions/23297520/how-can-i-make-the-go-http-client-not-follow-redirects-automatically
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// do not follow redirects
@@ -344,6 +349,9 @@ func (result *Downloaded) appendURL(context urlContext, input string) string {
 	}
 
 	fullURL := result.BaseURL.ResolveReference(url)
+	if fullURL.Scheme != "http" && fullURL.Scheme != "https" {
+		return input
+	}
 
 	filteredURL, _ := neturl.Parse(fullURL.String())
 	filteredURL.Fragment = ""

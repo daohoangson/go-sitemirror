@@ -11,9 +11,33 @@ import (
 
 var _ = Describe("Utils", func() {
 	Describe("ReduceURL", func() {
-		It("should keep absolute url", func() {
-			url1, _ := neturl.Parse("http://domain.com/reduce/url/absolute")
-			url2, _ := neturl.Parse("http://domain2.com/something/else")
+		It("should keep url intact if base is not absolute", func() {
+			url1, _ := neturl.Parse("reduce/base/not/absolute")
+			url2, _ := neturl.Parse("http://domain.com/hi")
+			reduced := ReduceURL(url1, url2)
+
+			Expect(reduced).To(Equal(url2.String()))
+		})
+
+		It("should keep url intact if url is not absolute", func() {
+			url1, _ := neturl.Parse("http://domain.com/reduce/url/not/absolute")
+			url2, _ := neturl.Parse("hi")
+			reduced := ReduceURL(url1, url2)
+
+			Expect(reduced).To(Equal(url2.String()))
+		})
+
+		It("should keep url intact if scheme mismatched", func() {
+			url1, _ := neturl.Parse("http://domain.com/reduce/url/not/absolute")
+			url2, _ := neturl.Parse("ftp://domain.com/hi")
+			reduced := ReduceURL(url1, url2)
+
+			Expect(reduced).To(Equal(url2.String()))
+		})
+
+		It("should keep url intact if host mismatched", func() {
+			url1, _ := neturl.Parse("http://domain.com/reduce/url/not/absolute")
+			url2, _ := neturl.Parse("http://domain2.com/hi")
 			reduced := ReduceURL(url1, url2)
 
 			Expect(reduced).To(Equal(url2.String()))
@@ -25,6 +49,22 @@ var _ = Describe("Utils", func() {
 			reduced := ReduceURL(url1, url2)
 
 			Expect(reduced).To(Equal("hi"))
+		})
+
+		It("should do relative http->https", func() {
+			url1, _ := neturl.Parse("http://domain.com/reduce/url/relative/http/https")
+			url2, _ := neturl.Parse("https://domain.com/reduce/url/hi")
+			reduced := ReduceURL(url1, url2)
+
+			Expect(reduced).To(Equal("../../hi"))
+		})
+
+		It("should do relative https->http", func() {
+			url1, _ := neturl.Parse("https://domain.com/reduce/url/relative/http/https")
+			url2, _ := neturl.Parse("http://domain.com/reduce/url/hi")
+			reduced := ReduceURL(url1, url2)
+
+			Expect(reduced).To(Equal("../../hi"))
 		})
 
 		It("should do relative with slash", func() {

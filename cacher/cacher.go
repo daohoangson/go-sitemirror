@@ -89,3 +89,21 @@ func (c *httpCacher) Write(input *Input) error {
 
 	return nil
 }
+
+func (c *httpCacher) Delete(url *neturl.URL) error {
+	cachePath := GenerateCachePath(c.path, url)
+	err := os.Remove(cachePath)
+
+	loggerContext := c.logger.WithFields(logrus.Fields{
+		"url":  url,
+		"path": cachePath,
+	})
+
+	if err == nil {
+		loggerContext.Info("Deleted cache")
+	} else {
+		loggerContext.WithField("error", err).Error("Cannot delete cache")
+	}
+
+	return err
+}

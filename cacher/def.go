@@ -15,6 +15,7 @@ type Cacher interface {
 
 	CheckCacheExists(*url.URL) bool
 	Write(*Input) error
+	Delete(*url.URL) error
 }
 
 // Input struct to be used with cacher func

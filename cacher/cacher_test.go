@@ -93,7 +93,7 @@ var _ = Describe("HttpCacher", func() {
 		})
 	})
 
-	Describe("HttpCacher", func() {
+	Describe("Write", func() {
 		It("should write", func() {
 			url, _ := url.Parse("http://domain.com/http/cacher/write")
 			input := &Input{URL: url, StatusCode: 200}
@@ -147,6 +147,32 @@ var _ = Describe("HttpCacher", func() {
 
 			written, _ := ioutil.ReadFile(cachePath)
 			Expect(string(written)).To(Equal(content))
+		})
+	})
+
+	Describe("Delete", func() {
+		It("should delete without error", func() {
+			url, _ := url.Parse("http://domain.com/cacher/delete/ok")
+			cachePath := GenerateCachePath(rootPath, url)
+			cacheDir, _ := path.Split(cachePath)
+			os.MkdirAll(cacheDir, os.ModePerm)
+			f, _ := os.Create(cachePath)
+			f.Close()
+
+			c := newHttpCacherWithRootPath()
+			Expect(c.CheckCacheExists(url)).To(BeTrue())
+
+			err := c.Delete(url)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(c.CheckCacheExists(url)).To(BeFalse())
+		})
+
+		It("should delete with error", func() {
+			url, _ := url.Parse("http://domain.com/cacher/delete/error")
+
+			c := newHttpCacherWithRootPath()
+			err := c.Delete(url)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

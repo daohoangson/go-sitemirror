@@ -23,26 +23,26 @@ const htmlAttrSrc = "src"
 
 // Download returns parsed data after downloading the specified url.
 func Download(client *http.Client, url *neturl.URL) *Downloaded {
-	result := Downloaded{BaseURL: url, Links: make([]Link, 0), URL: url}
+	result := newDownloaded(url)
 
 	if client == nil {
 		result.Error = errors.New("http.Client cannot be nil")
-		return &result
+		return result
 	}
 
 	if url == nil {
 		result.Error = errors.New("url.URL cannot be nil")
-		return &result
+		return result
 	}
 
 	if !url.IsAbs() {
 		result.Error = errors.New("URL must be absolute")
-		return &result
+		return result
 	}
 
 	if url.Scheme != "http" && url.Scheme != "https" {
 		result.Error = errors.New("URL scheme must be http/https")
-		return &result
+		return result
 	}
 
 	// http://stackoverflow.com/questions/23297520/how-can-i-make-the-go-http-client-not-follow-redirects-automatically
@@ -54,18 +54,18 @@ func Download(client *http.Client, url *neturl.URL) *Downloaded {
 	resp, err := client.Get(url.String())
 	if err != nil {
 		result.Error = err
-		return &result
+		return result
 	}
 	defer resp.Body.Close()
 
 	result.StatusCode = resp.StatusCode
 	if result.StatusCode >= 200 && result.StatusCode <= 299 {
-		result.Error = parseBody(resp, &result)
+		result.Error = parseBody(resp, result)
 	} else if result.StatusCode >= 300 && result.StatusCode <= 399 {
-		result.Error = parseRedirect(resp, &result)
+		result.Error = parseRedirect(resp, result)
 	}
 
-	return &result
+	return result
 }
 
 func parseBody(resp *http.Response, result *Downloaded) error {
@@ -327,43 +327,4 @@ func parseRedirect(resp *http.Response, result *Downloaded) error {
 	result.appendURL(HTTP3xxLocation, location)
 
 	return nil
-}
-
-// GetResolvedURL returns resolved url for the specified link
-func (result *Downloaded) GetResolvedURL(i int) *neturl.URL {
-	if i < 0 || i >= len(result.Links) {
-		return nil
-	}
-
-	return result.BaseURL.ResolveReference(result.Links[i].URL)
-}
-
-func (result *Downloaded) appendURL(context urlContext, input string) string {
-	if len(input) == 0 {
-		return input
-	}
-
-	url, err := neturl.Parse(input)
-	if err != nil {
-		return input
-	}
-
-	fullURL := result.BaseURL.ResolveReference(url)
-	if fullURL.Scheme != "http" && fullURL.Scheme != "https" {
-		return input
-	}
-
-	filteredURL, _ := neturl.Parse(fullURL.String())
-	filteredURL.Fragment = ""
-	if filteredURL.String() == result.BaseURL.String() {
-		return input
-	}
-
-	link := Link{
-		Context: context,
-		URL:     filteredURL,
-	}
-	result.Links = append(result.Links, link)
-
-	return ReduceURL(result.BaseURL, fullURL)
 }

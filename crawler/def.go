@@ -41,7 +41,7 @@ type Downloaded struct {
 	ContentType    string
 	Error          error
 	HeaderLocation *url.URL
-	Links          []Link
+	Links          map[string]Link
 	StatusCode     int
 	URL            *url.URL
 

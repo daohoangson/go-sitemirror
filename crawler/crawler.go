@@ -261,9 +261,9 @@ func (c *crawler) doAutoQueue(workerID int, item queueItem, downloaded *Download
 		return
 	}
 
-	for j := 0; j < linksLength; j++ {
-		foundURL := downloaded.GetResolvedURL(j)
+	foundUrls := downloaded.GetResolvedURLs()
 
+	for _, foundURL := range foundUrls {
 		if c.onURLShouldQueue != nil {
 			shouldQueue := (*c.onURLShouldQueue)(foundURL)
 			if !shouldQueue {

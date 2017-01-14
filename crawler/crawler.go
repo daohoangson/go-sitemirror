@@ -311,33 +311,39 @@ func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
 }
 
 func (c *crawler) doAutoQueue(workerID uint64, item queueItem, downloaded *Downloaded) {
-	linksLength := len(downloaded.Links)
-	if linksLength == 0 {
+	// use the same depth for asset links as they are required for proper rendering
+	c.doAutoQueueURLs(workerID, downloaded.GetAssetURLs(), downloaded.URL, item.depth)
+
+	// increase depth for other discovered links
+	// they will need to satisfy depth limit before crawling
+	c.doAutoQueueURLs(workerID, downloaded.GetDiscoveredURLs(), downloaded.URL, item.depth+1)
+}
+
+func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *neturl.URL, nextDepth uint64) {
+	count := len(urls)
+	if count == 0 {
 		return
 	}
 
-	c.linkFoundCount += uint64(linksLength)
+	atomic.AddUint64(&c.linkFoundCount, uint64(count))
 
-	nextDepth := item.depth + 1
 	if nextDepth > c.autoDownloadDepth {
 		c.logger.WithFields(logrus.Fields{
 			"worker": workerID,
-			"source": downloaded.URL,
-			"links":  linksLength,
+			"source": source,
+			"links":  count,
 			"depth":  nextDepth,
 		}).Info("Skipped because they are too deep")
 		return
 	}
 
-	foundUrls := downloaded.GetResolvedURLs()
-
-	for _, foundURL := range foundUrls {
+	for _, url := range urls {
 		if c.onURLShouldQueue != nil {
-			shouldQueue := (*c.onURLShouldQueue)(foundURL)
+			shouldQueue := (*c.onURLShouldQueue)(url)
 			if !shouldQueue {
 				c.logger.WithFields(logrus.Fields{
 					"worker": workerID,
-					"url":    foundURL,
+					"url":    url,
 					"depth":  nextDepth,
 				}).Debug("Skipped as instructed by onURLShouldQueue")
 				continue
@@ -345,7 +351,7 @@ func (c *crawler) doAutoQueue(workerID uint64, item queueItem, downloaded *Downl
 		}
 
 		newItem := queueItem{
-			url:      foundURL,
+			url:      url,
 			depth:    nextDepth,
 			workerID: workerID,
 		}

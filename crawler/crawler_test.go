@@ -369,6 +369,56 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64Two))
 		})
 
+		It("should queue url without found link (auto download depth = 0)", func() {
+			url := "http://domain.com/crawler/download/no/link"
+			targetUrl := "http://domain.com/crawler/download/no/link/target"
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			c := newCrawler()
+			c.SetAutoDownloadDepth(uint64Zero)
+			c.QueueURL(url)
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
+			Expect(downloaded.BaseURL.String()).To(Equal(url))
+
+			time.Sleep(sleepTime)
+			Expect(c.IsBusy()).To(BeFalse())
+
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64One))
+			Expect(c.GetDownloadedCount()).To(Equal(uint64One))
+			Expect(c.GetLinkFoundCount()).To(Equal(uint64One))
+		})
+
+		It("should queue url + found asset, but not link (auto download depth = 0)", func() {
+			url := "http://domain.com/crawl/download/asset/not/link"
+			urlAsset := "http://domain.com/crawl/download/asset"
+			urlLink := "http://domain.com/crawl/download/link"
+			html := t.NewHtmlMarkup(fmt.Sprintf("<script src=\"%s\">"+
+				"</script><a href=\"%s\">Link</a>", urlAsset, urlLink))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", urlAsset, httpmock.NewStringResponder(200, "foo/bar"))
+
+			c := newCrawler()
+			c.SetAutoDownloadDepth(uint64Zero)
+			c.QueueURL(url)
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
+			Expect(downloaded.BaseURL.String()).To(Equal(url))
+
+			downloaded, _ = c.Downloaded()
+			Expect(downloaded.BaseURL.String()).To(Equal(urlAsset))
+
+			time.Sleep(sleepTime)
+			Expect(c.IsBusy()).To(BeFalse())
+
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64Two))
+			Expect(c.GetDownloadedCount()).To(Equal(uint64Two))
+			Expect(c.GetLinkFoundCount()).To(Equal(uint64Two))
+		})
+
 		It("should not queue invalid url", func() {
 			c := newCrawler()
 			err := c.QueueURL(t.InvalidURL)

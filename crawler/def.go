@@ -39,15 +39,16 @@ type Crawler interface {
 
 // Downloaded struct contains parsed data after downloading an url.
 type Downloaded struct {
-	BaseURL        *url.URL
-	BodyString     string
-	BodyBytes      []byte
-	ContentType    string
-	Error          error
-	HeaderLocation *url.URL
-	Links          map[string]Link
-	StatusCode     int
-	URL            *url.URL
+	BaseURL         *url.URL
+	BodyString      string
+	BodyBytes       []byte
+	ContentType     string
+	Error           error
+	HeaderLocation  *url.URL
+	LinksAssets     map[string]Link
+	LinksDiscovered map[string]Link
+	StatusCode      int
+	URL             *url.URL
 
 	buffer *bytes.Buffer
 }

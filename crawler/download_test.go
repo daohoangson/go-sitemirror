@@ -222,9 +222,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "./target")))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(CSSUri))
 			}
@@ -242,9 +242,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "./target")))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(CSSUri))
 			}
@@ -262,9 +262,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "./target")))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(CSSUri))
 			}
@@ -282,9 +282,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksDiscovered {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTMLTagA))
 			}
@@ -302,9 +302,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTMLTagLinkStylesheet))
 			}
@@ -322,9 +322,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTMLTagScript))
 			}
@@ -340,7 +340,8 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup("<script></script>")))
-			Expect(len(downloaded.Links)).To(Equal(0))
+			Expect(len(downloaded.LinksAssets)).To(Equal(0))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 
 		It("should pick up inline css url() value", func() {
@@ -359,9 +360,9 @@ var _ = Describe("Download", func() {
 			cssNew := fmt.Sprintf(cssTemplate, "./target")
 			htmlNew := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, cssNew))
 			Expect(downloaded.BodyString).To(Equal(htmlNew))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(CSSUri))
 			}
@@ -379,9 +380,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTMLTagImg))
 			}
@@ -399,9 +400,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTMLTagLinkStylesheet))
 			}
@@ -416,9 +417,9 @@ var _ = Describe("Download", func() {
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksDiscovered {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTTP3xxLocation))
 			}
@@ -433,7 +434,6 @@ var _ = Describe("Download", func() {
 			targetUrlCssUri := "http://domain.com/download/target/url/css/uri"
 			targetUrlImg := "http://domain.com/download/target/url/img"
 			targetUrlLink := "http://domain.com/download/target/url/link"
-			targetCount := 7
 			css := fmt.Sprintf("body{background:url('%s')}", targetUrlCssUri)
 			html := t.NewHtmlMarkup(
 				fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrlA) +
@@ -449,10 +449,27 @@ var _ = Describe("Download", func() {
 			Expect(parsedURL).ToNot(BeNil())
 			downloaded := Download(http.DefaultClient, parsedURL)
 
-			Expect(len(downloaded.Links)).To(Equal(targetCount))
+			Expect(len(downloaded.LinksAssets)).To(Equal(4))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(3))
 
 			found := make(map[string]bool)
-			for url, link := range downloaded.Links {
+
+			for url, link := range downloaded.LinksAssets {
+				found[url] = true
+
+				switch url {
+				case targetUrlScript:
+					Expect(link.Context).To(Equal(HTMLTagScript))
+				case targetUrlCssUri:
+					Expect(link.Context).To(Equal(CSSUri))
+				case targetUrlImg:
+					Expect(link.Context).To(Equal(HTMLTagImg))
+				case targetUrlLink:
+					Expect(link.Context).To(Equal(HTMLTagLinkStylesheet))
+				}
+			}
+
+			for url, link := range downloaded.LinksDiscovered {
 				found[url] = true
 
 				switch url {
@@ -462,15 +479,6 @@ var _ = Describe("Download", func() {
 					Expect(link.Context).To(Equal(HTMLTagA))
 				case "http:" + targetUrlAProtocolRelative:
 					Expect(link.Context).To(Equal(HTMLTagA))
-				case targetUrlScript:
-					Expect(link.Context).To(Equal(HTMLTagScript))
-				case targetUrlCssUri:
-					Expect(link.Context).To(Equal(CSSUri))
-				case targetUrlImg:
-					Expect(link.Context).To(Equal(HTMLTagImg))
-				case targetUrlLink:
-					Expect(link.Context).To(Equal(HTMLTagLinkStylesheet))
-
 				}
 			}
 
@@ -479,7 +487,7 @@ var _ = Describe("Download", func() {
 				foundCount++
 			}
 
-			Expect(foundCount).To(Equal(targetCount))
+			Expect(foundCount).To(Equal(7))
 		})
 
 		It("should not pick up empty url", func() {
@@ -492,7 +500,8 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(html))
-			Expect(len(downloaded.Links)).To(Equal(0))
+			Expect(len(downloaded.LinksAssets)).To(Equal(0))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 
 		It("should not pick up invalid url", func() {
@@ -505,7 +514,8 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(html))
-			Expect(len(downloaded.Links)).To(Equal(0))
+			Expect(len(downloaded.LinksAssets)).To(Equal(0))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 
 		It("should not pick up non http/https url", func() {
@@ -518,7 +528,8 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(html))
-			Expect(len(downloaded.Links)).To(Equal(0))
+			Expect(len(downloaded.LinksAssets)).To(Equal(0))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 
 		It("should not pick up data uri", func() {
@@ -531,7 +542,8 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(html))
-			Expect(len(downloaded.Links)).To(Equal(0))
+			Expect(len(downloaded.LinksAssets)).To(Equal(0))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 
 		It("should not pick up url #fragment part", func() {
@@ -548,9 +560,9 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"+fragment))))
-			Expect(len(downloaded.Links)).To(Equal(1))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
 
-			for _, link := range downloaded.Links {
+			for _, link := range downloaded.LinksDiscovered {
 				Expect(link.URL.String()).To(Equal(targetUrlBase))
 			}
 		})
@@ -565,7 +577,8 @@ var _ = Describe("Download", func() {
 			downloaded := Download(http.DefaultClient, parsedURL)
 
 			Expect(downloaded.BodyString).To(Equal(html))
-			Expect(len(downloaded.Links)).To(Equal(0))
+			Expect(len(downloaded.LinksAssets)).To(Equal(0))
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 	})
 

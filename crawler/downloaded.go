@@ -4,23 +4,36 @@ import (
 	neturl "net/url"
 )
 
-func (d *Downloaded) GetResolvedURLs() []*neturl.URL {
-	resolvedURLs := make([]*neturl.URL, len(d.Links))
+func (d *Downloaded) GetAssetURLs() []*neturl.URL {
+	urls := make([]*neturl.URL, len(d.LinksAssets))
 
 	i := 0
-	for _, link := range d.Links {
-		resolvedURLs[i] = d.BaseURL.ResolveReference(link.URL)
+	for _, link := range d.LinksAssets {
+		urls[i] = d.BaseURL.ResolveReference(link.URL)
 		i++
 	}
 
-	return resolvedURLs
+	return urls
+}
+
+func (d *Downloaded) GetDiscoveredURLs() []*neturl.URL {
+	urls := make([]*neturl.URL, len(d.LinksDiscovered))
+
+	i := 0
+	for _, link := range d.LinksDiscovered {
+		urls[i] = d.BaseURL.ResolveReference(link.URL)
+		i++
+	}
+
+	return urls
 }
 
 func newDownloaded(url *neturl.URL) *Downloaded {
 	d := Downloaded{
-		URL:     url,
-		BaseURL: url,
-		Links:   make(map[string]Link),
+		URL:             url,
+		BaseURL:         url,
+		LinksAssets:     make(map[string]Link),
+		LinksDiscovered: make(map[string]Link),
 	}
 
 	return &d
@@ -51,7 +64,17 @@ func (d *Downloaded) appendURL(context urlContext, input string) string {
 		Context: context,
 		URL:     filteredURL,
 	}
-	d.Links[fullURL.String()] = link
+
+	mapKey := fullURL.String()
+
+	switch context {
+	case HTMLTagA:
+		d.LinksDiscovered[mapKey] = link
+	case HTTP3xxLocation:
+		d.LinksDiscovered[mapKey] = link
+	default:
+		d.LinksAssets[mapKey] = link
+	}
 
 	return ReduceURL(d.BaseURL, fullURL)
 }

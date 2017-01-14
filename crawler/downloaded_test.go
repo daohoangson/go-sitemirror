@@ -15,45 +15,43 @@ var _ = Describe("Downloaded", func() {
 
 	BeforeEach(func() {
 		downloaded = &Downloaded{
-			BaseURL: baseUrl,
-			Links:   make(map[string]Link),
+			BaseURL:         baseUrl,
+			LinksAssets:     make(map[string]Link),
+			LinksDiscovered: make(map[string]Link),
 		}
 	})
 
-	Describe("GetResolvedURLs", func() {
+	Describe("GetAssetURLs", func() {
 		It("should return empty slice", func() {
-			urls := downloaded.GetResolvedURLs()
+			urls := downloaded.GetAssetURLs()
 			Expect(len(urls)).To(Equal(0))
 		})
 
 		It("should resolve relative url", func() {
-			linkUrl, _ := neturl.Parse("relative")
+			linkUrl, _ := neturl.Parse("relative/assets")
 			link := Link{URL: linkUrl}
-			downloaded.Links[linkUrl.String()] = link
+			downloaded.LinksAssets[linkUrl.String()] = link
 
-			urls := downloaded.GetResolvedURLs()
+			urls := downloaded.GetAssetURLs()
 			Expect(len(urls)).To(Equal(1))
-			Expect(urls[0].String()).To(Equal("http://domain.com/downloaded/relative"))
+			Expect(urls[0].String()).To(Equal("http://domain.com/downloaded/relative/assets"))
+		})
+	})
+
+	Describe("GetDiscoveredURLs", func() {
+		It("should return empty slice", func() {
+			urls := downloaded.GetDiscoveredURLs()
+			Expect(len(urls)).To(Equal(0))
 		})
 
-		It("should resolve root relative url", func() {
-			linkUrl, _ := neturl.Parse("/root/relative")
+		It("should resolve relative url", func() {
+			linkUrl, _ := neturl.Parse("relative/discovered")
 			link := Link{URL: linkUrl}
-			downloaded.Links[linkUrl.String()] = link
+			downloaded.LinksDiscovered[linkUrl.String()] = link
 
-			urls := downloaded.GetResolvedURLs()
+			urls := downloaded.GetDiscoveredURLs()
 			Expect(len(urls)).To(Equal(1))
-			Expect(urls[0].String()).To(Equal("http://domain.com/root/relative"))
-		})
-
-		It("should keep absolute url intact", func() {
-			linkUrl, _ := neturl.Parse("http://domain2.com")
-			link := Link{URL: linkUrl}
-			downloaded.Links[linkUrl.String()] = link
-
-			urls := downloaded.GetResolvedURLs()
-			Expect(len(urls)).To(Equal(1))
-			Expect(urls[0]).To(Equal(linkUrl))
+			Expect(urls[0].String()).To(Equal("http://domain.com/downloaded/relative/discovered"))
 		})
 	})
 })

@@ -38,9 +38,8 @@ type crawler struct {
 }
 
 type queueItem struct {
-	url      *neturl.URL
-	depth    uint64
-	workerID uint64
+	url   *neturl.URL
+	depth uint64
 }
 
 // New returns a new instance of the crawler
@@ -234,7 +233,9 @@ func (c *crawler) Stop() {
 
 func (c *crawler) Queue(url *neturl.URL) {
 	c.Start()
-	c.doEnqueue(queueItem{url: url}, "Queuing")
+	c.doEnqueue(queueItem{url: url})
+
+	c.logger.WithField("url", url).Info("Queued")
 }
 
 func (c *crawler) QueueURL(url string) error {
@@ -267,14 +268,7 @@ func (c *crawler) DownloadedNotBlocking() *Downloaded {
 	}
 }
 
-func (c *crawler) doEnqueue(item queueItem, logMessage string) {
-	c.logger.WithFields(logrus.Fields{
-		"url":    item.url,
-		"depth":  item.depth,
-		"worker": item.workerID,
-		"total":  c.enqueuedCount,
-	}).Debug(logMessage)
-
+func (c *crawler) doEnqueue(item queueItem) {
 	atomic.AddUint64(&c.enqueuedCount, 1)
 	atomic.AddInt64(&c.queuingCount, 1)
 
@@ -285,9 +279,8 @@ func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
 	var (
 		start         = time.Now()
 		loggerContext = c.logger.WithFields(logrus.Fields{
-			"worker":   workerID,
-			"url":      item.url,
-			"queuedBy": item.workerID,
+			"worker": workerID,
+			"url":    item.url,
 		})
 		shouldDownload = true
 		downloaded     *Downloaded
@@ -342,7 +335,15 @@ func (c *crawler) doAutoQueue(workerID uint64, item queueItem, downloaded *Downl
 }
 
 func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *neturl.URL, nextDepth uint64) {
-	count := len(urls)
+	var (
+		count         = len(urls)
+		loggerContext = c.logger.WithFields(logrus.Fields{
+			"worker": workerID,
+			"source": source,
+			"depth":  nextDepth,
+		})
+	)
+
 	if count == 0 {
 		return
 	}
@@ -350,12 +351,7 @@ func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *n
 	atomic.AddUint64(&c.linkFoundCount, uint64(count))
 
 	if nextDepth > c.autoDownloadDepth {
-		c.logger.WithFields(logrus.Fields{
-			"worker": workerID,
-			"source": source,
-			"links":  count,
-			"depth":  nextDepth,
-		}).Info("Skipped because they are too deep")
+		loggerContext.WithField("links", count).Info("Skipped because it is too deep")
 		return
 	}
 
@@ -363,20 +359,17 @@ func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *n
 		if c.onURLShouldQueue != nil {
 			shouldQueue := (*c.onURLShouldQueue)(url)
 			if !shouldQueue {
-				c.logger.WithFields(logrus.Fields{
-					"worker": workerID,
-					"url":    url,
-					"depth":  nextDepth,
-				}).Debug("Skipped as instructed by onURLShouldQueue")
+				loggerContext.WithField("url", url).Debug("Skipped as instructed by onURLShouldQueue")
 				continue
 			}
 		}
 
 		newItem := queueItem{
-			url:      url,
-			depth:    nextDepth,
-			workerID: workerID,
+			url:   url,
+			depth: nextDepth,
 		}
-		c.doEnqueue(newItem, "Auto-queuing")
+		c.doEnqueue(newItem)
+
+		loggerContext.WithField("url", url).Debug("Auto-enqueued")
 	}
 }

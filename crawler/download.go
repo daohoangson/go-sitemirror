@@ -164,7 +164,7 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 				return false
 			}
 		case htmlAtom.Script:
-			if parseBodyHTMLTagScript(&token, result) {
+			if parseBodyHTMLTagScript(tokenizer, &token, result) {
 				return false
 			}
 		case htmlAtom.Style:
@@ -258,7 +258,7 @@ func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 	return false
 }
 
-func parseBodyHTMLTagScript(token *html.Token, result *Downloaded) bool {
+func parseBodyHTMLTagScript(tokenizer *html.Tokenizer, token *html.Token, result *Downloaded) bool {
 	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrSrc {
 			relative := result.appendURL(HTMLTagScript, attr.Val)
@@ -268,7 +268,20 @@ func parseBodyHTMLTagScript(token *html.Token, result *Downloaded) bool {
 		}
 	}
 
-	return false
+	// handle inline script
+	result.buffer.Write(tokenizer.Raw())
+	for {
+		tokenType := tokenizer.Next()
+		raw := tokenizer.Raw()
+
+		switch tokenType {
+		case html.EndTagToken:
+			result.buffer.Write(raw)
+			return true
+		case html.TextToken:
+			parseBodyJsString(string(raw), result)
+		}
+	}
 }
 
 func parseBodyHTMLTagStyle(tokenizer *html.Tokenizer, result *Downloaded) bool {
@@ -286,6 +299,15 @@ func parseBodyHTMLTagStyle(tokenizer *html.Tokenizer, result *Downloaded) bool {
 			parseBodyCSSString(string(raw), result)
 		}
 	}
+}
+
+func parseBodyJsString(js string, result *Downloaded) {
+	if strings.Index(js, "getElementsByTagName('base')") > -1 {
+		// skip inline js that deals with <base />
+		return
+	}
+
+	result.buffer.WriteString(js)
 }
 
 func rewriteTokenAttr(token *html.Token, attrKey string, attrVal string, result *Downloaded) bool {

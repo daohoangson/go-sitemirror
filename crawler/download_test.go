@@ -330,6 +330,19 @@ var _ = Describe("Download", func() {
 			}
 		})
 
+		It("should remove inline script with base", func() {
+			url := "http://domain.com/download/urls/script"
+			html := t.NewHtmlMarkup("<script>document.getElementsByTagName('base').something();</script>")
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup("<script></script>")))
+			Expect(len(downloaded.Links)).To(Equal(0))
+		})
+
 		It("should pick up inline css url() value", func() {
 			url := "http://domain.com/download/urls/inline/css/url"
 			targetUrl := "http://domain.com/download/urls/inline/css/target"

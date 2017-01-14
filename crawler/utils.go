@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"fmt"
 	neturl "net/url"
 	"path"
 	"strings"
@@ -29,12 +30,17 @@ func ReduceURL(base *neturl.URL, url *neturl.URL) string {
 
 	lcp := LongestCommonPrefix(base.Path, reduced.Path)
 
-	basePathLeft := base.Path[len(lcp):]
-	basePathParts := strings.Split(basePathLeft, "/")
+	basePathRemaining := base.Path[len(lcp):]
+	basePathDir, _ := path.Split(basePathRemaining)
+	basePathParts := strings.Split(basePathDir, "/")
 
 	urlPath := reduced.Path[len(lcp):]
-	for i := 1; i < len(basePathParts); i++ {
-		urlPath = path.Join("..", urlPath)
+	if len(basePathParts) > 1 {
+		for i := 1; i < len(basePathParts); i++ {
+			urlPath = path.Join("..", urlPath)
+		}
+	} else {
+		urlPath = fmt.Sprintf("./%s", strings.TrimLeft(urlPath, "/"))
 	}
 	reduced.Path = urlPath
 
@@ -65,7 +71,7 @@ func LongestCommonPrefix(path1 string, path2 string) string {
 		}
 		partLen := index + 1
 
-		if i+partLen >= lenSorter || x[i:i+partLen] != y[i:i+partLen] {
+		if i+partLen > lenSorter || x[i:i+partLen] != y[i:i+partLen] {
 			return x[:i]
 		}
 

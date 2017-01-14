@@ -20,9 +20,10 @@ type crawler struct {
 	autoDownloadDepth uint64
 	workerCount       uint64
 
-	onURLShouldQueue *func(*neturl.URL) bool
-	onDownload       *func(*neturl.URL)
-	onDownloaded     *func(*Downloaded)
+	onURLShouldQueue    *func(*neturl.URL) bool
+	onURLShouldDownload *func(*neturl.URL) bool
+	onDownload          *func(*neturl.URL)
+	onDownloaded        *func(*Downloaded)
 
 	output           chan *Downloaded
 	queue            *nbc.NonBlockingChan
@@ -102,6 +103,10 @@ func (c *crawler) GetWorkerCount() uint64 {
 
 func (c *crawler) SetOnURLShouldQueue(f func(*neturl.URL) bool) {
 	c.onURLShouldQueue = &f
+}
+
+func (c *crawler) SetOnURLShouldDownload(f func(*neturl.URL) bool) {
+	c.onURLShouldDownload = &f
 }
 
 func (c *crawler) SetOnDownload(f func(*neturl.URL)) {
@@ -277,40 +282,57 @@ func (c *crawler) doEnqueue(item queueItem, logMessage string) {
 }
 
 func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
-	start := time.Now()
+	var (
+		start         = time.Now()
+		loggerContext = c.logger.WithFields(logrus.Fields{
+			"worker":   workerID,
+			"url":      item.url,
+			"queuedBy": item.workerID,
+		})
+		shouldDownload = true
+		downloaded     *Downloaded
+	)
 
 	atomic.AddInt64(&c.downloadingCount, 1)
 	atomic.AddInt64(&c.queuingCount, -1)
 
-	c.logger.WithFields(logrus.Fields{
-		"worker":   workerID,
-		"url":      item.url,
-		"queuedBy": item.workerID,
-	}).Debug("Downloading")
+	if c.onURLShouldDownload != nil {
+		shouldDownload = (*c.onURLShouldDownload)(item.url)
+		if !shouldDownload {
+			loggerContext.Debug("Skipped as instructed by onURLShouldDownload")
+		}
+	}
 
-	downloaded := Download(c.client, item.url)
+	if shouldDownload {
+		loggerContext.Debug("Downloading")
+		downloaded = Download(c.client, item.url)
+		atomic.AddUint64(&c.downloadedCount, 1)
+	}
 
-	atomic.AddUint64(&c.downloadedCount, 1)
 	atomic.AddInt64(&c.downloadingCount, -1)
 
-	c.logger.WithFields(logrus.Fields{
-		"worker":     workerID,
-		"url":        downloaded.URL,
-		"statusCode": downloaded.StatusCode,
-		"elapsed":    time.Since(start),
-		"total":      c.downloadedCount,
-	}).Info("Downloaded")
+	if downloaded != nil {
+		loggerContext.WithFields(logrus.Fields{
+			"statusCode": downloaded.StatusCode,
+			"elapsed":    time.Since(start),
+			"total":      c.downloadedCount,
+		}).Info("Downloaded")
 
-	if c.onDownloaded == nil {
-		c.output <- downloaded
-	} else {
-		(*c.onDownloaded)(downloaded)
+		if c.onDownloaded == nil {
+			c.output <- downloaded
+		} else {
+			(*c.onDownloaded)(downloaded)
+		}
 	}
 
 	return downloaded
 }
 
 func (c *crawler) doAutoQueue(workerID uint64, item queueItem, downloaded *Downloaded) {
+	if downloaded == nil {
+		return
+	}
+
 	// use the same depth for asset links as they are required for proper rendering
 	c.doAutoQueueURLs(workerID, downloaded.GetAssetURLs(), downloaded.URL, item.depth)
 

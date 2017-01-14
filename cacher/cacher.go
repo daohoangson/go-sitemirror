@@ -1,6 +1,7 @@
 package cacher
 
 import (
+	"io"
 	neturl "net/url"
 	"os"
 
@@ -106,4 +107,9 @@ func (c *httpCacher) Delete(url *neturl.URL) error {
 	}
 
 	return err
+}
+
+func (c *httpCacher) Open(url *neturl.URL) (io.ReadCloser, error) {
+	cachePath := GenerateCachePath(c.path, url)
+	return os.Open(cachePath)
 }

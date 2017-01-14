@@ -1,6 +1,7 @@
 package cacher
 
 import (
+	"io"
 	"net/url"
 
 	"github.com/Sirupsen/logrus"
@@ -16,6 +17,7 @@ type Cacher interface {
 	CheckCacheExists(*url.URL) bool
 	Write(*Input) error
 	Delete(*url.URL) error
+	Open(*url.URL) (io.ReadCloser, error)
 }
 
 // Input struct to be used with cacher func

@@ -6,7 +6,19 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"sort"
+)
+
+const (
+	// MaxPathNameLength some file system limits the maximum length of a file name
+	// therefore each path part should not be too long to avoid os level error
+	MaxPathNameLength = 32
+	ShortHashLength   = 6
+)
+
+var (
+	regExpSafePathName = regexp.MustCompile(`[^a-zA-Z0-9\.\-\_\=]`)
 )
 
 func CreateFile(cachePath string) (*os.File, error) {
@@ -25,13 +37,18 @@ func GenerateCachePath(rootPath string, url *url.URL) string {
 	query := url.Query()
 	queryPath := BuildQueryPath(&query)
 
+	fileSafe := file
+	if len(file) > 0 {
+		fileSafe = GetSafePathName(file)
+	}
+
 	path := path.Join(
 		rootPath,
-		url.Host,
+		GetSafePathName(url.Host),
 		dir,
 		queryPath,
-		GetShortHash(url),
-		file,
+		GetShortHash(url.Path),
+		fileSafe,
 	)
 
 	return path
@@ -44,16 +61,29 @@ func BuildQueryPath(query *url.Values) string {
 		queryValues := (*query)[queryKey]
 		sort.Strings(queryValues)
 		for _, queryValue := range queryValues {
-			queryPath = path.Join(queryPath, fmt.Sprintf("%s=%s", queryKey, queryValue))
+			queryPath = path.Join(queryPath, GetSafePathName(fmt.Sprintf("%s=%s", queryKey, queryValue)))
 		}
 	}
 
 	return queryPath
 }
 
-func GetShortHash(url *url.URL) string {
-	sum := md5.Sum([]byte(url.Path))
-	return fmt.Sprintf("%x", sum[:3])
+func GetSafePathName(name string) string {
+	name = regExpSafePathName.ReplaceAllString(name, "")
+
+	if len(name) == 0 {
+		name = GetShortHash(name)
+	} else if len(name) > MaxPathNameLength {
+		h := GetShortHash(name)
+		name = fmt.Sprintf("%s_%s", name[:MaxPathNameLength-len(h)-1], h)
+	}
+
+	return name
+}
+
+func GetShortHash(s string) string {
+	sum := md5.Sum([]byte(s))
+	return fmt.Sprintf("%x", sum[:ShortHashLength/2])
 }
 
 func getQuerySortedKeys(query *url.Values) []string {

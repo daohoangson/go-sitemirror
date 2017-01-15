@@ -162,6 +162,21 @@ var _ = Describe("Download", func() {
 
 			Expect(downloaded.BodyString).To(Equal(html))
 		})
+
+		It("should keep complicated html intact", func() {
+			url := "http://domain.com/download/body/html/complicated"
+			html := t.NewHtmlMarkup(`<div data-html="&lt;p class=&#34;something-else&#34;&gt;HTML&lt;/p&gt;"` +
+				` class="something"` +
+				` style="font-family:'Noto Sans',sans-serif;"` +
+				`>Text</div>`)
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(html))
+		})
 	})
 
 	Describe("ContentType", func() {
@@ -344,9 +359,9 @@ var _ = Describe("Download", func() {
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})
 
-		It("should pick up inline css url() value", func() {
-			url := "http://domain.com/download/urls/inline/css/url"
-			targetUrl := "http://domain.com/download/urls/inline/css/target"
+		It("should pick up internal css url() value", func() {
+			url := "http://domain.com/download/urls/internal/css/url"
+			targetUrl := "http://domain.com/download/urls/internal/css/target"
 			cssTemplate := "body{background:url('%s')}"
 			css := fmt.Sprintf(cssTemplate, targetUrl)
 			htmlTemplate := "<style>%s</style>"
@@ -405,6 +420,30 @@ var _ = Describe("Download", func() {
 			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
 				Expect(link.Context).To(Equal(HTMLTagLinkStylesheet))
+			}
+		})
+
+		It("should pick up inline css url() value", func() {
+			url := "http://domain.com/download/urls/inline/css/url"
+			targetUrl := "http://domain.com/download/urls/inline/css/target"
+			cssTemplate := "background:url('%s')"
+			css := fmt.Sprintf(cssTemplate, targetUrl)
+			htmlTemplate := `<div style="%s"></style>`
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, css))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			cssNew := fmt.Sprintf(cssTemplate, "./target")
+			htmlNew := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, cssNew))
+			Expect(downloaded.BodyString).To(Equal(htmlNew))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
+
+			for _, link := range downloaded.LinksAssets {
+				Expect(link.URL.String()).To(Equal(targetUrl))
+				Expect(link.Context).To(Equal(CSSUri))
 			}
 		})
 

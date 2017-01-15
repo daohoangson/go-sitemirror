@@ -150,7 +150,6 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 	}
 
 	token := tokenizer.Token()
-	raw := tokenizer.Raw()
 
 	switch tokenType {
 	case html.StartTagToken:
@@ -172,6 +171,9 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 				return false
 			}
 		}
+
+		rewriteTokenAttr(&token, result)
+		return false
 	case html.SelfClosingTagToken:
 		switch token.DataAtom {
 		case htmlAtom.Base:
@@ -187,18 +189,22 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 				return false
 			}
 		}
+
+		rewriteTokenAttr(&token, result)
+		return false
 	}
 
-	result.buffer.Write(raw)
+	result.buffer.Write(tokenizer.Raw())
 	return false
 }
 
 func parseBodyHTMLTagA(token *html.Token, result *Downloaded) bool {
-	for _, attr := range token.Attr {
+	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
 			relative := result.appendURL(HTMLTagA, attr.Val)
 			if relative != attr.Val {
-				return rewriteTokenAttr(token, attr.Key, relative, result)
+				token.Attr[i].Val = relative
+				return rewriteTokenAttr(token, result)
 			}
 		}
 	}
@@ -207,11 +213,12 @@ func parseBodyHTMLTagA(token *html.Token, result *Downloaded) bool {
 }
 
 func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) bool {
-	for _, attr := range token.Attr {
+	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
 			if url, err := neturl.Parse(attr.Val); err == nil {
 				result.BaseURL = result.BaseURL.ResolveReference(url)
-				return rewriteTokenAttr(token, attr.Key, ".", result)
+				token.Attr[i].Val = "."
+				return rewriteTokenAttr(token, result)
 			}
 		}
 	}
@@ -220,11 +227,12 @@ func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) bool {
 }
 
 func parseBodyHTMLTagImg(token *html.Token, result *Downloaded) bool {
-	for _, attr := range token.Attr {
+	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrSrc {
 			relative := result.appendURL(HTMLTagImg, attr.Val)
 			if relative != attr.Val {
-				return rewriteTokenAttr(token, attr.Key, relative, result)
+				token.Attr[i].Val = relative
+				return rewriteTokenAttr(token, result)
 			}
 		}
 	}
@@ -234,12 +242,14 @@ func parseBodyHTMLTagImg(token *html.Token, result *Downloaded) bool {
 
 func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 	var linkHref string
+	var linkHrefAttrIndex int
 	var linkRel string
 
-	for _, attr := range token.Attr {
+	for i, attr := range token.Attr {
 		switch attr.Key {
 		case htmlAttrHref:
 			linkHref = attr.Val
+			linkHrefAttrIndex = i
 		case htmlAttrRel:
 			linkRel = attr.Val
 		}
@@ -250,7 +260,8 @@ func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 		case htmlAttrRelStylesheet:
 			relative := result.appendURL(HTMLTagLinkStylesheet, linkHref)
 			if relative != linkHref {
-				return rewriteTokenAttr(token, htmlAttrHref, relative, result)
+				token.Attr[linkHrefAttrIndex].Val = relative
+				return rewriteTokenAttr(token, result)
 			}
 		}
 	}
@@ -259,11 +270,12 @@ func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 }
 
 func parseBodyHTMLTagScript(tokenizer *html.Tokenizer, token *html.Token, result *Downloaded) bool {
-	for _, attr := range token.Attr {
+	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrSrc {
 			relative := result.appendURL(HTMLTagScript, attr.Val)
 			if relative != attr.Val {
-				return rewriteTokenAttr(token, attr.Key, relative, result)
+				token.Attr[i].Val = relative
+				return rewriteTokenAttr(token, result)
 			}
 		}
 	}
@@ -310,20 +322,21 @@ func parseBodyJsString(js string, result *Downloaded) {
 	result.buffer.WriteString(js)
 }
 
-func rewriteTokenAttr(token *html.Token, attrKey string, attrVal string, result *Downloaded) bool {
+func rewriteTokenAttr(token *html.Token, result *Downloaded) bool {
 	result.buffer.WriteString("<")
 	result.buffer.WriteString(token.Data)
 
 	for _, attr := range token.Attr {
-		val := attr.Val
-		if attr.Key == attrKey {
-			val = attrVal
-		}
-
 		result.buffer.WriteString(" ")
 		result.buffer.WriteString(attr.Key)
 		result.buffer.WriteString("=\"")
-		result.buffer.WriteString(html.EscapeString(val))
+
+		if attr.Key == "style" {
+			parseBodyCSSString(attr.Val, result)
+		} else {
+			result.buffer.WriteString(html.EscapeString(attr.Val))
+		}
+
 		result.buffer.WriteString("\"")
 	}
 

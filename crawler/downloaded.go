@@ -49,6 +49,10 @@ func (d *Downloaded) appendURL(context urlContext, input string) string {
 		return input
 	}
 
+	return d.appendParsedURL(context, input, url)
+}
+
+func (d *Downloaded) appendParsedURL(context urlContext, input string, url *neturl.URL) string {
 	fullURL := d.BaseURL.ResolveReference(url)
 	if fullURL.Scheme != "http" && fullURL.Scheme != "https" {
 		return input

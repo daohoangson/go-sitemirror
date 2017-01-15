@@ -227,14 +227,35 @@ func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) bool {
 }
 
 func parseBodyHTMLTagImg(token *html.Token, result *Downloaded) bool {
+	needRewrite := false
+
 	for i, attr := range token.Attr {
-		if attr.Key == htmlAttrSrc {
-			relative := result.appendURL(HTMLTagImg, attr.Val)
-			if relative != attr.Val {
-				token.Attr[i].Val = relative
-				return rewriteTokenAttr(token, result)
-			}
+		if attr.Key != htmlAttrSrc && !strings.HasPrefix(attr.Key, "data-") {
+			// process src attribute and any data-* attribute that contains url
+			// some website uses those for lazy loading / high resolution quality / etc.
+			continue
 		}
+
+		url := attr.Val
+		parsedURL, err := neturl.Parse(url)
+		if err != nil {
+			continue
+		}
+
+		if attr.Key != htmlAttrSrc && !parsedURL.IsAbs() {
+			// data-* attribute url must be absolute
+			continue
+		}
+
+		relative := result.appendParsedURL(HTMLTagImg, url, parsedURL)
+		if relative != attr.Val {
+			token.Attr[i].Val = relative
+			needRewrite = true
+		}
+	}
+
+	if needRewrite {
+		return rewriteTokenAttr(token, result)
 	}
 
 	return false

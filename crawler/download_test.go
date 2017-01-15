@@ -386,7 +386,7 @@ var _ = Describe("Download", func() {
 		It("should pick up img src", func() {
 			url := "http://domain.com/download/urls/img"
 			targetUrl := "http://domain.com/download/urls/target"
-			htmlTemplate := "<img src=\"%s\" /><img />"
+			htmlTemplate := `<img src="%s" /><img class="friend" data-hello="world" data-invalid="` + t.InvalidURL + `" />`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
@@ -399,6 +399,53 @@ var _ = Describe("Download", func() {
 
 			for _, link := range downloaded.LinksAssets {
 				Expect(link.URL.String()).To(Equal(targetUrl))
+				Expect(link.Context).To(Equal(HTMLTagImg))
+			}
+		})
+
+		It("should pick up img data-src", func() {
+			url := "http://domain.com/download/urls/img/data-src"
+			targetUrl := "http://domain.com/download/urls/img/target"
+			htmlTemplate := `<img data-src="%s" />`
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
+
+			for _, link := range downloaded.LinksAssets {
+				Expect(link.URL.String()).To(Equal(targetUrl))
+				Expect(link.Context).To(Equal(HTMLTagImg))
+			}
+		})
+
+		It("should pick up img src inside a", func() {
+			url := "http://domain.com/download/urls/img/inside/a"
+			targetUrl0 := "http://domain.com/download/urls/img/inside/target/0"
+			targetUrl1 := "http://domain.com/download/urls/img/inside/target/1"
+			htmlTemplate := `<a href="%s"><img src="%s" /></a>`
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl0, targetUrl1))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target/0", "./target/1"))))
+
+			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
+			for _, link := range downloaded.LinksDiscovered {
+				Expect(link.URL.String()).To(Equal(targetUrl0))
+				Expect(link.Context).To(Equal(HTMLTagA))
+			}
+
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
+			for _, link := range downloaded.LinksAssets {
+				Expect(link.URL.String()).To(Equal(targetUrl1))
 				Expect(link.Context).To(Equal(HTMLTagImg))
 			}
 		})

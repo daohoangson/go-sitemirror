@@ -141,7 +141,7 @@ var _ = Describe("Download", func() {
 
 		It("should match valid html", func() {
 			url := "http://domain.com/download/body/html/valid"
-			html := t.NewHtmlMarkup("<p>Hello World!</p>")
+			html := t.NewHtmlMarkup("<p>Hello&nbsp;World!</p>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			parsedURL, _ := neturl.Parse(url)

@@ -149,10 +149,10 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 		return true
 	}
 
-	token := tokenizer.Token()
-
 	switch tokenType {
 	case html.StartTagToken:
+		token := tokenizer.Token()
+
 		switch token.DataAtom {
 		case htmlAtom.A:
 			if parseBodyHTMLTagA(&token, result) {
@@ -179,6 +179,8 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 		rewriteTokenAttr(&token, result)
 		return false
 	case html.SelfClosingTagToken:
+		token := tokenizer.Token()
+
 		switch token.DataAtom {
 		case htmlAtom.Base:
 			if parseBodyHTMLTagBase(&token, result) {

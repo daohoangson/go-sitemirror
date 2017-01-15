@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	cssScanner "github.com/gorilla/css/scanner"
+	cssScanner "github.com/daohoangson/go-csstokenizer/scanner"
 	"golang.org/x/net/html"
 	htmlAtom "golang.org/x/net/html/atom"
 )

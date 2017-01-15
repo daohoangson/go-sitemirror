@@ -76,5 +76,5 @@ func (d *Downloaded) appendURL(context urlContext, input string) string {
 		d.LinksAssets[mapKey] = link
 	}
 
-	return ReduceURL(d.BaseURL, fullURL)
+	return ReduceURL(d.URL, fullURL)
 }

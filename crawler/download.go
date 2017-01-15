@@ -158,6 +158,10 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 			if parseBodyHTMLTagA(&token, result) {
 				return false
 			}
+		case htmlAtom.Img:
+			if parseBodyHTMLTagImg(&token, result) {
+				return false
+			}
 		case htmlAtom.Link:
 			if parseBodyHTMLTagLink(&token, result) {
 				return false

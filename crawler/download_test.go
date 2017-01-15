@@ -305,6 +305,26 @@ var _ = Describe("Download", func() {
 			}
 		})
 
+		It("should pick up img src, using start tag", func() {
+			url := "http://domain.com/download/urls/img/start"
+			targetUrl := "http://domain.com/download/urls/img/target"
+			htmlTemplate := `<img src="%s"></img>`
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			parsedURL, _ := neturl.Parse(url)
+			Expect(parsedURL).ToNot(BeNil())
+			downloaded := Download(http.DefaultClient, parsedURL)
+
+			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
+			Expect(len(downloaded.LinksAssets)).To(Equal(1))
+
+			for _, link := range downloaded.LinksAssets {
+				Expect(link.URL.String()).To(Equal(targetUrl))
+				Expect(link.Context).To(Equal(HTMLTagImg))
+			}
+		})
+
 		It("should pick up link[rel=stylesheet] href, using start tag", func() {
 			url := "http://domain.com/download/urls/link/stylesheet/start"
 			targetUrl := "http://domain.com/download/urls/link/stylesheet/target"
@@ -450,9 +470,9 @@ var _ = Describe("Download", func() {
 			}
 		})
 
-		It("should pick up link[rel=stylesheet] href, using self closing tag", func() {
-			url := "http://domain.com/download/urls/link/stylesheet/self-closing"
-			targetUrl := "http://domain.com/download/urls/link/stylesheet/target"
+		It("should pick up link[rel=stylesheet] href", func() {
+			url := "http://domain.com/download/urls/link/stylesheet"
+			targetUrl := "http://domain.com/download/urls/link/target"
 			htmlTemplate := "<link rel=\"stylesheet\" href=\"%s\" /><link />"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))

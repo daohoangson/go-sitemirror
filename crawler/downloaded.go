@@ -65,7 +65,7 @@ func (d *Downloaded) appendURL(context urlContext, input string) string {
 		URL:     filteredURL,
 	}
 
-	mapKey := fullURL.String()
+	mapKey := filteredURL.String()
 
 	switch context {
 	case HTMLTagA:

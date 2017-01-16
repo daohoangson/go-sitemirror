@@ -28,7 +28,7 @@ func CreateFile(cachePath string) (*os.File, error) {
 		return nil, err
 	}
 
-	return os.OpenFile(cachePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, os.ModePerm)
+	return os.OpenFile(cachePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 }
 
 func GenerateCachePath(rootPath string, url *url.URL) string {

@@ -15,7 +15,7 @@ import (
 var _ = Describe("Fileop", func() {
 	Describe("CreateFile", func() {
 		tmpDir := os.TempDir()
-		rootPath := tmpDir + "/_TestCreateFile_"
+		rootPath := path.Join(tmpDir, "_TestCreateFile_")
 
 		BeforeEach(func() {
 			os.Mkdir(rootPath, os.ModePerm)
@@ -41,6 +41,39 @@ var _ = Describe("Fileop", func() {
 			Expect(f.Name()).To(Equal(path))
 		})
 
+		It("should write new file", func() {
+			bytes := []byte{1}
+			path := path.Join(rootPath, "file")
+			w, _ := CreateFile(path)
+			w.Write(bytes)
+			w.Close()
+
+			r, _ := os.Open(path)
+			buffer := make([]byte, len(bytes)*10)
+			n, _ := r.Read(buffer)
+			Expect(n).To(Equal(len(bytes)))
+			Expect(buffer[:n]).To(Equal(bytes))
+		})
+
+		It("should overwrite if file existed", func() {
+			bytes1 := []byte{0, 0, 0, 0, 0, 0, 0, 1}
+			bytes2 := []byte{2}
+			path := path.Join(rootPath, "file-existed")
+			w1, _ := os.Create(path)
+			w1.Write(bytes1)
+			w1.Close()
+
+			w2, _ := CreateFile(path)
+			w2.Write(bytes2)
+			w2.Close()
+
+			r, _ := os.Open(path)
+			buffer := make([]byte, len(bytes2)*10)
+			n, _ := r.Read(buffer)
+			Expect(n).To(Equal(len(bytes2)))
+			Expect(buffer[:n]).To(Equal(bytes2))
+		})
+
 		It("should fail if dir existed as file", func() {
 			dirAsFilePath := path.Join(rootPath, "dir-as-file")
 			dirAsFile, _ := os.Create(dirAsFilePath)
@@ -50,21 +83,13 @@ var _ = Describe("Fileop", func() {
 			_, err := CreateFile(path)
 			Expect(err).To(HaveOccurred())
 		})
-
-		It("should fail if file existed", func() {
-			path := path.Join(rootPath, "file-existed")
-			f, _ := os.Create(path)
-			f.Close()
-
-			_, err := CreateFile(path)
-			Expect(err).To(HaveOccurred())
-		})
 	})
 
 	Describe("GenerateCachePath", func() {
-
-		const rootPath = "/GenerateCachePath"
 		const pathSeparator = "/"
+
+		tmpDir := os.TempDir()
+		rootPath := path.Join(tmpDir, "_TestGenerateCachePath_")
 
 		lotsOfA := strings.Repeat("a", MaxPathNameLength+1)
 
@@ -74,8 +99,8 @@ var _ = Describe("Fileop", func() {
 			hash := path.Dir(dir)
 			dirBeforeHash := path.Dir(hash)
 
-			Expect(dirBeforeHash).To(HavePrefix(rootPath + pathSeparator))
-			dirBeforeHashWithoutRoot := dirBeforeHash[len(rootPath)+len(pathSeparator):]
+			dirBeforeHashWithoutRoot := dirBeforeHash[len(rootPath):]
+			dirBeforeHashWithoutRoot = path.Join(".", dirBeforeHashWithoutRoot)
 
 			return generated, dirBeforeHashWithoutRoot, file
 		}
@@ -99,6 +124,17 @@ var _ = Describe("Fileop", func() {
 
 			Expect(gDir).To(Equal(hostAndDir))
 			Expect(gFile).To(Equal(file))
+		})
+
+		It("should use hash for no path", func() {
+			host := "domain.com"
+			url, _ := url.Parse("http://" + host)
+			g, _, file := generateCachePath(url)
+
+			gWithoutRoot := g[len(rootPath)+1:]
+			gWithoutFile := gWithoutRoot[:len(gWithoutRoot)-len(file)-1]
+
+			Expect(gWithoutFile).To(Equal(host))
 		})
 
 		It("should use hash for long host", func() {

@@ -2,8 +2,10 @@ package cacher
 
 import (
 	"io"
+	"net/http"
 	neturl "net/url"
 	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -12,6 +14,8 @@ type httpCacher struct {
 	logger *logrus.Logger
 
 	path string
+
+	defaultTTL time.Duration
 }
 
 func NewHttpCacher(logger *logrus.Logger) Cacher {
@@ -21,14 +25,16 @@ func NewHttpCacher(logger *logrus.Logger) Cacher {
 }
 
 func (c *httpCacher) init(logger *logrus.Logger) {
-	if wd, err := os.Getwd(); err == nil {
-		c.path = wd
-	}
-
 	if logger == nil {
 		logger = logrus.New()
 	}
 	c.logger = logger
+
+	if wd, err := os.Getwd(); err == nil {
+		c.path = wd
+	}
+
+	c.defaultTTL = 10 * time.Minute
 }
 
 func (c *httpCacher) GetMode() cacherMode {
@@ -46,6 +52,10 @@ func (c *httpCacher) SetPath(path string) {
 
 func (c *httpCacher) GetPath() string {
 	return c.path
+}
+
+func (c *httpCacher) SetDefaultTTL(ttl time.Duration) {
+	c.defaultTTL = ttl
 }
 
 func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
@@ -68,6 +78,10 @@ func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
 }
 
 func (c *httpCacher) Write(input *Input) error {
+	if input.TTL == 0 {
+		input.TTL = c.defaultTTL
+	}
+
 	cachePath := GenerateCachePath(c.path, input.URL)
 	f, err := CreateFile(cachePath)
 	if err != nil {
@@ -91,9 +105,17 @@ func (c *httpCacher) Write(input *Input) error {
 	return nil
 }
 
-func (c *httpCacher) Delete(url *neturl.URL) error {
+func (c *httpCacher) WritePlaceholder(url *neturl.URL) error {
+	input := &Input{
+		URL:        url,
+		StatusCode: http.StatusNoContent,
+	}
+	return c.Write(input)
+}
+
+func (c *httpCacher) Open(url *neturl.URL) (io.ReadCloser, error) {
 	cachePath := GenerateCachePath(c.path, url)
-	err := os.Remove(cachePath)
+	f, err := os.Open(cachePath)
 
 	loggerContext := c.logger.WithFields(logrus.Fields{
 		"url":  url,
@@ -101,15 +123,10 @@ func (c *httpCacher) Delete(url *neturl.URL) error {
 	})
 
 	if err == nil {
-		loggerContext.Info("Deleted cache")
+		loggerContext.Debug("Opened cache")
 	} else {
-		loggerContext.WithField("error", err).Error("Cannot delete cache")
+		loggerContext.WithField("error", err).Error("Cannot open cache")
 	}
 
-	return err
-}
-
-func (c *httpCacher) Open(url *neturl.URL) (io.ReadCloser, error) {
-	cachePath := GenerateCachePath(c.path, url)
-	return os.Open(cachePath)
+	return f, err
 }

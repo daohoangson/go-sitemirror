@@ -3,6 +3,7 @@ package cacher_test
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -16,7 +17,7 @@ import (
 
 var _ = Describe("HttpCacher", func() {
 	tmpDir := os.TempDir()
-	rootPath := tmpDir + "/_TestHttpCacher_"
+	rootPath := path.Join(tmpDir, "_TestHttpCacher_")
 
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
@@ -103,9 +104,10 @@ var _ = Describe("HttpCacher", func() {
 			c.Write(input)
 
 			written, _ := ioutil.ReadFile(cachePath)
-			Expect(string(written)).To(Equal(fmt.Sprintf(
-				"HTTP %d\nX-Mirrored-Url: %s\n",
+			Expect(string(written)).To(HavePrefix(fmt.Sprintf(
+				"HTTP %d\n%s: %s\n",
 				input.StatusCode,
+				HTTPHeaderURL,
 				input.URL.String(),
 			)))
 		})
@@ -129,49 +131,47 @@ var _ = Describe("HttpCacher", func() {
 			Expect(readError).To(HaveOccurred())
 		})
 
-		It("should not write (existing file)", func() {
-			url, _ := url.Parse("http://domain.com/http/cacher/not/write/existing/file")
-			input := &Input{URL: url, StatusCode: 200}
-			content := "foo/bar"
-			cachePath := GenerateCachePath(rootPath, input.URL)
-			cacheDir, _ := path.Split(cachePath)
-			os.MkdirAll(cacheDir, os.ModePerm)
-			f, _ := os.Create(cachePath)
-			f.WriteString(content)
-			f.Close()
+		It("should write placeholder", func() {
+			url, _ := url.Parse("http://domain.com/http/cacher/write")
+			cachePath := GenerateCachePath(rootPath, url)
 
 			c := newHttpCacherWithRootPath()
-
-			writerError := c.Write(input)
-			Expect(writerError).To(HaveOccurred())
+			c.WritePlaceholder(url)
 
 			written, _ := ioutil.ReadFile(cachePath)
-			Expect(string(written)).To(Equal(content))
+			writtenString := string(written)
+			Expect(writtenString).To(HavePrefix(fmt.Sprintf(
+				"HTTP %d\n%s: %s\n",
+				http.StatusNoContent,
+				HTTPHeaderURL,
+				url.String(),
+			)))
+			Expect(writtenString).To(HaveSuffix("\n\n"))
 		})
 	})
 
-	Describe("Delete", func() {
-		It("should delete without error", func() {
+	Describe("Open", func() {
+		It("should open without error", func() {
 			url, _ := url.Parse("http://domain.com/cacher/delete/ok")
 			cachePath := GenerateCachePath(rootPath, url)
 			cacheDir, _ := path.Split(cachePath)
 			os.MkdirAll(cacheDir, os.ModePerm)
-			f, _ := os.Create(cachePath)
-			f.Close()
+			f1, _ := os.Create(cachePath)
+			f1.Close()
 
 			c := newHttpCacherWithRootPath()
 			Expect(c.CheckCacheExists(url)).To(BeTrue())
 
-			err := c.Delete(url)
+			f2, err := c.Open(url)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(c.CheckCacheExists(url)).To(BeFalse())
+			f2.Close()
 		})
 
-		It("should delete with error", func() {
+		It("should open with error", func() {
 			url, _ := url.Parse("http://domain.com/cacher/delete/error")
 
 			c := newHttpCacherWithRootPath()
-			err := c.Delete(url)
+			_, err := c.Open(url)
 			Expect(err).To(HaveOccurred())
 		})
 	})

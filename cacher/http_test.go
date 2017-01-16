@@ -3,8 +3,11 @@ package cacher_test
 import (
 	"bytes"
 	"fmt"
+	"net/http"
 	neturl "net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	. "github.com/daohoangson/go-sitemirror/cacher"
 
@@ -31,7 +34,8 @@ var _ = Describe("Http", func() {
 				WriteHTTP(&buffer, &input)
 
 				written := buffer.String()
-				Expect(written).To(Equal(fmt.Sprintf("HTTP %d\n", status)))
+				Expect(written).To(HavePrefix(fmt.Sprintf("HTTP %d\n", status)))
+				Expect(written).To(HaveSuffix("\n\n"))
 			})
 
 			It("should write status code 200", func() {
@@ -40,7 +44,7 @@ var _ = Describe("Http", func() {
 				WriteHTTP(&buffer, &input)
 
 				written := buffer.String()
-				Expect(written).To(Equal(fmt.Sprintf("HTTP %d\n", status)))
+				Expect(written).To(HavePrefix(fmt.Sprintf("HTTP %d\n", status)))
 			})
 
 			It("should write status code 301", func() {
@@ -49,18 +53,73 @@ var _ = Describe("Http", func() {
 				WriteHTTP(&buffer, &input)
 
 				written := buffer.String()
-				Expect(written).To(Equal(fmt.Sprintf("HTTP %d\n", status)))
+				Expect(written).To(HavePrefix(fmt.Sprintf("HTTP %d\n", status)))
 			})
 		})
 
-		It("should write url", func() {
-			status := 200
+		It("should write url header", func() {
+			input := input2xx
 			url, _ := neturl.Parse("http://domain.com/http/url")
-			input := Input{StatusCode: status, URL: url}
-			WriteHTTP(&buffer, &input)
+			input.URL = url
+			WriteHTTP(&buffer, input)
 
 			written := buffer.String()
-			Expect(written).To(Equal(fmt.Sprintf("HTTP %d\nX-Mirrored-Url: %s\n", status, url.String())))
+			writtenMirroredUrl := getHeaderValue(written, HTTPHeaderURL)
+			Expect(writtenMirroredUrl).To(Equal(url.String()))
+		})
+
+		It("should write Last-Modified header", func() {
+			input := input2xx
+			WriteHTTP(&buffer, input)
+
+			written := buffer.String()
+			writtenLastModified := getHeaderValue(written, "Last-Modified")
+			Expect(len(writtenLastModified)).ToNot(Equal(0))
+
+			_, err := time.Parse(http.TimeFormat, writtenLastModified)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		Describe("TTL", func() {
+			It("should write our Expires header", func() {
+				input := input2xx
+				input.TTL = time.Minute
+				WriteHTTP(&buffer, input)
+
+				written := buffer.String()
+				writtenExpires := getHeaderValue(written, HTTPHeaderExpires)
+				Expect(len(writtenExpires)).ToNot(Equal(0))
+
+				timestamp, err := strconv.ParseUint(writtenExpires, 10, 64)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(timestamp).To(BeNumerically(">", time.Now().Unix()))
+			})
+
+			It("should write cache control headers", func() {
+				input := input2xx
+				input.TTL = time.Minute
+				WriteHTTP(&buffer, input)
+
+				written := buffer.String()
+				writtenCacheControl := getHeaderValue(written, "Cache-Control")
+				Expect(writtenCacheControl).To(Equal("public"))
+
+				writtenExpires := getHeaderValue(written, "Expires")
+				Expect(len(writtenExpires)).ToNot(Equal(0))
+
+				t, err := time.Parse(http.TimeFormat, writtenExpires)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(t.UnixNano()).To(BeNumerically(">", time.Now().UnixNano()))
+			})
+
+			It("should not write our Expires header", func() {
+				input := input2xx
+				WriteHTTP(&buffer, input)
+
+				written := buffer.String()
+				writtenExpires := getHeaderValue(written, HTTPHeaderExpires)
+				Expect(len(writtenExpires)).To(Equal(0))
+			})
 		})
 
 		Context("2xx", func() {
@@ -72,6 +131,7 @@ var _ = Describe("Http", func() {
 				written := buffer.String()
 				writtenContentType := getHeaderValue(written, "Content-Type")
 				Expect(writtenContentType).To(Equal(input.ContentType))
+				Expect(written).To(HaveSuffix("\n\n"))
 			})
 
 			It("should write body string", func() {
@@ -98,6 +158,7 @@ var _ = Describe("Http", func() {
 				written := buffer.String()
 				writtenLocation := getHeaderValue(written, "Location")
 				Expect(writtenLocation).To(Equal(targetUrl.String()))
+				Expect(written).To(HaveSuffix("\n\n"))
 			})
 		})
 	})

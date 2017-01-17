@@ -1,10 +1,14 @@
 package web
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -16,6 +20,8 @@ type server struct {
 	logger *logrus.Logger
 
 	onCacheIssue *func(CacheIssue)
+
+	listeners map[string]net.Listener
 }
 
 func NewServer(cacher cacher.Cacher, logger *logrus.Logger) Server {
@@ -34,6 +40,8 @@ func (s *server) init(httpCacher cacher.Cacher, logger *logrus.Logger) {
 		logger = logrus.New()
 	}
 	s.logger = logger
+
+	s.listeners = make(map[string]net.Listener)
 }
 
 func (s *server) GetCacher() cacher.Cacher {
@@ -44,7 +52,15 @@ func (s *server) SetOnCacheIssue(f func(CacheIssue)) {
 	s.onCacheIssue = &f
 }
 
-func (s *server) ListenAndServe(host string, port int) (net.Listener, error) {
+func (s *server) ListenAndServe(host string, port int) (io.Closer, error) {
+	if port < 0 {
+		return nil, errors.New("Invalid port")
+	}
+
+	if existing, existingFound := s.listeners[host]; existingFound {
+		return existing, errors.New("Existing listener has been found for this host")
+	}
+
 	loggerContext := s.logger.WithFields(logrus.Fields{
 		"host": host,
 		"port": port,
@@ -60,6 +76,7 @@ func (s *server) ListenAndServe(host string, port int) (net.Listener, error) {
 		loggerContext = loggerContext.WithField("addr", listener.Addr().String())
 	}
 
+	start := time.Now()
 	go func() {
 		var f http.HandlerFunc = func(w http.ResponseWriter, req *http.Request) {
 			s.Serve(host, w, req)
@@ -68,11 +85,33 @@ func (s *server) ListenAndServe(host string, port int) (net.Listener, error) {
 		loggerContext.Info("Serving")
 		serveError := http.Serve(listener, f)
 		if serveError != nil {
-			loggerContext.WithField("error", serveError).Errorf("Cannot serve")
+			elapsed := time.Since(start)
+			errorContext := loggerContext.WithField("error", serveError)
+			if elapsed > 100*time.Millisecond {
+				// some time has passed, it's likely that it worked
+				// but the listener has been asked to be closed
+				errorContext.Debug("Listener has been closed")
+			} else {
+				errorContext.Errorf("Cannot serve")
+			}
 		}
 	}()
 
+	s.listeners[host] = listener
 	return listener, nil
+}
+
+func (s *server) GetListeningPort(host string) (int, error) {
+	listener, ok := s.listeners[host]
+	if !ok {
+		return 0, errors.New("Listener not found")
+	}
+
+	addr := listener.Addr().String()
+	matches := regexp.MustCompile(`:(\d+)$`).FindStringSubmatch(addr)
+	port, err := strconv.ParseInt(matches[1], 10, 64)
+
+	return int(port), err
 }
 
 func (s *server) Serve(host string, w http.ResponseWriter, req *http.Request) {
@@ -106,6 +145,42 @@ func (s *server) Serve(host string, w http.ResponseWriter, req *http.Request) {
 	if info.Expires != nil && info.Expires.Before(time.Now()) {
 		s.triggerOnCacheIssue(CacheExpired, url, info)
 	}
+}
+
+func (s *server) StopListening(host string) error {
+	listener, ok := s.listeners[host]
+	if !ok {
+		return errors.New("Listener not found")
+	}
+
+	err := listener.Close()
+
+	loggerContext := s.logger.WithField("host", host)
+	if err == nil {
+		loggerContext.Info("Stopped listening")
+	} else {
+		loggerContext.WithField("error", err).Error("Cannot stop listening")
+	}
+
+	return err
+}
+
+func (s *server) StopAll() []string {
+	hosts := make([]string, 0)
+
+	for host, listener := range s.listeners {
+		err := listener.Close()
+		loggerContext := s.logger.WithField("host", host)
+
+		if err == nil {
+			loggerContext.Info("Stopped listening")
+			hosts = append(hosts, host)
+		} else {
+			loggerContext.WithField("error", err).Error("Cannot stop listening")
+		}
+	}
+
+	return hosts
 }
 
 func (s *server) triggerOnCacheIssue(t cacheIssueType, url *url.URL, info *CacheInfo) bool {

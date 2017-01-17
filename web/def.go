@@ -1,7 +1,7 @@
 package web
 
 import (
-	"net"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -16,8 +16,11 @@ type Server interface {
 	GetCacher() cacher.Cacher
 	SetOnCacheIssue(func(CacheIssue))
 
-	ListenAndServe(string, int) (net.Listener, error)
+	ListenAndServe(string, int) (io.Closer, error)
+	GetListeningPort(string) (int, error)
 	Serve(string, http.ResponseWriter, *http.Request)
+	StopListening(string) error
+	StopAll() []string
 }
 
 type CacheIssue struct {

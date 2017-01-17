@@ -52,17 +52,17 @@ func (s *server) SetOnCacheIssue(f func(CacheIssue)) {
 	s.onCacheIssue = &f
 }
 
-func (s *server) ListenAndServe(host string, port int) (io.Closer, error) {
+func (s *server) ListenAndServe(root *url.URL, port int) (io.Closer, error) {
 	if port < 0 {
 		return nil, errors.New("Invalid port")
 	}
 
-	if existing, existingFound := s.listeners[host]; existingFound {
+	if existing, existingFound := s.listeners[root.Host]; existingFound {
 		return existing, errors.New("Existing listener has been found for this host")
 	}
 
 	loggerContext := s.logger.WithFields(logrus.Fields{
-		"host": host,
+		"root": root,
 		"port": port,
 	})
 
@@ -79,7 +79,7 @@ func (s *server) ListenAndServe(host string, port int) (io.Closer, error) {
 	start := time.Now()
 	go func() {
 		var f http.HandlerFunc = func(w http.ResponseWriter, req *http.Request) {
-			s.Serve(host, w, req)
+			s.Serve(root, w, req)
 		}
 
 		loggerContext.Info("Serving")
@@ -97,7 +97,7 @@ func (s *server) ListenAndServe(host string, port int) (io.Closer, error) {
 		}
 	}()
 
-	s.listeners[host] = listener
+	s.listeners[root.Host] = listener
 	return listener, nil
 }
 
@@ -114,12 +114,10 @@ func (s *server) GetListeningPort(host string) (int, error) {
 	return int(port), err
 }
 
-func (s *server) Serve(host string, w http.ResponseWriter, req *http.Request) {
+func (s *server) Serve(root *url.URL, w http.ResponseWriter, req *http.Request) {
 	url, _ := url.Parse(req.URL.String())
-	url.Host = host
-	if len(url.Scheme) == 0 {
-		url.Scheme = "http"
-	}
+	url.Scheme = root.Scheme
+	url.Host = root.Host
 	loggerContext := s.logger.WithField("url", url)
 
 	cache, err := s.cacher.Open(url)

@@ -32,10 +32,16 @@ type Crawler interface {
 
 	Start()
 	Stop()
-	Queue(*url.URL)
-	QueueURL(string) error
+	Enqueue(QueueItem)
+	EnqueueURL(string) error
 	Downloaded() (*Downloaded, bool)
 	DownloadedNotBlocking() *Downloaded
+}
+
+type QueueItem struct {
+	URL           *url.URL
+	Depth         uint64
+	ForceDownload bool
 }
 
 // Downloaded struct contains parsed data after downloading an url.

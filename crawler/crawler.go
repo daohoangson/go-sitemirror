@@ -37,11 +37,6 @@ type crawler struct {
 	linkFoundCount   uint64
 }
 
-type queueItem struct {
-	url   *neturl.URL
-	depth uint64
-}
-
 // New returns a new instance of the crawler
 func New(client *http.Client, logger *logrus.Logger) Crawler {
 	c := &crawler{}
@@ -193,9 +188,9 @@ func (c *crawler) Start() {
 
 				for {
 					if v, ok := <-c.queue.Recv; ok {
-						if item, ok := v.(queueItem); ok {
+						if item, ok := v.(QueueItem); ok {
 							if c.onDownload != nil {
-								(*c.onDownload)(item.url)
+								(*c.onDownload)(item.URL)
 							}
 
 							downloaded := c.doDownload(workerID, item)
@@ -231,22 +226,22 @@ func (c *crawler) Stop() {
 	c.logger.Info("Stopped crawler")
 }
 
-func (c *crawler) Queue(url *neturl.URL) {
+func (c *crawler) Enqueue(item QueueItem) {
 	c.Start()
-	c.doEnqueue(queueItem{url: url})
+	c.doEnqueue(item)
 
-	c.logger.WithField("url", url).Info("Queued")
+	c.logger.WithField("item", item).Info("Enqueued")
 }
 
-func (c *crawler) QueueURL(url string) error {
+func (c *crawler) EnqueueURL(url string) error {
 	parsedURL, err := neturl.Parse(url)
 	if err != nil {
-		c.logger.WithField("url", url).Error("Cannot queue invalid url")
+		c.logger.WithField("url", url).Error("Cannot enqueue invalid url")
 
 		return err
 	}
 
-	c.Queue(parsedURL)
+	c.Enqueue(QueueItem{URL: parsedURL})
 	return nil
 }
 
@@ -268,20 +263,17 @@ func (c *crawler) DownloadedNotBlocking() *Downloaded {
 	}
 }
 
-func (c *crawler) doEnqueue(item queueItem) {
+func (c *crawler) doEnqueue(item QueueItem) {
 	atomic.AddUint64(&c.enqueuedCount, 1)
 	atomic.AddInt64(&c.queuingCount, 1)
 
 	c.queue.Send <- item
 }
 
-func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
+func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 	var (
-		start         = time.Now()
-		loggerContext = c.logger.WithFields(logrus.Fields{
-			"worker": workerID,
-			"url":    item.url,
-		})
+		start          = time.Now()
+		loggerContext  = c.logger.WithField("item", item)
 		shouldDownload = true
 		downloaded     *Downloaded
 	)
@@ -289,8 +281,10 @@ func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
 	atomic.AddInt64(&c.downloadingCount, 1)
 	atomic.AddInt64(&c.queuingCount, -1)
 
-	if c.onURLShouldDownload != nil {
-		shouldDownload = (*c.onURLShouldDownload)(item.url)
+	if item.ForceDownload {
+		// do no trigger onURLShouldDownload
+	} else if c.onURLShouldDownload != nil {
+		shouldDownload = (*c.onURLShouldDownload)(item.URL)
 		if !shouldDownload {
 			loggerContext.Debug("Skipped as instructed by onURLShouldDownload")
 		}
@@ -298,7 +292,7 @@ func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
 
 	if shouldDownload {
 		loggerContext.Debug("Downloading")
-		downloaded = Download(c.client, item.url)
+		downloaded = Download(c.client, item.URL)
 		atomic.AddUint64(&c.downloadedCount, 1)
 	}
 
@@ -321,17 +315,17 @@ func (c *crawler) doDownload(workerID uint64, item queueItem) *Downloaded {
 	return downloaded
 }
 
-func (c *crawler) doAutoQueue(workerID uint64, item queueItem, downloaded *Downloaded) {
+func (c *crawler) doAutoQueue(workerID uint64, item QueueItem, downloaded *Downloaded) {
 	if downloaded == nil {
 		return
 	}
 
 	// use the same depth for asset links as they are required for proper rendering
-	c.doAutoQueueURLs(workerID, downloaded.GetAssetURLs(), downloaded.URL, item.depth)
+	c.doAutoQueueURLs(workerID, downloaded.GetAssetURLs(), downloaded.URL, item.Depth)
 
 	// increase depth for other discovered links
 	// they will need to satisfy depth limit before crawling
-	c.doAutoQueueURLs(workerID, downloaded.GetDiscoveredURLs(), downloaded.URL, item.depth+1)
+	c.doAutoQueueURLs(workerID, downloaded.GetDiscoveredURLs(), downloaded.URL, item.Depth+1)
 }
 
 func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *neturl.URL, nextDepth uint64) {
@@ -364,11 +358,10 @@ func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *n
 			}
 		}
 
-		newItem := queueItem{
-			url:   url,
-			depth: nextDepth,
-		}
-		c.doEnqueue(newItem)
+		c.doEnqueue(QueueItem{
+			URL:   url,
+			Depth: nextDepth,
+		})
 
 		loggerContext.WithField("url", url).Debug("Auto-enqueued")
 	}

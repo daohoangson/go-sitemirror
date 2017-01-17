@@ -43,7 +43,7 @@ var _ = Describe("Crawler", func() {
 		httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 		c := New(nil, nil)
-		c.QueueURL(url)
+		c.EnqueueURL(url)
 		defer c.Stop()
 
 		downloaded, _ := c.Downloaded()
@@ -107,7 +107,7 @@ var _ = Describe("Crawler", func() {
 				return true
 			})
 
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -144,7 +144,7 @@ var _ = Describe("Crawler", func() {
 				return true
 			})
 
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -174,7 +174,7 @@ var _ = Describe("Crawler", func() {
 				}
 			})
 
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			c.Downloaded()
@@ -210,7 +210,7 @@ var _ = Describe("Crawler", func() {
 				}
 			})
 
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			time.Sleep(sleepTime)
@@ -227,7 +227,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			time.Sleep(sleepTime)
@@ -274,8 +274,8 @@ var _ = Describe("Crawler", func() {
 			c := newCrawler()
 			c.SetWorkerCount(uint64One)
 
-			c.QueueURL(url1)
-			c.QueueURL(url2)
+			c.EnqueueURL(url1)
+			c.EnqueueURL(url2)
 			defer c.Stop()
 			time.Sleep(sleepTime)
 
@@ -345,7 +345,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, body))
 
 			c := newCrawler()
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -364,7 +364,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", targetUrl, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -388,7 +388,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", urlDepth1, t.NewHtmlResponder(html1))
 
 			c := newCrawler()
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -413,7 +413,7 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.SetAutoDownloadDepth(uint64Zero)
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -438,7 +438,7 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.SetAutoDownloadDepth(uint64Zero)
-			c.QueueURL(url)
+			c.EnqueueURL(url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -457,7 +457,7 @@ var _ = Describe("Crawler", func() {
 
 		It("should not queue invalid url", func() {
 			c := newCrawler()
-			err := c.QueueURL(t.InvalidURL)
+			err := c.EnqueueURL(t.InvalidURL)
 			defer c.Stop()
 
 			time.Sleep(sleepTime)

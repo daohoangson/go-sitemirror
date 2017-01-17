@@ -18,7 +18,8 @@ type Cacher interface {
 
 	CheckCacheExists(*url.URL) bool
 	Write(*Input) error
-	WritePlaceholder(*url.URL) error
+	Bump(*url.URL, time.Duration) error
+	WritePlaceholder(*url.URL, time.Duration) error
 	Open(*url.URL) (io.ReadCloser, error)
 }
 

@@ -5,7 +5,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
+)
+
+var (
+	writeHTTPPlaceholderFirstLine = fmt.Sprintf("HTTP %d\n", http.StatusNoContent)
 )
 
 // WriteHTTP writes cache data in http format
@@ -24,7 +29,7 @@ func WriteHTTP(w io.Writer, input *Input) {
 	if input.TTL > 0 {
 		expires := now.Add(input.TTL)
 		bw.WriteString(fmt.Sprintf("Cache-Control: public\nExpires: %s\n", expires.Format(http.TimeFormat)))
-		bw.WriteString(fmt.Sprintf("%s: %d\n", HTTPHeaderExpires, expires.Unix()))
+		bw.WriteString(writeHTTPFormatExpiresHeader(expires))
 	}
 
 	if input.StatusCode >= 200 && input.StatusCode <= 299 {
@@ -34,6 +39,10 @@ func WriteHTTP(w io.Writer, input *Input) {
 	} else {
 		bw.WriteString("\n")
 	}
+}
+
+func writeHTTPFormatExpiresHeader(expires time.Time) string {
+	return fmt.Sprintf("%s: %020d\n", HTTPHeaderExpires, expires.Unix())
 }
 
 func writeHTTP2xx(bw *bufio.Writer, input *Input) {
@@ -55,4 +64,15 @@ func writeHTTP3xx(bw *bufio.Writer, input *Input) {
 		bw.WriteString(fmt.Sprintf("Location: %s\n\n", input.Redirection.String()))
 		return
 	}
+}
+
+func writeHTTPPlaceholder(w io.Writer, url *url.URL, expires time.Time) error {
+	_, writeError := w.Write([]byte(fmt.Sprintf(
+		"%s%s: %s\n%s\n",
+		writeHTTPPlaceholderFirstLine,
+		HTTPHeaderURL, url.String(),
+		writeHTTPFormatExpiresHeader(expires),
+	)))
+
+	return writeError
 }

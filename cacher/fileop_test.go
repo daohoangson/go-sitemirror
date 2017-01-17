@@ -1,6 +1,7 @@
 package cacher_test
 
 import (
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -33,14 +34,6 @@ var _ = Describe("Fileop", func() {
 			Expect(f.Name()).To(Equal(path))
 		})
 
-		It("should create all dirs", func() {
-			path := path.Join(rootPath, "dir1", "dir2", "dir3", "file")
-			f, _ := CreateFile(path)
-			defer f.Close()
-
-			Expect(f.Name()).To(Equal(path))
-		})
-
 		It("should write new file", func() {
 			bytes := []byte{1}
 			path := path.Join(rootPath, "file")
@@ -48,11 +41,8 @@ var _ = Describe("Fileop", func() {
 			w.Write(bytes)
 			w.Close()
 
-			r, _ := os.Open(path)
-			buffer := make([]byte, len(bytes)*10)
-			n, _ := r.Read(buffer)
-			Expect(n).To(Equal(len(bytes)))
-			Expect(buffer[:n]).To(Equal(bytes))
+			read, _ := ioutil.ReadFile(path)
+			Expect(read).To(Equal(bytes))
 		})
 
 		It("should overwrite if file existed", func() {
@@ -67,21 +57,58 @@ var _ = Describe("Fileop", func() {
 			w2.Write(bytes2)
 			w2.Close()
 
-			r, _ := os.Open(path)
-			buffer := make([]byte, len(bytes2)*10)
-			n, _ := r.Read(buffer)
-			Expect(n).To(Equal(len(bytes2)))
-			Expect(buffer[:n]).To(Equal(bytes2))
+			read, _ := ioutil.ReadFile(path)
+			Expect(read).To(Equal(bytes2))
+		})
+	})
+
+	Describe("OpenFile", func() {
+		tmpDir := os.TempDir()
+		rootPath := path.Join(tmpDir, "_TestOpenFile_")
+
+		BeforeEach(func() {
+			os.Mkdir(rootPath, os.ModePerm)
 		})
 
-		It("should fail if dir existed as file", func() {
-			dirAsFilePath := path.Join(rootPath, "dir-as-file")
-			dirAsFile, _ := os.Create(dirAsFilePath)
-			dirAsFile.Close()
+		AfterEach(func() {
+			os.RemoveAll(rootPath)
+		})
 
-			path := path.Join(dirAsFilePath, "file")
-			_, err := CreateFile(path)
-			Expect(err).To(HaveOccurred())
+		It("should create dir", func() {
+			path := path.Join(rootPath, "dir", "file")
+			f, _ := OpenFile(path)
+			defer f.Close()
+
+			Expect(f.Name()).To(Equal(path))
+		})
+
+		It("should write new file", func() {
+			bytes := []byte{1}
+			path := path.Join(rootPath, "file")
+			w, _ := OpenFile(path)
+			w.Write(bytes)
+			w.Close()
+
+			read, _ := ioutil.ReadFile(path)
+			Expect(read).To(Equal(bytes))
+		})
+
+		It("should append if file existed", func() {
+			bytes1 := []byte{1}
+			bytes2 := []byte{2}
+			path := path.Join(rootPath, "file-existed")
+			w1, _ := os.Create(path)
+			w1.Write(bytes1)
+			w1.Close()
+
+			w2, _ := OpenFile(path)
+			w2.Seek(0, 2)
+			w2.Write(bytes2)
+			w2.Close()
+
+			read, _ := ioutil.ReadFile(path)
+			Expect(read[:len(bytes1)]).To(Equal(bytes1))
+			Expect(read[len(bytes1):]).To(Equal(bytes2))
 		})
 	})
 

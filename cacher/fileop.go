@@ -21,14 +21,26 @@ var (
 	regExpSafePathName = regexp.MustCompile(`[^a-zA-Z0-9\.\-\_\=]`)
 )
 
+func MakeDir(cachePath string) error {
+	return os.MkdirAll(path.Dir(cachePath), os.ModePerm)
+}
+
 func CreateFile(cachePath string) (*os.File, error) {
-	dir, _ := path.Split(cachePath)
-	err := os.MkdirAll(dir, os.ModePerm)
+	err := MakeDir(cachePath)
 	if err != nil {
 		return nil, err
 	}
 
 	return os.OpenFile(cachePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+}
+
+func OpenFile(cachePath string) (*os.File, error) {
+	err := MakeDir(cachePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.OpenFile(cachePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 }
 
 func GenerateCachePath(rootPath string, url *url.URL) string {

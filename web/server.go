@@ -117,6 +117,9 @@ func (s *server) GetListeningPort(host string) (int, error) {
 func (s *server) Serve(host string, w http.ResponseWriter, req *http.Request) {
 	url, _ := url.Parse(req.URL.String())
 	url.Host = host
+	if len(url.Scheme) == 0 {
+		url.Scheme = "http"
+	}
 	loggerContext := s.logger.WithField("url", url)
 
 	cache, err := s.cacher.Open(url)

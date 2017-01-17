@@ -170,7 +170,7 @@ var _ = Describe("HttpCacher", func() {
 				writtenString := string(written)
 				writtenExpiresValue := getHeaderValue(writtenString, HTTPHeaderExpires)
 				writtenExpires, _ := strconv.ParseInt(writtenExpiresValue, 10, 64)
-				ttl := time.Duration((writtenExpires-time.Now().Unix())*2) * time.Second
+				ttl := time.Duration((writtenExpires-time.Now().UnixNano())*2) * time.Second
 
 				c.Bump(url, ttl)
 				bumped, _ := ioutil.ReadFile(cachePath)

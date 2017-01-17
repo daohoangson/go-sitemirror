@@ -119,7 +119,7 @@ func serveHTTPAddHeader(line string, info *CacheInfo) bool {
 		info.ContentLength = contentLength
 	case cacher.HTTPHeaderExpires:
 		if expires, err := strconv.ParseInt(headerValue, 10, 64); err == nil {
-			t := time.Unix(expires, 0)
+			t := time.Unix(0, expires)
 			info.Expires = &t
 		}
 

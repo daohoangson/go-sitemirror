@@ -91,7 +91,7 @@ var _ = Describe("Http", func() {
 
 				timestamp, err := strconv.ParseUint(writtenExpires, 10, 64)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(timestamp).To(BeNumerically(">", time.Now().Unix()))
+				Expect(timestamp).To(BeNumerically(">", time.Now().UnixNano()))
 			})
 
 			It("should write cache control headers", func() {

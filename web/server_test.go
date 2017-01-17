@@ -202,7 +202,7 @@ var _ = Describe("Server", func() {
 				f.WriteString(fmt.Sprintf(
 					"HTTP 200\n%s: %d\n\n",
 					cacher.HTTPHeaderExpires,
-					time.Now().Add(-1*time.Hour).Unix(),
+					time.Now().Add(-1*time.Hour).UnixNano(),
 				))
 				f.Close()
 

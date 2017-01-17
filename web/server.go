@@ -144,10 +144,12 @@ func (s *server) Serve(host string, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	loggerContext.WithField("statusCode", info.StatusCode).Debug("Served")
 	if info.Expires != nil && info.Expires.Before(time.Now()) {
+		loggerContext = loggerContext.WithField("expired", info.Expires)
 		s.triggerOnCacheIssue(CacheExpired, url, info)
 	}
+
+	loggerContext.WithField("statusCode", info.StatusCode).Debug("Served")
 }
 
 func (s *server) StopListening(host string) error {

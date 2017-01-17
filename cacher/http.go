@@ -42,7 +42,7 @@ func WriteHTTP(w io.Writer, input *Input) {
 }
 
 func writeHTTPFormatExpiresHeader(expires time.Time) string {
-	return fmt.Sprintf("%s: %020d\n", HTTPHeaderExpires, expires.Unix())
+	return fmt.Sprintf("%s: %020d\n", HTTPHeaderExpires, expires.UnixNano())
 }
 
 func writeHTTP2xx(bw *bufio.Writer, input *Input) {

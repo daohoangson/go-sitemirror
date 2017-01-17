@@ -162,12 +162,12 @@ var _ = Describe("HTTP", func() {
 
 		It("should pick up our expires header", func() {
 			expires := time.Now().Add(time.Minute)
-			r := newBufioReader(fmt.Sprintf("%s: %d\n\n", cacher.HTTPHeaderExpires, expires.Unix()))
+			r := newBufioReader(fmt.Sprintf("%s: %d\n\n", cacher.HTTPHeaderExpires, expires.UnixNano()))
 			w := httptest.NewRecorder()
 			info := &CacheInfo{ResponseWriter: w}
 			ServeHTTPAddHeaders(r, info)
 
-			Expect(info.Expires.Unix()).To(Equal(expires.Unix()))
+			Expect(info.Expires.UnixNano()).To(Equal(expires.UnixNano()))
 		})
 
 		It("should not add internal headers", func() {

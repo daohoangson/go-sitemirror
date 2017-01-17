@@ -19,8 +19,7 @@ type Server interface {
 	ListenAndServe(*url.URL, int) (io.Closer, error)
 	GetListeningPort(string) (int, error)
 	Serve(*url.URL, http.ResponseWriter, *http.Request)
-	StopListening(string) error
-	StopAll() []string
+	Stop() []string
 }
 
 type CacheIssue struct {

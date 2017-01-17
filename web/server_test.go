@@ -54,7 +54,7 @@ var _ = Describe("Server", func() {
 			root, _ := url.Parse("http://response.com")
 			s := newServer()
 			s.ListenAndServe(root, 0)
-			defer s.StopAll()
+			defer s.Stop()
 
 			port, _ := s.GetListeningPort(root.Host)
 			r, _ := http.Get(fmt.Sprintf("http://localhost:%d", port))
@@ -83,7 +83,7 @@ var _ = Describe("Server", func() {
 
 			l1, err1 := s.ListenAndServe(root, 0)
 			Expect(err1).ToNot(HaveOccurred())
-			defer s.StopAll()
+			defer s.Stop()
 
 			l2, err2 := s.ListenAndServe(root, 0)
 			Expect(err2).To(HaveOccurred())
@@ -96,7 +96,7 @@ var _ = Describe("Server", func() {
 				s := newServer()
 
 				s.ListenAndServe(root, 0)
-				defer s.StopAll()
+				defer s.Stop()
 
 				port, _ := s.GetListeningPort(root.Host)
 				Expect(port).To(BeNumerically(">", 0))
@@ -230,67 +230,39 @@ var _ = Describe("Server", func() {
 	})
 
 	Describe("Stop", func() {
-		Describe("StopListening", func() {
-			It("should stop listening", func() {
-				root, _ := url.Parse("http://stop.listening.com")
-				s := newServer()
+		It("should stop all", func() {
+			root1, _ := url.Parse("http://stop.all.one.com")
+			root2, _ := url.Parse("http://stop.all.two.com")
+			s := newServer()
 
-				s.ListenAndServe(root, 0)
+			s.ListenAndServe(root1, 0)
+			s.ListenAndServe(root2, 0)
 
-				time.Sleep(101 * time.Millisecond)
-				err := s.StopListening(root.Host)
-				Expect(err).ToNot(HaveOccurred())
-			})
-
-			It("should not stop listening for unknown host", func() {
-				s := newServer()
-				err := s.StopListening("not.stop.unknown.com")
-
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should not stop listening twice for the same host", func() {
-				root, _ := url.Parse("http://not.stop.twice.same.host.com")
-				s := newServer()
-
-				s.ListenAndServe(root, 0)
-				err1 := s.StopListening(root.Host)
-				Expect(err1).ToNot(HaveOccurred())
-
-				err2 := s.StopListening(root.Host)
-				Expect(err2).To(HaveOccurred())
-			})
+			hosts := s.Stop()
+			Expect(len(hosts)).To(Equal(2))
 		})
 
-		Describe("StopAll", func() {
-			It("should stop all", func() {
-				root1, _ := url.Parse("http://stop.all.one.com")
-				root2, _ := url.Parse("http://stop.all.two.com")
-				s := newServer()
+		It("should stop all except one", func() {
+			root1, _ := url.Parse("http://stop.all.except.one.com")
+			root2, _ := url.Parse("http://stop.all.except.two.com")
+			root3, _ := url.Parse("http://stop.all.except.three.com")
+			s := newServer()
 
-				s.ListenAndServe(root1, 0)
-				s.ListenAndServe(root2, 0)
+			s.ListenAndServe(root1, 0)
+			l2, _ := s.ListenAndServe(root2, 0)
+			s.ListenAndServe(root3, 0)
 
-				hosts := s.StopAll()
-				Expect(len(hosts)).To(Equal(2))
-			})
+			l2.Close()
 
-			It("should stop all except one", func() {
-				root1, _ := url.Parse("http://stop.all.except.one.com")
-				root2, _ := url.Parse("http://stop.all.except.two.com")
-				root3, _ := url.Parse("http://stop.all.except.three.com")
-				s := newServer()
+			hosts := s.Stop()
+			sort.Strings(hosts)
+			Expect(hosts).To(Equal([]string{root1.Host, root3.Host}))
+		})
 
-				s.ListenAndServe(root1, 0)
-				s.ListenAndServe(root2, 0)
-				s.ListenAndServe(root3, 0)
-
-				s.StopListening(root2.Host)
-
-				hosts := s.StopAll()
-				sort.Strings(hosts)
-				Expect(hosts).To(Equal([]string{root1.Host, root3.Host}))
-			})
+		It("should do no op on stop being called twice", func() {
+			s := newServer()
+			s.Stop()
+			s.Stop()
 		})
 	})
 })

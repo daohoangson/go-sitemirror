@@ -150,25 +150,7 @@ func (s *server) Serve(root *url.URL, w http.ResponseWriter, req *http.Request) 
 	loggerContext.WithField("statusCode", info.StatusCode).Debug("Served")
 }
 
-func (s *server) StopListening(host string) error {
-	listener, ok := s.listeners[host]
-	if !ok {
-		return errors.New("Listener not found")
-	}
-
-	err := listener.Close()
-
-	loggerContext := s.logger.WithField("host", host)
-	if err == nil {
-		loggerContext.Info("Stopped listening")
-	} else {
-		loggerContext.WithField("error", err).Error("Cannot stop listening")
-	}
-
-	return err
-}
-
-func (s *server) StopAll() []string {
+func (s *server) Stop() []string {
 	hosts := make([]string, 0)
 
 	for host, listener := range s.listeners {
@@ -181,6 +163,8 @@ func (s *server) StopAll() []string {
 		} else {
 			loggerContext.WithField("error", err).Error("Cannot stop listening")
 		}
+
+		delete(s.listeners, host)
 	}
 
 	return hosts

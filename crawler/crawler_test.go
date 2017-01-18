@@ -88,7 +88,7 @@ var _ = Describe("Crawler", func() {
 
 	Describe("SetOnURLShouldQueue", func() {
 		It("should enqueue link except one", func() {
-			url := "http://domain.com/SetOnURLShouldQueue/download/except/one"
+			url := "http://domain.com/SetOnURLShouldQueue/enqueue/except/one"
 			urlShouldQueue := "http://domain.com/SetOnURLShouldQueue/should/queue"
 			urlNotQueue := "http://domain.com/SetOnURLShouldQueue/not/queue"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
@@ -338,9 +338,9 @@ var _ = Describe("Crawler", func() {
 		})
 	})
 
-	Describe("Queue", func() {
-		It("should queue one url", func() {
-			url := "http://domain.com/crawler/download/one"
+	Describe("Enqueue", func() {
+		It("should enqueue one url", func() {
+			url := "http://domain.com/crawler/enqueue/one"
 			body := "foo/bar"
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, body))
 
@@ -356,9 +356,9 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64Zero))
 		})
 
-		It("should queue url + found link", func() {
-			url := "http://domain.com/crawler/download/link"
-			targetUrl := "http://domain.com/crawler/download/link/target"
+		It("should enqueue url + found link", func() {
+			url := "http://domain.com/crawler/enqueue/link"
+			targetUrl := "http://domain.com/crawler/enqueue/link/target"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 			httpmock.RegisterResponder("GET", targetUrl, httpmock.NewStringResponder(200, "foo/bar"))
@@ -378,10 +378,10 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64One))
 		})
 
-		It("should queue url + found link at depth 1", func() {
-			url := "http://domain.com/crawl/download/depth/1/only"
-			urlDepth1 := "http://domain.com/crawl/download/depth/1/first"
-			urlDepth2 := "http://domain.com/crawl/download/depth/1/second"
+		It("should enqueue url + found link at depth 1", func() {
+			url := "http://domain.com/crawl/enqueue/depth/1/only"
+			urlDepth1 := "http://domain.com/crawl/enqueue/depth/1/first"
+			urlDepth2 := "http://domain.com/crawl/enqueue/depth/1/second"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link depth=1</a>", urlDepth1))
 			html1 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link depth=2</a>", urlDepth2))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
@@ -405,9 +405,9 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64Two))
 		})
 
-		It("should queue url without found link (auto download depth = 0)", func() {
-			url := "http://domain.com/crawler/download/no/link"
-			targetUrl := "http://domain.com/crawler/download/no/link/target"
+		It("should enqueue url without found link (auto download depth = 0)", func() {
+			url := "http://domain.com/crawler/enqueue/no/link"
+			targetUrl := "http://domain.com/crawler/enqueue/no/link/target"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
@@ -427,10 +427,10 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64One))
 		})
 
-		It("should queue url + found asset, but not link (auto download depth = 0)", func() {
-			url := "http://domain.com/crawl/download/asset/not/link"
-			urlAsset := "http://domain.com/crawl/download/asset"
-			urlLink := "http://domain.com/crawl/download/link"
+		It("should enqueue url + found asset, but not link (auto download depth = 0)", func() {
+			url := "http://domain.com/crawl/enqueue/asset/not/link"
+			urlAsset := "http://domain.com/crawl/enqueue/asset"
+			urlLink := "http://domain.com/crawl/enqueue/link"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<script src=\"%s\">"+
 				"</script><a href=\"%s\">Link</a>", urlAsset, urlLink))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
@@ -455,7 +455,7 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64Two))
 		})
 
-		It("should not queue invalid url", func() {
+		It("should not enqueue invalid url", func() {
 			c := newCrawler()
 			err := c.EnqueueURL(t.InvalidURL)
 			defer c.Stop()
@@ -463,6 +463,55 @@ var _ = Describe("Crawler", func() {
 			time.Sleep(sleepTime)
 			Expect(c.GetEnqueuedCount()).To(Equal(uint64Zero))
 			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("Download", func() {
+		It("should download", func() {
+			url := "http://domain.com/crawler/download"
+			parsedURL, _ := neturl.Parse(url)
+			statusCode := http.StatusOK
+			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(statusCode, ""))
+
+			c := newCrawler()
+			downloaded := c.Download(QueueItem{URL: parsedURL})
+
+			Expect(downloaded.StatusCode).To(Equal(statusCode))
+			Expect(c.HasStarted()).To(BeFalse())
+			Expect(c.GetEnqueuedCount()).To(Equal(uint64Zero))
+			Expect(c.GetDownloadedCount()).To(Equal(uint64One))
+			Expect(c.GetLinkFoundCount()).To(Equal(uint64Zero))
+		})
+
+		It("should skip downloading", func() {
+			url := "http://domain.com/crawler/download"
+			parsedURL, _ := neturl.Parse(url)
+			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(http.StatusOK, ""))
+
+			c := newCrawler()
+			c.SetOnURLShouldDownload(func(_ *neturl.URL) bool {
+				return false
+			})
+			downloaded := c.Download(QueueItem{URL: parsedURL})
+
+			Expect(downloaded).To(BeNil())
+		})
+
+		It("should force downloading", func() {
+			url := "http://domain.com/crawler/download"
+			parsedURL, _ := neturl.Parse(url)
+			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(http.StatusOK, ""))
+
+			c := newCrawler()
+			c.SetOnURLShouldDownload(func(_ *neturl.URL) bool {
+				return false
+			})
+			downloaded := c.Download(QueueItem{
+				URL:           parsedURL,
+				ForceDownload: true,
+			})
+
+			Expect(downloaded).ToNot(BeNil())
 		})
 	})
 })

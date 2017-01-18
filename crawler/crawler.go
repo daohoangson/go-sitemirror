@@ -189,10 +189,6 @@ func (c *crawler) Start() {
 				for {
 					if v, ok := <-c.queue.Recv; ok {
 						if item, ok := v.(QueueItem); ok {
-							if c.onDownload != nil {
-								(*c.onDownload)(item.URL)
-							}
-
 							downloaded := c.doDownload(workerID, item)
 
 							c.doAutoQueue(workerID, item, downloaded)
@@ -245,6 +241,10 @@ func (c *crawler) EnqueueURL(url string) error {
 	return nil
 }
 
+func (c *crawler) Download(item QueueItem) *Downloaded {
+	return c.doDownload(0, item)
+}
+
 func (c *crawler) Downloaded() (*Downloaded, bool) {
 	c.Start()
 	result, ok := <-c.output
@@ -278,11 +278,15 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 		downloaded     *Downloaded
 	)
 
+	if c.onDownload != nil {
+		(*c.onDownload)(item.URL)
+	}
+
 	atomic.AddInt64(&c.downloadingCount, 1)
 	atomic.AddInt64(&c.queuingCount, -1)
 
 	if item.ForceDownload {
-		// do no trigger onURLShouldDownload
+		// do not trigger onURLShouldDownload
 	} else if c.onURLShouldDownload != nil {
 		shouldDownload = (*c.onURLShouldDownload)(item.URL)
 		if !shouldDownload {
@@ -306,7 +310,9 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 		}).Info("Downloaded")
 
 		if c.onDownloaded == nil {
-			c.output <- downloaded
+			if c.IsRunning() {
+				c.output <- downloaded
+			}
 		} else {
 			(*c.onDownloaded)(downloaded)
 		}

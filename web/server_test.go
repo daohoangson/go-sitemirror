@@ -150,18 +150,18 @@ var _ = Describe("Server", func() {
 			Expect(w.Code).To(Equal(http.StatusNotFound))
 		})
 
-		Describe("SetOnCacheIssue", func() {
+		Describe("SetOnServerIssue", func() {
 			It("should trigger func on cache not found", func() {
 				root, _ := url.Parse("http://domain.com")
 				s := newServer()
 				w := httptest.NewRecorder()
-				req := httptest.NewRequest("", "/SetOnCacheIssue/cache/not/found", nil)
+				req := httptest.NewRequest("", "/SetOnServerIssue/cache/not/found", nil)
 
-				var cacheNotFoundIssue *CacheIssue
-				s.SetOnCacheIssue(func(issue CacheIssue) {
+				var cacheNotFoundIssue *ServerIssue
+				s.SetOnServerIssue(func(issue *ServerIssue) {
 					switch issue.Type {
 					case CacheNotFound:
-						cacheNotFoundIssue = &issue
+						cacheNotFoundIssue = issue
 					}
 				})
 
@@ -171,7 +171,7 @@ var _ = Describe("Server", func() {
 			})
 
 			It("should trigger func on cache error", func() {
-				urlPath := "/SetOnCacheIssue/cache/error"
+				urlPath := "/SetOnServerIssue/cache/error"
 				url, _ := url.Parse("http://domain.com" + urlPath)
 				cachePath := cacher.GenerateCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
@@ -183,11 +183,11 @@ var _ = Describe("Server", func() {
 				w := httptest.NewRecorder()
 				req := httptest.NewRequest("", urlPath, nil)
 
-				var cacheErrorIssue *CacheIssue
-				s.SetOnCacheIssue(func(issue CacheIssue) {
+				var cacheErrorIssue *ServerIssue
+				s.SetOnServerIssue(func(issue *ServerIssue) {
 					switch issue.Type {
 					case CacheError:
-						cacheErrorIssue = &issue
+						cacheErrorIssue = issue
 					}
 				})
 
@@ -197,7 +197,7 @@ var _ = Describe("Server", func() {
 			})
 
 			It("should trigger func on cache expired", func() {
-				urlPath := "/SetOnCacheIssue/cache/expired"
+				urlPath := "/SetOnServerIssue/cache/expired"
 				url, _ := url.Parse("http://domain.com" + urlPath)
 				cachePath := cacher.GenerateCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
@@ -214,11 +214,11 @@ var _ = Describe("Server", func() {
 				w := httptest.NewRecorder()
 				req := httptest.NewRequest("", urlPath, nil)
 
-				var cacheExpiredIssue *CacheIssue
-				s.SetOnCacheIssue(func(issue CacheIssue) {
+				var cacheExpiredIssue *ServerIssue
+				s.SetOnServerIssue(func(issue *ServerIssue) {
 					switch issue.Type {
 					case CacheExpired:
-						cacheExpiredIssue = &issue
+						cacheExpiredIssue = issue
 					}
 				})
 
@@ -257,6 +257,17 @@ var _ = Describe("Server", func() {
 			hosts := s.Stop()
 			sort.Strings(hosts)
 			Expect(hosts).To(Equal([]string{root1.Host, root3.Host}))
+		})
+
+		It("should stop slowly", func() {
+			root1, _ := url.Parse("http://stop.slowly.com")
+			s := newServer()
+
+			s.ListenAndServe(root1, 0)
+
+			time.Sleep(50 * time.Millisecond)
+			hosts := s.Stop()
+			Expect(len(hosts)).To(Equal(1))
 		})
 
 		It("should do no op on stop being called twice", func() {

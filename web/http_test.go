@@ -14,6 +14,7 @@ import (
 	"github.com/daohoangson/go-sitemirror/cacher"
 	"github.com/daohoangson/go-sitemirror/crawler"
 	. "github.com/daohoangson/go-sitemirror/web"
+	"github.com/daohoangson/go-sitemirror/web/internal"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -35,25 +36,23 @@ var _ = Describe("HTTP", func() {
 
 	Describe("ServeDownloaded", func() {
 		It("should write status code, header and content", func() {
-			statusCode := 200
-			contentType := "text/plain"
-			content := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 			downloaded := &crawler.Downloaded{
-				StatusCode:  statusCode,
-				ContentType: contentType,
-				BodyBytes:   content,
+				StatusCode:  http.StatusOK,
+				ContentType: "text/plain",
+				BodyBytes:   []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 			}
 			w := httptest.NewRecorder()
-			info := ServeDownloaded(downloaded, w)
+			si := internal.NewServeInfo(w)
+			ServeDownloaded(downloaded, si)
 
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(w.Code).To(Equal(statusCode))
-			Expect(w.Header().Get("Content-Type")).To(Equal(contentType))
-			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(content))))
+			Expect(si.HasError()).To(BeFalse())
+			Expect(w.Code).To(Equal(downloaded.StatusCode))
+			Expect(w.Header().Get("Content-Type")).To(Equal(downloaded.ContentType))
+			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(downloaded.BodyBytes))))
 
 			wBody, _ := ioutil.ReadAll(w.Body)
-			Expect(len(wBody)).To(Equal(len(content)))
-			Expect(string(wBody)).To(Equal(string(content)))
+			Expect(len(wBody)).To(Equal(len(downloaded.BodyBytes)))
+			Expect(string(wBody)).To(Equal(string(downloaded.BodyBytes)))
 		})
 
 		It("should write Location header", func() {
@@ -64,24 +63,26 @@ var _ = Describe("HTTP", func() {
 				HeaderLocation: parsedLocation,
 			}
 			w := httptest.NewRecorder()
-			ServeDownloaded(downloaded, w)
+			si := internal.NewServeInfo(w)
+			ServeDownloaded(downloaded, si)
+			si.Flush()
 
 			Expect(w.Header().Get("Location")).To(Equal(location))
 		})
 
 		It("should write body string", func() {
-			content := "foo/bar"
 			downloaded := &crawler.Downloaded{
-				BodyString: content,
+				BodyString: "foo/bar",
 			}
 			w := httptest.NewRecorder()
-			ServeDownloaded(downloaded, w)
+			si := internal.NewServeInfo(w)
+			ServeDownloaded(downloaded, si)
 
-			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(content))))
+			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(downloaded.BodyString))))
 
 			wBody, _ := ioutil.ReadAll(w.Body)
-			Expect(len(wBody)).To(Equal(len(content)))
-			Expect(string(wBody)).To(Equal(content))
+			Expect(len(wBody)).To(Equal(len(downloaded.BodyString)))
+			Expect(string(wBody)).To(Equal(downloaded.BodyString))
 		})
 	})
 
@@ -96,9 +97,10 @@ var _ = Describe("HTTP", func() {
 				"\n" +
 				string(content))
 			w := httptest.NewRecorder()
-			info := ServeHTTPCache(input, w)
+			si := internal.NewServeInfo(w)
+			ServeHTTPCache(input, si)
 
-			Expect(info.Error).ToNot(HaveOccurred())
+			Expect(si.HasError()).To(BeFalse())
 			Expect(w.Code).To(Equal(statusCode))
 			Expect(w.Header().Get("Content-Type")).To(Equal(contentType))
 			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(content))))
@@ -111,18 +113,22 @@ var _ = Describe("HTTP", func() {
 		It("should not write (no status code)", func() {
 			input := newReader("")
 			w := httptest.NewRecorder()
-			info := ServeHTTPCache(input, w)
+			si := internal.NewServeInfo(w)
+			ServeHTTPCache(input, si)
+			si.Flush()
 
-			Expect(info.Error).To(HaveOccurred())
+			Expect(si.HasError()).To(BeTrue())
 			Expect(w.Code).To(Equal(http.StatusNotImplemented))
 		})
 
 		It("should not write (no header)", func() {
 			input := newReader("HTTP 200\n")
 			w := httptest.NewRecorder()
-			info := ServeHTTPCache(input, w)
+			si := internal.NewServeInfo(w)
+			ServeHTTPCache(input, si)
+			si.Flush()
 
-			Expect(info.Error).To(HaveOccurred())
+			Expect(si.HasError()).To(BeTrue())
 			Expect(w.Code).To(Equal(http.StatusInternalServerError))
 		})
 	})
@@ -130,65 +136,68 @@ var _ = Describe("HTTP", func() {
 	Describe("ServeHTTPGetStatusCode", func() {
 		It("should parse 200", func() {
 			r := newBufioReader("HTTP 200\n")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(info.StatusCode).To(Equal(200))
+			Expect(si.HasError()).To(BeFalse())
+			Expect(si.GetStatusCode()).To(Equal(200))
 		})
 
 		It("should parse 301", func() {
 			r := newBufioReader("HTTP 301\n")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(info.StatusCode).To(Equal(301))
+			Expect(si.HasError()).To(BeFalse())
+			Expect(si.GetStatusCode()).To(Equal(301))
 		})
 
 		It("should parse 404", func() {
 			r := newBufioReader("HTTP 404\n")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(info.StatusCode).To(Equal(404))
+			Expect(si.HasError()).To(BeFalse())
+			Expect(si.GetStatusCode()).To(Equal(404))
 		})
 
 		It("should parse 503", func() {
 			r := newBufioReader("HTTP 503\n")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(info.StatusCode).To(Equal(503))
+			Expect(si.HasError()).To(BeFalse())
+			Expect(si.GetStatusCode()).To(Equal(503))
 		})
 
 		It("should handle empty input", func() {
 			r := newBufioReader("")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ErrorType).To(Equal(ErrorReadLine))
+			errorType, err := si.GetError()
+			Expect(err).To(HaveOccurred())
+			Expect(errorType).To(Equal(int(internal.ErrorReadLine)))
 		})
 
 		It("should handle broken input", func() {
 			r := newBufioReader("Oops\n")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ErrorType).To(Equal(ErrorParseLine))
+			errorType, err := si.GetError()
+			Expect(err).To(HaveOccurred())
+			Expect(errorType).To(Equal(int(internal.ErrorParseLine)))
 		})
 
 		It("should handle broken status code", func() {
 			r := newBufioReader("HTTP 4294967296\n")
-			info := &CacheInfo{}
-			ServeHTTPGetStatusCode(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPGetStatusCode(r, si)
 
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ErrorType).To(Equal(ErrorParseInt))
+			errorType, err := si.GetError()
+			Expect(err).To(HaveOccurred())
+			Expect(errorType).To(Equal(int(internal.ErrorParseInt)))
 		})
 	})
 
@@ -197,39 +206,41 @@ var _ = Describe("HTTP", func() {
 			contentType := "application/octet-stream"
 			r := newBufioReader("Content-Type: " + contentType + "\n\n")
 			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(w)
+			ServeHTTPAddHeaders(r, si)
+			si.Flush()
 
-			Expect(info.ContentLength).To(Equal(int64Zero))
 			Expect(w.Header().Get("Content-Type")).To(Equal(contentType))
 		})
 
 		It("should pick up Content-Length header", func() {
 			r := newBufioReader("Content-Length: 1\n\n")
 			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(w)
+			ServeHTTPAddHeaders(r, si)
+			si.Flush()
 
-			Expect(info.ContentLength).To(Equal(int64One))
 			Expect(w.Header().Get("Content-Length")).To(Equal("1"))
 		})
 
 		It("should pick up our expires header", func() {
 			expires := time.Now().Add(time.Minute)
 			r := newBufioReader(fmt.Sprintf("%s: %d\n\n", cacher.HTTPHeaderExpires, expires.UnixNano()))
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPAddHeaders(r, si)
 
-			Expect(info.Expires.UnixNano()).To(Equal(expires.UnixNano()))
+			siExpires := si.GetExpires()
+			Expect(siExpires).ToNot(BeNil())
+			Expect(siExpires.UnixNano()).To(Equal(expires.UnixNano()))
 		})
 
 		It("should not add internal headers", func() {
 			r := newBufioReader(fmt.Sprintf("%s-One: 1\nTwo: 2\n%s-Three: 3\n\n",
 				cacher.HTTPHeaderPrefix, cacher.HTTPHeaderPrefix))
 			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(w)
+			ServeHTTPAddHeaders(r, si)
+			si.Flush()
 
 			buffer := &bytes.Buffer{}
 			w.Header().Write(buffer)
@@ -238,65 +249,32 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle empty input", func() {
 			r := newBufioReader("")
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPAddHeaders(r, si)
 
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ErrorType).To(Equal(ErrorReadLine))
+			errorType, err := si.GetError()
+			Expect(err).To(HaveOccurred())
+			Expect(errorType).To(Equal(int(internal.ErrorReadLine)))
 		})
 
 		It("should handle broken input", func() {
 			r := newBufioReader("Oops\n")
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPAddHeaders(r, si)
 
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ErrorType).To(Equal(ErrorParseLine))
+			errorType, err := si.GetError()
+			Expect(err).To(HaveOccurred())
+			Expect(errorType).To(Equal(int(internal.ErrorParseLine)))
 		})
 
 		It("should handle broken content length", func() {
 			r := newBufioReader("Content-Length: 9223372036854775808\n")
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ResponseWriter: w}
-			ServeHTTPAddHeaders(r, info)
+			si := internal.NewServeInfo(httptest.NewRecorder())
+			ServeHTTPAddHeaders(r, si)
 
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ErrorType).To(Equal(ErrorParseInt))
-		})
-	})
-
-	Describe("ServeHTTPCopyContent", func() {
-		It("should copy all", func() {
-			s := "123456"
-			r := newBufioReader(s)
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ContentLength: int64(len(s))}
-			ServeHTTPCopyContent(r, info, w)
-
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(info.ContentWritten).To(Equal(int64(len(s))))
-		})
-
-		It("should handle zero content length", func() {
-			r := newBufioReader("")
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ContentLength: int64Zero}
-			ServeHTTPCopyContent(r, info, w)
-
-			Expect(info.Error).ToNot(HaveOccurred())
-			Expect(info.ContentWritten).To(Equal(int64Zero))
-		})
-
-		It("should handle copy EOF error", func() {
-			r := newBufioReader("")
-			w := httptest.NewRecorder()
-			info := &CacheInfo{ContentLength: int64One}
-			ServeHTTPCopyContent(r, info, w)
-
-			Expect(info.Error).To(HaveOccurred())
-			Expect(info.ContentWritten).To(Equal(int64Zero))
+			errorType, err := si.GetError()
+			Expect(err).To(HaveOccurred())
+			Expect(errorType).To(Equal(int(internal.ErrorParseInt)))
 		})
 	})
 })

@@ -2,9 +2,7 @@ package web
 
 import (
 	"bufio"
-	"fmt"
 	"io"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,98 +10,80 @@ import (
 
 	"github.com/daohoangson/go-sitemirror/cacher"
 	"github.com/daohoangson/go-sitemirror/crawler"
+	"github.com/daohoangson/go-sitemirror/web/internal"
 )
 
 var regexHTTPStatusCode = regexp.MustCompile(`^HTTP (\d+)\n$`)
 var regexHTTPHeader = regexp.MustCompile(`^([^:]+): (.+)\n$`)
 
-func ServeDownloaded(downloaded *crawler.Downloaded, w http.ResponseWriter) *CacheInfo {
-	info := &CacheInfo{ResponseWriter: w}
-
-	info.StatusCode = downloaded.StatusCode
-	w.WriteHeader(info.StatusCode)
+func ServeDownloaded(downloaded *crawler.Downloaded, info internal.ServeInfo) {
+	info.SetStatusCode(downloaded.StatusCode)
 
 	if downloaded.HeaderLocation != nil {
-		w.Header().Add("Location", downloaded.HeaderLocation.String())
-		return info
+		info.AddHeader("Location", downloaded.HeaderLocation.String())
+		return
 	}
 
 	if len(downloaded.ContentType) > 0 {
-		w.Header().Add("Content-Type", downloaded.ContentType)
+		info.AddHeader("Content-Type", downloaded.ContentType)
 	}
 
-	info.ContentLength = int64(len(downloaded.BodyString))
 	var bytes []byte
-	if info.ContentLength > 0 {
+	if len(downloaded.BodyString) > 0 {
 		bytes = []byte(downloaded.BodyString)
 	} else if downloaded.BodyBytes != nil {
 		bytes = downloaded.BodyBytes
-		info.ContentLength = int64(len(downloaded.BodyBytes))
 	}
-	if info.ContentLength > 0 {
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", info.ContentLength))
-		written, err := w.Write(bytes)
-		info.ContentWritten = int64(written)
-		info.Error = err
+	if bytes != nil {
+		info.WriteBody(bytes)
 	}
-
-	return info
 }
 
-func ServeHTTPCache(input io.Reader, w http.ResponseWriter) *CacheInfo {
+func ServeHTTPCache(input io.Reader, info internal.ServeInfo) {
 	r := bufio.NewReader(input)
-	info := &CacheInfo{ResponseWriter: w}
 
 	ServeHTTPGetStatusCode(r, info)
-	if info.Error != nil {
-		w.WriteHeader(http.StatusNotImplemented)
-		return info
+	if info.HasError() {
+		return
 	}
 
 	ServeHTTPAddHeaders(r, info)
-	if info.Error != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return info
+	if info.HasError() {
+		return
 	}
 
-	w.WriteHeader(info.StatusCode)
-	ServeHTTPCopyContent(r, info, w)
-
-	return info
+	info.CopyBody(r)
+	return
 }
 
-func ServeHTTPGetStatusCode(r *bufio.Reader, info *CacheInfo) {
+func ServeHTTPGetStatusCode(r *bufio.Reader, info internal.ServeInfo) {
 	line, err := r.ReadString('\n')
 	if err != nil {
-		info.ErrorType = ErrorReadLine
-		info.Error = fmt.Errorf("Cannot read first line: %v", err)
+		info.OnNoStatusCode(internal.ErrorReadLine, "Cannot read first line: %v", err)
 		return
 	}
 
 	matches := regexHTTPStatusCode.FindStringSubmatch(line)
 	if matches == nil {
-		info.ErrorType = ErrorParseLine
-		info.Error = fmt.Errorf("Unexpected first line: %s", line)
+		info.OnNoStatusCode(internal.ErrorParseLine, "Unexpected first line: %s", line)
 		return
 	}
 
 	statusCodeString := matches[1]
 	statusCode, err := strconv.ParseUint(statusCodeString, 10, 32)
 	if err != nil {
-		info.ErrorType = ErrorParseInt
-		info.Error = fmt.Errorf("Cannot convert status code from %s", statusCodeString)
+		info.OnNoStatusCode(internal.ErrorParseInt, "Cannot convert status code from %s", statusCodeString)
 		return
 	}
 
-	info.StatusCode = int(statusCode)
+	info.SetStatusCode(int(statusCode))
 }
 
-func ServeHTTPAddHeaders(r *bufio.Reader, info *CacheInfo) {
+func ServeHTTPAddHeaders(r *bufio.Reader, info internal.ServeInfo) {
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
-			info.ErrorType = ErrorReadLine
-			info.Error = fmt.Errorf("Cannot read header line: %v", err)
+			info.OnBrokenHeader(internal.ErrorReadLine, "Cannot read header line: %v", err)
 			return
 		}
 
@@ -113,28 +93,14 @@ func ServeHTTPAddHeaders(r *bufio.Reader, info *CacheInfo) {
 	}
 }
 
-func ServeHTTPCopyContent(r *bufio.Reader, info *CacheInfo, w io.Writer) {
-	if info.ContentLength == 0 {
-		return
-	}
-
-	written, err := io.CopyN(w, r, info.ContentLength)
-	info.ContentWritten = written
-	if err != nil {
-		info.ErrorType = ErrorWriteContent
-		info.Error = err
-	}
-}
-
-func serveHTTPAddHeader(line string, info *CacheInfo) bool {
+func serveHTTPAddHeader(line string, info internal.ServeInfo) bool {
 	if line == "\n" {
 		return true
 	}
 
 	matches := regexHTTPHeader.FindStringSubmatch(line)
 	if matches == nil {
-		info.ErrorType = ErrorParseLine
-		info.Error = fmt.Errorf("Unexpected header line: %s", line)
+		info.OnBrokenHeader(internal.ErrorParseLine, "Unexpected header line: %s", line)
 		return true
 	}
 
@@ -145,16 +111,16 @@ func serveHTTPAddHeader(line string, info *CacheInfo) bool {
 	case "Content-Length":
 		contentLength, err := strconv.ParseInt(headerValue, 10, 64)
 		if err != nil {
-			info.ErrorType = ErrorParseInt
-			info.Error = fmt.Errorf("Cannot convert content length from %s", headerValue)
+			info.OnBrokenHeader(internal.ErrorParseInt, "Cannot convert content length from %s", headerValue)
 			return true
 		}
 
-		info.ContentLength = contentLength
+		info.SetContentLength(contentLength)
+		return false
 	case cacher.HTTPHeaderExpires:
 		if expires, err := strconv.ParseInt(headerValue, 10, 64); err == nil {
 			t := time.Unix(0, expires)
-			info.Expires = &t
+			info.SetExpires(t)
 		}
 
 		return false
@@ -165,6 +131,6 @@ func serveHTTPAddHeader(line string, info *CacheInfo) bool {
 		}
 	}
 
-	info.ResponseWriter.Header().Add(headerKey, headerValue)
+	info.AddHeader(headerKey, headerValue)
 	return false
 }

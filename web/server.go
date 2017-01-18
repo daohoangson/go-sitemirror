@@ -13,13 +13,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/daohoangson/go-sitemirror/cacher"
+	"github.com/daohoangson/go-sitemirror/web/internal"
 )
 
 type server struct {
 	cacher cacher.Cacher
 	logger *logrus.Logger
 
-	onCacheIssue *func(CacheIssue)
+	onServerIssue *func(*ServerIssue)
 
 	listeners map[string]net.Listener
 }
@@ -48,8 +49,8 @@ func (s *server) GetCacher() cacher.Cacher {
 	return s.cacher
 }
 
-func (s *server) SetOnCacheIssue(f func(CacheIssue)) {
-	s.onCacheIssue = &f
+func (s *server) SetOnServerIssue(f func(*ServerIssue)) {
+	s.onServerIssue = &f
 }
 
 func (s *server) ListenAndServe(root *url.URL, port int) (io.Closer, error) {
@@ -87,7 +88,7 @@ func (s *server) ListenAndServe(root *url.URL, port int) (io.Closer, error) {
 		if serveError != nil {
 			elapsed := time.Since(start)
 			errorContext := loggerContext.WithField("error", serveError)
-			if elapsed > 100*time.Millisecond {
+			if elapsed > 50*time.Millisecond {
 				// some time has passed, it's likely that it worked
 				// but the listener has been asked to be closed
 				errorContext.Debug("Listener has been closed")
@@ -114,40 +115,44 @@ func (s *server) GetListeningPort(host string) (int, error) {
 	return int(port), err
 }
 
-func (s *server) Serve(root *url.URL, w http.ResponseWriter, req *http.Request) {
+func (s *server) Serve(root *url.URL, w http.ResponseWriter, req *http.Request) internal.ServeInfo {
 	url, _ := url.Parse(req.URL.String())
 	url.Scheme = root.Scheme
 	url.Host = root.Host
-	loggerContext := s.logger.WithField("url", url)
+	si := internal.NewServeInfo(w)
 
 	cache, err := s.cacher.Open(url)
 	if err != nil {
-		loggerContext.Debug("Cache not found")
-
-		infoOnError := &CacheInfo{
-			ResponseWriter: w,
-			Error:          err,
-		}
-		if !s.triggerOnCacheIssue(CacheNotFound, url, infoOnError) {
-			w.WriteHeader(http.StatusNotFound)
-		}
-		return
+		return s.serveServerIssue(&ServerIssue{
+			Type: CacheNotFound,
+			URL:  url,
+			Info: si.OnCacheNotFound(err),
+		})
 	}
 	defer cache.Close()
 
-	info := ServeHTTPCache(cache, w)
-	if info.Error != nil {
-		loggerContext.WithField("error", info.Error).Error("Cannot serve")
-		s.triggerOnCacheIssue(CacheError, url, info)
-		return
+	ServeHTTPCache(cache, si)
+	if si.HasError() {
+		return s.serveServerIssue(&ServerIssue{
+			Type: CacheError,
+			URL:  url,
+			Info: si,
+		})
 	}
 
-	if info.Expires != nil && info.Expires.Before(time.Now()) {
-		loggerContext = loggerContext.WithField("expired", info.Expires)
-		s.triggerOnCacheIssue(CacheExpired, url, info)
+	loggerContext := s.logger.WithField("url", url)
+	siExpires := si.GetExpires()
+	if siExpires != nil && siExpires.Before(time.Now()) {
+		loggerContext = loggerContext.WithField("expired", siExpires)
+		s.triggerOnServerIssue(&ServerIssue{
+			Type: CacheExpired,
+			URL:  url,
+			Info: si,
+		})
 	}
 
-	loggerContext.WithField("statusCode", info.StatusCode).Debug("Served")
+	loggerContext.WithField("statusCode", si.GetStatusCode()).Debug("Served")
+	return si.Flush()
 }
 
 func (s *server) Stop() []string {
@@ -170,16 +175,25 @@ func (s *server) Stop() []string {
 	return hosts
 }
 
-func (s *server) triggerOnCacheIssue(t cacheIssueType, url *url.URL, info *CacheInfo) bool {
-	if s.onCacheIssue == nil {
-		return false
+func (s *server) serveServerIssue(issue *ServerIssue) internal.ServeInfo {
+	s.triggerOnServerIssue(issue)
+	issue.Info.Flush()
+
+	_, siError := issue.Info.GetError()
+	s.logger.WithFields(logrus.Fields{
+		"url":        issue.URL,
+		"issue":      issue.Type,
+		"error":      siError,
+		"statusCode": issue.Info.GetStatusCode(),
+	}).Debug("Served")
+
+	return issue.Info
+}
+
+func (s *server) triggerOnServerIssue(issue *ServerIssue) {
+	if s.onServerIssue == nil {
+		return
 	}
 
-	(*s.onCacheIssue)(CacheIssue{
-		Type: t,
-		URL:  url,
-		Info: info,
-	})
-
-	return true
+	(*s.onServerIssue)(issue)
 }

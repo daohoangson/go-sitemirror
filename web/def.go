@@ -4,39 +4,28 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/daohoangson/go-sitemirror/cacher"
+	"github.com/daohoangson/go-sitemirror/web/internal"
 )
 
 type Server interface {
 	init(cacher.Cacher, *logrus.Logger)
 
 	GetCacher() cacher.Cacher
-	SetOnCacheIssue(func(CacheIssue))
+	SetOnServerIssue(func(*ServerIssue))
 
 	ListenAndServe(*url.URL, int) (io.Closer, error)
 	GetListeningPort(string) (int, error)
-	Serve(*url.URL, http.ResponseWriter, *http.Request)
+	Serve(*url.URL, http.ResponseWriter, *http.Request) internal.ServeInfo
 	Stop() []string
 }
 
-type CacheIssue struct {
+type ServerIssue struct {
 	URL  *url.URL
-	Type cacheIssueType
-	Info *CacheInfo
-}
-
-type CacheInfo struct {
-	ResponseWriter http.ResponseWriter
-	ErrorType      errorType
-	Error          error
-
-	StatusCode     int
-	ContentLength  int64
-	ContentWritten int64
-	Expires        *time.Time
+	Type serverIssueType
+	Info internal.ServeInfo
 }
 
 const (
@@ -45,12 +34,4 @@ const (
 	CacheExpired
 )
 
-const (
-	ErrorReadLine errorType = 1 + iota
-	ErrorParseLine
-	ErrorParseInt
-	ErrorWriteContent
-)
-
-type cacheIssueType int
-type errorType int
+type serverIssueType int

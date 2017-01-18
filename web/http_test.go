@@ -8,9 +8,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"time"
 
 	"github.com/daohoangson/go-sitemirror/cacher"
+	"github.com/daohoangson/go-sitemirror/crawler"
 	. "github.com/daohoangson/go-sitemirror/web"
 
 	. "github.com/onsi/ginkgo"
@@ -30,6 +32,58 @@ var _ = Describe("HTTP", func() {
 	newBufioReader := func(s string) *bufio.Reader {
 		return bufio.NewReader(newReader(s))
 	}
+
+	Describe("ServeDownloaded", func() {
+		It("should write status code, header and content", func() {
+			statusCode := 200
+			contentType := "text/plain"
+			content := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
+			downloaded := &crawler.Downloaded{
+				StatusCode:  statusCode,
+				ContentType: contentType,
+				BodyBytes:   content,
+			}
+			w := httptest.NewRecorder()
+			info := ServeDownloaded(downloaded, w)
+
+			Expect(info.Error).ToNot(HaveOccurred())
+			Expect(w.Code).To(Equal(statusCode))
+			Expect(w.Header().Get("Content-Type")).To(Equal(contentType))
+			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(content))))
+
+			wBody, _ := ioutil.ReadAll(w.Body)
+			Expect(len(wBody)).To(Equal(len(content)))
+			Expect(string(wBody)).To(Equal(string(content)))
+		})
+
+		It("should write Location header", func() {
+			location := "http://domain.com/http/ServeDownloaded/write/location/header"
+			parsedLocation, _ := url.Parse(location)
+			downloaded := &crawler.Downloaded{
+				StatusCode:     http.StatusMovedPermanently,
+				HeaderLocation: parsedLocation,
+			}
+			w := httptest.NewRecorder()
+			ServeDownloaded(downloaded, w)
+
+			Expect(w.Header().Get("Location")).To(Equal(location))
+		})
+
+		It("should write body string", func() {
+			content := "foo/bar"
+			downloaded := &crawler.Downloaded{
+				BodyString: content,
+			}
+			w := httptest.NewRecorder()
+			ServeDownloaded(downloaded, w)
+
+			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(content))))
+
+			wBody, _ := ioutil.ReadAll(w.Body)
+			Expect(len(wBody)).To(Equal(len(content)))
+			Expect(string(wBody)).To(Equal(content))
+		})
+	})
 
 	Describe("ServeHTTPCache", func() {
 		It("should write status code, header and content", func() {

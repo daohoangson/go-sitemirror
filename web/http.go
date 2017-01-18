@@ -11,10 +11,44 @@ import (
 	"time"
 
 	"github.com/daohoangson/go-sitemirror/cacher"
+	"github.com/daohoangson/go-sitemirror/crawler"
 )
 
 var regexHTTPStatusCode = regexp.MustCompile(`^HTTP (\d+)\n$`)
 var regexHTTPHeader = regexp.MustCompile(`^([^:]+): (.+)\n$`)
+
+func ServeDownloaded(downloaded *crawler.Downloaded, w http.ResponseWriter) *CacheInfo {
+	info := &CacheInfo{ResponseWriter: w}
+
+	info.StatusCode = downloaded.StatusCode
+	w.WriteHeader(info.StatusCode)
+
+	if downloaded.HeaderLocation != nil {
+		w.Header().Add("Location", downloaded.HeaderLocation.String())
+		return info
+	}
+
+	if len(downloaded.ContentType) > 0 {
+		w.Header().Add("Content-Type", downloaded.ContentType)
+	}
+
+	info.ContentLength = int64(len(downloaded.BodyString))
+	var bytes []byte
+	if info.ContentLength > 0 {
+		bytes = []byte(downloaded.BodyString)
+	} else if downloaded.BodyBytes != nil {
+		bytes = downloaded.BodyBytes
+		info.ContentLength = int64(len(downloaded.BodyBytes))
+	}
+	if info.ContentLength > 0 {
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", info.ContentLength))
+		written, err := w.Write(bytes)
+		info.ContentWritten = int64(written)
+		info.Error = err
+	}
+
+	return info
+}
 
 func ServeHTTPCache(input io.Reader, w http.ResponseWriter) *CacheInfo {
 	r := bufio.NewReader(input)

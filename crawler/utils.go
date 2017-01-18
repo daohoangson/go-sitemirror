@@ -35,14 +35,17 @@ func ReduceURL(base *neturl.URL, url *neturl.URL) string {
 	basePathParts := strings.Split(basePathDir, "/")
 
 	urlPath := reduced.Path[len(lcp):]
+	urlDir, urlFile := path.Split(urlPath)
+
 	if len(basePathParts) > 1 {
 		for i := 1; i < len(basePathParts); i++ {
-			urlPath = path.Join("..", urlPath)
+			urlDir = path.Join("..", urlDir)
 		}
 	} else {
-		urlPath = fmt.Sprintf("./%s", strings.TrimLeft(urlPath, "/"))
+		urlDir = fmt.Sprintf("./%s", strings.TrimLeft(urlDir, "/"))
 	}
-	reduced.Path = urlPath
+
+	reduced.Path = fmt.Sprintf("%s/%s", strings.TrimRight(urlDir, "/"), urlFile)
 
 	return reduced.String()
 }

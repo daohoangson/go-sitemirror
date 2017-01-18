@@ -74,6 +74,8 @@ func (d *Downloaded) appendParsedURL(context urlContext, input string, url *netu
 	switch context {
 	case HTMLTagA:
 		d.LinksDiscovered[mapKey] = link
+	case HTMLTagForm:
+		d.LinksDiscovered[mapKey] = link
 	case HTTP3xxLocation:
 		d.LinksDiscovered[mapKey] = link
 	default:

@@ -12,6 +12,7 @@ type ServeInfo interface {
 	HasError() bool
 	GetError() (int, error)
 
+	OnMethodNotAllowed() ServeInfo
 	OnCacheNotFound(error) ServeInfo
 	OnNoStatusCode(errorType, string, ...interface{}) ServeInfo
 	OnBrokenHeader(errorType, string, ...interface{}) ServeInfo

@@ -151,6 +151,25 @@ var _ = Describe("Server", func() {
 		})
 
 		Describe("SetOnServerIssue", func() {
+			It("should trigger func on method not allowed", func() {
+				root, _ := url.Parse("http://domain.com")
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("POST", "/SetOnServerIssue/method/not/allowed", nil)
+
+				var methodNotAllowedIssue *ServerIssue
+				s.SetOnServerIssue(func(issue *ServerIssue) {
+					switch issue.Type {
+					case MethodNotAllowed:
+						methodNotAllowedIssue = issue
+					}
+				})
+
+				s.Serve(root, w, req)
+
+				Expect(methodNotAllowedIssue).ToNot(BeNil())
+			})
+
 			It("should trigger func on cache not found", func() {
 				root, _ := url.Parse("http://domain.com")
 				s := newServer()

@@ -53,6 +53,12 @@ func (si *serveInfo) GetError() (int, error) {
 	return int(si.errorType), si.error
 }
 
+func (si *serveInfo) OnMethodNotAllowed() ServeInfo {
+	si.statusCode = http.StatusMethodNotAllowed
+
+	return si
+}
+
 func (si *serveInfo) OnCacheNotFound(err error) ServeInfo {
 	si.statusCode = http.StatusNotFound
 	si.errorType = ErrorCacheNotFound

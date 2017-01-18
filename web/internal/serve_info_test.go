@@ -89,6 +89,13 @@ var _ = Describe("ServeInfo", func() {
 	})
 
 	Describe("OnXXX", func() {
+		It("should handle method not allowed", func() {
+			si, _ := newServeInfo()
+			si.OnMethodNotAllowed()
+
+			Expect(si.GetStatusCode()).To(BeNumerically(">=", 400))
+		})
+
 		It("should handle cache not found", func() {
 			si, _ := newServeInfo()
 			si.OnCacheNotFound(fmt.Errorf("Error message"))

@@ -29,7 +29,8 @@ type ServerIssue struct {
 }
 
 const (
-	CacheNotFound cacheIssueType = 1 + iota
+	MethodNotAllowed serverIssueType = 1 + iota
+	CacheNotFound
 	CacheError
 	CacheExpired
 )

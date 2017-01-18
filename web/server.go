@@ -121,6 +121,14 @@ func (s *server) Serve(root *url.URL, w http.ResponseWriter, req *http.Request) 
 	url.Host = root.Host
 	si := internal.NewServeInfo(w)
 
+	if len(req.Method) > 0 && req.Method != "GET" {
+		return s.serveServerIssue(&ServerIssue{
+			Type: MethodNotAllowed,
+			URL:  url,
+			Info: si.OnMethodNotAllowed(),
+		})
+	}
+
 	cache, err := s.cacher.Open(url)
 	if err != nil {
 		return s.serveServerIssue(&ServerIssue{

@@ -72,6 +72,8 @@ const (
 	CSSUri urlContext = 1 + iota
 	// HTMLTagA url from <a href=""></a>
 	HTMLTagA
+	// HTMLTagForm url from <form action="" />
+	HTMLTagForm
 	// HTMLTagImg url from <img src="" />
 	HTMLTagImg
 	// HTMLTagLinkStylesheet url from <link rel="stylesheet" href="" />

@@ -16,6 +16,7 @@ import (
 
 var cssURIRegexp = regexp.MustCompile(`^(url\(['"]?)([^'"]+)(['"]?\))$`)
 
+const htmlAttrAction = "action"
 const htmlAttrHref = "href"
 const htmlAttrRel = "rel"
 const htmlAttrRelStylesheet = "stylesheet"
@@ -158,6 +159,10 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 			if parseBodyHTMLTagA(&token, result) {
 				return false
 			}
+		case htmlAtom.Form:
+			if parseBodyHTMLTagForm(&token, result) {
+				return false
+			}
 		case htmlAtom.Img:
 			if parseBodyHTMLTagImg(&token, result) {
 				return false
@@ -208,6 +213,20 @@ func parseBodyHTMLTagA(token *html.Token, result *Downloaded) bool {
 	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
 			relative := result.appendURL(HTMLTagA, attr.Val)
+			if relative != attr.Val {
+				token.Attr[i].Val = relative
+				return rewriteTokenAttr(token, result)
+			}
+		}
+	}
+
+	return false
+}
+
+func parseBodyHTMLTagForm(token *html.Token, result *Downloaded) bool {
+	for i, attr := range token.Attr {
+		if attr.Key == htmlAttrAction {
+			relative := result.appendURL(HTMLTagForm, attr.Val)
 			if relative != attr.Val {
 				token.Attr[i].Val = relative
 				return rewriteTokenAttr(token, result)

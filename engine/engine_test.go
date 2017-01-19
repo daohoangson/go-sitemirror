@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/daohoangson/go-sitemirror/cacher"
+	"github.com/daohoangson/go-sitemirror/crawler"
 	. "github.com/daohoangson/go-sitemirror/engine"
 	t "github.com/daohoangson/go-sitemirror/testing"
 	"gopkg.in/jarcoal/httpmock.v1"
@@ -41,6 +42,13 @@ var _ = Describe("Engine", func() {
 		return e
 	}
 
+	var mirrorURL = func(e Engine, url string, port int) error {
+		parsedURL, err := neturl.Parse(url)
+		Expect(err).ToNot(HaveOccurred())
+
+		return e.Mirror(parsedURL, port)
+	}
+
 	BeforeEach(func() {
 		httpmock.Activate()
 		httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
@@ -58,7 +66,7 @@ var _ = Describe("Engine", func() {
 
 		e := New(nil, nil)
 		e.GetCacher().SetPath(rootPath)
-		e.MirrorURL(url, -1)
+		mirrorURL(e, url, -1)
 		defer e.Stop()
 
 		time.Sleep(sleepTime)
@@ -72,7 +80,7 @@ var _ = Describe("Engine", func() {
 
 			e := newEngine()
 
-			e.MirrorURL(url, -1)
+			mirrorURL(e, url, -1)
 			defer e.Stop()
 
 			time.Sleep(sleepTime)
@@ -95,16 +103,6 @@ var _ = Describe("Engine", func() {
 			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
 		})
 
-		It("should not queue invalid url", func() {
-			e := newEngine()
-			err := e.MirrorURL(t.InvalidURL, -1)
-			defer e.Stop()
-
-			time.Sleep(sleepTime)
-			Expect(e.GetCrawler().GetEnqueuedCount()).To(Equal(uint64Zero))
-			Expect(err).To(HaveOccurred())
-		})
-
 		It("should listen and serve", func() {
 			urlPath := "/engine/mirror/listen/and/serve"
 			url := "http://domain.com" + urlPath
@@ -112,7 +110,7 @@ var _ = Describe("Engine", func() {
 
 			e := newEngine()
 
-			e.MirrorURL(url, 0)
+			mirrorURL(e, url, 0)
 			defer e.Stop()
 
 			time.Sleep(sleepTime)
@@ -134,7 +132,7 @@ var _ = Describe("Engine", func() {
 				f.Close()
 
 				e := newEngine()
-				e.MirrorURL(urlDo, -1)
+				mirrorURL(e, urlDo, -1)
 				defer e.Stop()
 
 				time.Sleep(sleepTime)
@@ -151,7 +149,7 @@ var _ = Describe("Engine", func() {
 
 				e := newEngine()
 
-				e.MirrorURL(url, 0)
+				mirrorURL(e, url, 0)
 				defer e.Stop()
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
@@ -171,7 +169,7 @@ var _ = Describe("Engine", func() {
 				httpmock.RegisterResponder("GET", url, t.NewSlowResponder(sleepTime))
 
 				e := newEngine()
-				e.MirrorURL(urlRoot+"/", 0)
+				mirrorURL(e, urlRoot+"/", 0)
 				defer e.Stop()
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
@@ -203,7 +201,7 @@ var _ = Describe("Engine", func() {
 				f.Close()
 
 				e := newEngine()
-				e.MirrorURL(urlRoot+"/", 0)
+				mirrorURL(e, urlRoot+"/", 0)
 				defer e.Stop()
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
@@ -227,7 +225,7 @@ var _ = Describe("Engine", func() {
 				httpmock.RegisterResponder("GET", urlShouldQueue, t.NewSlowResponder(sleepTime))
 
 				e := newEngine()
-				e.MirrorURL(urlRoot+"/", 0)
+				mirrorURL(e, urlRoot+"/", 0)
 				defer e.Stop()
 
 				e.GetCacher().SetDefaultTTL(time.Millisecond)
@@ -276,7 +274,7 @@ var _ = Describe("Engine", func() {
 
 			e := newEngine()
 			e.AddHostRewrite("other.domain.com", "domain.com")
-			e.MirrorURL(url0, -1)
+			mirrorURL(e, url0, -1)
 			defer e.Stop()
 
 			time.Sleep(sleepTime)
@@ -298,7 +296,7 @@ var _ = Describe("Engine", func() {
 
 			e := newEngine()
 			e.AddHostWhitelisted("domain.com")
-			e.MirrorURL(url0, -1)
+			mirrorURL(e, url0, -1)
 			defer e.Stop()
 
 			time.Sleep(sleepTime)
@@ -319,7 +317,7 @@ var _ = Describe("Engine", func() {
 			e := newEngine()
 			e.AddHostWhitelisted("domain1.com")
 			e.AddHostWhitelisted("domain2.com")
-			e.MirrorURL(url0, -1)
+			mirrorURL(e, url0, -1)
 			defer e.Stop()
 
 			time.Sleep(sleepTime)
@@ -337,7 +335,7 @@ var _ = Describe("Engine", func() {
 			e := newEngine()
 			e.AddHostWhitelisted("domain.com")
 			e.AddHostWhitelisted("domain.com") // try to add it twice
-			e.MirrorURL(url0, -1)
+			mirrorURL(e, url0, -1)
 			defer e.Stop()
 
 			time.Sleep(sleepTime)
@@ -358,9 +356,9 @@ var _ = Describe("Engine", func() {
 
 			e := newEngine()
 			e.GetCrawler().SetWorkerCount(uint64One)
-			e.MirrorURL(url0, -1)
-			e.MirrorURL(url1, -1)
-			e.MirrorURL(url2, -1)
+			mirrorURL(e, url0, -1)
+			mirrorURL(e, url1, -1)
+			mirrorURL(e, url2, -1)
 
 			e.Stop()
 			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Three))
@@ -370,12 +368,16 @@ var _ = Describe("Engine", func() {
 		})
 
 		It("should stop without downloaded something", func() {
+			url := "http://domain.com/engine/should/stop/without/downloaded"
+			parsedURL, _ := neturl.Parse(url)
+
 			e := newEngine()
 			e.GetCrawler().SetOnURLShouldDownload(func(url *neturl.URL) bool {
 				time.Sleep(sleepTime)
 				return false
 			})
-			e.GetCrawler().EnqueueURL("http://domain.com/engine/should/stop/without/downloaded")
+
+			e.GetCrawler().Enqueue(crawler.QueueItem{URL: parsedURL})
 			e.Stop()
 		})
 

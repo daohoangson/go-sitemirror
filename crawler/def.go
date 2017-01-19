@@ -37,7 +37,6 @@ type Crawler interface {
 	Start()
 	Stop()
 	Enqueue(QueueItem)
-	EnqueueURL(string) error
 	Download(QueueItem) *Downloaded
 	Downloaded() (*Downloaded, bool)
 	DownloadedNotBlocking() *Downloaded

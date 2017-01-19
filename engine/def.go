@@ -23,7 +23,6 @@ type Engine interface {
 	SetBumpTTL(time.Duration)
 
 	Mirror(*url.URL, int) error
-	MirrorURL(string, int) error
 	Stop()
 }
 

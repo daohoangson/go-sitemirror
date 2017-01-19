@@ -177,17 +177,6 @@ func (e *engine) Mirror(url *neturl.URL, port int) error {
 	return err
 }
 
-func (e *engine) MirrorURL(url string, port int) error {
-	parsedURL, err := neturl.Parse(url)
-	if err != nil {
-		e.logger.WithField("url", url).Error("Cannot mirror invalid url")
-
-		return err
-	}
-
-	return e.Mirror(parsedURL, port)
-}
-
 func (e *engine) Stop() {
 	if e.stopped.IsSet() {
 		return

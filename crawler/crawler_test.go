@@ -30,6 +30,13 @@ var _ = Describe("Crawler", func() {
 		return c
 	}
 
+	var enqueueURL = func(c Crawler, url string) {
+		parsedURL, err := neturl.Parse(url)
+		Expect(err).ToNot(HaveOccurred())
+
+		c.Enqueue(QueueItem{URL: parsedURL})
+	}
+
 	BeforeEach(func() {
 		httpmock.Activate()
 	})
@@ -43,7 +50,7 @@ var _ = Describe("Crawler", func() {
 		httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 		c := New(nil, nil)
-		c.EnqueueURL(url)
+		enqueueURL(c, url)
 		defer c.Stop()
 
 		downloaded, _ := c.Downloaded()
@@ -135,7 +142,7 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.AddRequestHeader(requestHeaderKey, requestHeaderVal1)
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -157,7 +164,7 @@ var _ = Describe("Crawler", func() {
 				url.Host = "domain2.com"
 			})
 
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -188,7 +195,7 @@ var _ = Describe("Crawler", func() {
 				return true
 			})
 
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -225,7 +232,7 @@ var _ = Describe("Crawler", func() {
 				return true
 			})
 
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -255,7 +262,7 @@ var _ = Describe("Crawler", func() {
 				}
 			})
 
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			c.Downloaded()
@@ -291,7 +298,7 @@ var _ = Describe("Crawler", func() {
 				}
 			})
 
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			time.Sleep(sleepTime)
@@ -308,7 +315,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			time.Sleep(sleepTime)
@@ -355,8 +362,8 @@ var _ = Describe("Crawler", func() {
 			c := newCrawler()
 			c.SetWorkerCount(uint64One)
 
-			c.EnqueueURL(url1)
-			c.EnqueueURL(url2)
+			enqueueURL(c, url1)
+			enqueueURL(c, url2)
 			defer c.Stop()
 			time.Sleep(sleepTime)
 
@@ -426,7 +433,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, body))
 
 			c := newCrawler()
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -445,7 +452,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", targetUrl, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -469,7 +476,7 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", urlDepth1, t.NewHtmlResponder(html1))
 
 			c := newCrawler()
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -494,7 +501,7 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.SetAutoDownloadDepth(uint64Zero)
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -519,7 +526,7 @@ var _ = Describe("Crawler", func() {
 
 			c := newCrawler()
 			c.SetAutoDownloadDepth(uint64Zero)
-			c.EnqueueURL(url)
+			enqueueURL(c, url)
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
@@ -534,16 +541,6 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetEnqueuedCount()).To(Equal(uint64Two))
 			Expect(c.GetDownloadedCount()).To(Equal(uint64Two))
 			Expect(c.GetLinkFoundCount()).To(Equal(uint64Two))
-		})
-
-		It("should not enqueue invalid url", func() {
-			c := newCrawler()
-			err := c.EnqueueURL(t.InvalidURL)
-			defer c.Stop()
-
-			time.Sleep(sleepTime)
-			Expect(c.GetEnqueuedCount()).To(Equal(uint64Zero))
-			Expect(err).To(HaveOccurred())
 		})
 	})
 

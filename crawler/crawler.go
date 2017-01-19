@@ -266,18 +266,6 @@ func (c *crawler) Enqueue(item QueueItem) {
 	c.logger.WithField("item", item).Info("Enqueued")
 }
 
-func (c *crawler) EnqueueURL(url string) error {
-	parsedURL, err := neturl.Parse(url)
-	if err != nil {
-		c.logger.WithField("url", url).Error("Cannot enqueue invalid url")
-
-		return err
-	}
-
-	c.Enqueue(QueueItem{URL: parsedURL})
-	return nil
-}
-
 func (c *crawler) Download(item QueueItem) *Downloaded {
 	return c.doDownload(0, item)
 }

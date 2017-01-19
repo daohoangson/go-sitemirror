@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	neturl "net/url"
 	"os"
 	"path"
@@ -229,7 +230,6 @@ var _ = Describe("Engine", func() {
 				defer e.Stop()
 
 				e.GetCacher().SetDefaultTTL(time.Millisecond)
-				e.SetBumpTTL(time.Millisecond)
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
 
@@ -340,6 +340,56 @@ var _ = Describe("Engine", func() {
 
 			time.Sleep(sleepTime)
 			Expect(e.GetCrawler().GetLinkFoundCount()).To(Equal(uint64One))
+			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
+		})
+	})
+
+	Describe("SetBumpTTL", func() {
+
+		testSetBumpTTLDuration := time.Millisecond
+
+		expectServerServe := func(e Engine, url *neturl.URL, req *http.Request, statusCode int) {
+			w := httptest.NewRecorder()
+			e.GetServer().Serve(url, w, req)
+			ExpectWithOffset(1, w.Code).To(Equal(statusCode))
+		}
+
+		testSetBumpTTL := func(bumpTTL time.Duration) Engine {
+			urlPath := fmt.Sprintf("/engine/SetBumpTTL/%s", bumpTTL)
+			url := "http://domain.com" + urlPath
+			parsedURL, _ := neturl.Parse(url)
+			httpmock.RegisterResponder("GET", url, t.NewSlowResponder(testSetBumpTTLDuration*10))
+			req := httptest.NewRequest("GET", urlPath, nil)
+			ch := make(chan interface{})
+
+			e := newEngine()
+			e.SetBumpTTL(bumpTTL)
+
+			go func() {
+				// trigger the 1st request
+				expectServerServe(e, parsedURL, req, http.StatusOK)
+				ch <- true
+			}()
+
+			time.Sleep(2 * testSetBumpTTLDuration)
+			expectServerServe(e, parsedURL, req, http.StatusNoContent)
+
+			time.Sleep(2 * testSetBumpTTLDuration)
+			expectServerServe(e, parsedURL, req, http.StatusNoContent)
+
+			<-ch
+			e.Stop()
+
+			return e
+		}
+
+		It("should set short ttl", func() {
+			e := testSetBumpTTL(3 * testSetBumpTTLDuration)
+			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
+		})
+
+		It("should set long ttl", func() {
+			e := testSetBumpTTL(10 * testSetBumpTTLDuration)
 			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
 		})
 	})

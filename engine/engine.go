@@ -3,6 +3,7 @@ package engine
 import (
 	"net/http"
 	neturl "net/url"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -19,10 +20,14 @@ type engine struct {
 	crawler crawler.Crawler
 	server  web.Server
 
-	hostRewrites   map[string]string
-	hostsWhitelist []string
-	bumpTTL        time.Duration
+	hostRewrites        map[string]string
+	hostsWhitelist      []string
+	bumpTTL             time.Duration
+	autoEnqueueInterval time.Duration
 
+	autoEnqueueOnce     sync.Once
+	autoEnqueueUrls     []*neturl.URL
+	autoEnqueueMutex    sync.Mutex
 	stopped             *abool.AtomicBool
 	downloadedSomething chan interface{}
 }
@@ -165,7 +170,12 @@ func (e *engine) SetBumpTTL(ttl time.Duration) {
 	e.bumpTTL = ttl
 }
 
+func (e *engine) SetAutoEnqueueInterval(interval time.Duration) {
+	e.autoEnqueueInterval = interval
+}
+
 func (e *engine) Mirror(url *neturl.URL, port int) error {
+	e.autoEnqueue(url)
 	e.crawler.Enqueue(crawler.QueueItem{URL: url})
 
 	if port < 0 {
@@ -192,6 +202,48 @@ func (e *engine) Stop() {
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
+}
+
+func (e *engine) autoEnqueue(url *neturl.URL) {
+	e.autoEnqueueMutex.Lock()
+	interval := e.autoEnqueueInterval
+	e.autoEnqueueMutex.Unlock()
+
+	if interval == 0 {
+		e.logger.Debug("Engine.autoEnqueue skipped")
+		return
+	}
+
+	e.autoEnqueueMutex.Lock()
+	if e.autoEnqueueUrls == nil {
+		e.autoEnqueueUrls = []*neturl.URL{url}
+	} else {
+		e.autoEnqueueUrls = append(e.autoEnqueueUrls, url)
+	}
+	e.autoEnqueueMutex.Unlock()
+
+	e.autoEnqueueOnce.Do(func() {
+		go func() {
+			for {
+				<-time.After(interval)
+
+				if e.stopped.IsSet() {
+					e.logger.Info("Engine.autoEnqueue stopped")
+					return
+				}
+
+				e.autoEnqueueMutex.Lock()
+				for _, url := range e.autoEnqueueUrls {
+					e.GetCrawler().Enqueue(crawler.QueueItem{
+						URL:           url,
+						ForceDownload: true,
+					})
+					e.logger.WithField("url", url).Debug("Engine.autoEnqueue enqueued")
+				}
+				e.autoEnqueueMutex.Unlock()
+			}
+		}()
+	})
 }
 
 func (e *engine) rewriteURLHost(url *neturl.URL) {

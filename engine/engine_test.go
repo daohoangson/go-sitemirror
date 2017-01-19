@@ -394,6 +394,48 @@ var _ = Describe("Engine", func() {
 		})
 	})
 
+	Describe("SetAutoEnqueueInterval", func() {
+		It("should set interval", func() {
+			interval := time.Millisecond
+			url := "http://domain.com/engine/SetAutoEnqueueInterval/set"
+			parsedURL, _ := neturl.Parse(url)
+			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(http.StatusOK, ""))
+
+			e := newEngine()
+			e.SetAutoEnqueueInterval(2 * interval)
+			e.Mirror(parsedURL, -1)
+
+			time.Sleep(5 * interval)
+			e.Stop()
+
+			// .Mirror enqueues the first time
+			// then .autoEnqueue does it 2 more times
+			Expect(e.GetCrawler().GetEnqueuedCount()).To(Equal(uint64Three))
+		})
+
+		It("should auto enqueue all urls", func() {
+			interval := time.Millisecond
+			url0 := "http://domain.com/engine/SetAutoEnqueueInterval/enqueue/all/0"
+			parsedURL0, _ := neturl.Parse(url0)
+			url1 := "http://domain.com/engine/SetAutoEnqueueInterval/enqueue/all/1"
+			parsedURL1, _ := neturl.Parse(url1)
+			httpmock.RegisterResponder("GET", url0, httpmock.NewStringResponder(http.StatusOK, ""))
+			httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(http.StatusOK, ""))
+
+			e := newEngine()
+			e.SetAutoEnqueueInterval(2 * interval)
+			e.Mirror(parsedURL0, -1)
+			e.Mirror(parsedURL1, -1)
+
+			time.Sleep(5 * interval)
+			e.Stop()
+
+			// .Mirror enqueues the two first times
+			// then .autoEnqueue does it 2 more times for each url
+			Expect(e.GetCrawler().GetEnqueuedCount()).To(Equal(uint64(6)))
+		})
+	})
+
 	Describe("WaitAndStop", func() {
 		It("should stop crawler", func() {
 			url0 := "http://domain.com/engine/WaitAndStop/0"

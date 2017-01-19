@@ -21,6 +21,7 @@ type Engine interface {
 	AddHostRewrite(string, string)
 	AddHostWhitelisted(string)
 	SetBumpTTL(time.Duration)
+	SetAutoEnqueueInterval(time.Duration)
 
 	Mirror(*url.URL, int) error
 	Stop()

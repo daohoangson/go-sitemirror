@@ -29,12 +29,12 @@ func ReduceURL(base *neturl.URL, url *neturl.URL) string {
 	reduced.Host = ""
 
 	lcp := LongestCommonPrefix(base.Path, reduced.Path)
+	lcpDir, _ := path.Split(lcp)
 
-	basePathRemaining := base.Path[len(lcp):]
-	basePathDir, _ := path.Split(basePathRemaining)
-	basePathParts := strings.Split(basePathDir, "/")
+	basePathRemaining := base.Path[len(lcpDir):]
+	basePathParts := strings.Split(basePathRemaining, "/")
 
-	urlPath := reduced.Path[len(lcp):]
+	urlPath := reduced.Path[len(lcpDir):]
 	urlDir, urlFile := path.Split(urlPath)
 
 	if len(basePathParts) > 1 {
@@ -51,9 +51,10 @@ func ReduceURL(base *neturl.URL, url *neturl.URL) string {
 }
 
 func LongestCommonPrefix(path1 string, path2 string) string {
-	x, y := path1, path2
+	const sep = "/"
+	x, y := strings.Split(path1, sep), strings.Split(path2, sep)
 	if path1 > path2 {
-		x, y = path2, path1
+		x, y = strings.Split(path2, sep), strings.Split(path1, sep)
 	}
 
 	lenSorter := len(x)
@@ -67,19 +68,12 @@ func LongestCommonPrefix(path1 string, path2 string) string {
 			break
 		}
 
-		tmp := x[i:]
-		index := strings.Index(tmp, "/")
-		if index < 0 {
-			return x[:i]
-		}
-		partLen := index + 1
-
-		if i+partLen > lenSorter || x[i:i+partLen] != y[i:i+partLen] {
-			return x[:i]
+		if i >= lenSorter || x[i] != y[i] {
+			return strings.Join(append(x[:i], ""), sep)
 		}
 
-		i += partLen
+		i++
 	}
 
-	return x
+	return strings.Join(x, sep)
 }

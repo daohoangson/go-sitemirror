@@ -119,6 +119,15 @@ var _ = Describe("Downloaded", func() {
 			Expect(processedURL).To(Equal("./reduce"))
 		})
 
+		It("should reduce .Input.URL", func() {
+			url := "http://domain.com/ProcessURL/reduce/self"
+			parsedURL, _ := neturl.Parse(url)
+			downloaded.Input.URL = parsedURL
+			processedURL, _ := downloaded.ProcessURL(HTMLTagA, url)
+
+			Expect(processedURL).To(Equal("./self"))
+		})
+
 		It("should not process empty url", func() {
 			_, err := downloaded.ProcessURL(HTMLTagA, "")
 
@@ -145,6 +154,19 @@ var _ = Describe("Downloaded", func() {
 			_, err := downloaded.ProcessURL(HTMLTagA, t.InvalidURL)
 
 			Expect(err).To(HaveOccurred())
+		})
+
+		It("should not save #fragment url", func() {
+			downloaded.BaseURL = downloaded.Input.URL
+			downloaded.ProcessURL(HTMLTagA, "#fragment")
+
+			Expect(len(downloaded.GetDiscoveredURLs())).To(Equal(0))
+		})
+
+		It("should not save .Input.URL with #fragment", func() {
+			downloaded.ProcessURL(HTMLTagA, fmt.Sprintf("%s#fragment", downloaded.Input.URL))
+
+			Expect(len(downloaded.GetDiscoveredURLs())).To(Equal(0))
 		})
 	})
 

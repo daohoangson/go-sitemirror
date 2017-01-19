@@ -622,12 +622,13 @@ var _ = Describe("Download", func() {
 
 		It("should not pick up #fragment only url", func() {
 			url := "http://domain.com/download/urls/fragment/only"
-			html := t.NewHtmlMarkup("<a href=\"#\">Link</a>")
+			htmlTemplate := `<a href="%s">Link</a>`
+			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "#"))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			downloaded := downloadWithDefaultClient(url)
 
-			Expect(downloaded.Body).To(Equal(html))
+			Expect(downloaded.Body).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./only"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
 		})

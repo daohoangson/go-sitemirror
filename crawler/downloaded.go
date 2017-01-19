@@ -75,26 +75,24 @@ func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) 
 
 	filteredURL, _ := neturl.Parse(fullURL.String())
 	filteredURL.Fragment = ""
-	if filteredURL.String() == d.BaseURL.String() {
-		return url, nil
-	}
+	if filteredURL.String() != d.Input.URL.String() {
+		link := Link{
+			Context: context,
+			URL:     filteredURL,
+		}
 
-	link := Link{
-		Context: context,
-		URL:     filteredURL,
-	}
+		mapKey := filteredURL.String()
 
-	mapKey := filteredURL.String()
-
-	switch context {
-	case HTMLTagA:
-		d.LinksDiscovered[mapKey] = link
-	case HTMLTagForm:
-		d.LinksDiscovered[mapKey] = link
-	case HTTP3xxLocation:
-		d.LinksDiscovered[mapKey] = link
-	default:
-		d.LinksAssets[mapKey] = link
+		switch context {
+		case HTMLTagA:
+			d.LinksDiscovered[mapKey] = link
+		case HTMLTagForm:
+			d.LinksDiscovered[mapKey] = link
+		case HTTP3xxLocation:
+			d.LinksDiscovered[mapKey] = link
+		default:
+			d.LinksAssets[mapKey] = link
+		}
 	}
 
 	reduced := ReduceURL(d.Input.URL, fullURL)

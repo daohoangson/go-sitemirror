@@ -79,6 +79,26 @@ var _ = Describe("Utils", func() {
 			expectResolveOk(url1, reduced, url2InHttps)
 		})
 
+		Context("self", func() {
+			It("is file", func() {
+				url1, _ := neturl.Parse("http://domain.com/reduce/url/self")
+				url2, _ := neturl.Parse("http://domain.com/reduce/url/self")
+				reduced := ReduceURL(url1, url2)
+
+				Expect(reduced).To(Equal("./self"))
+				expectResolveOk(url1, reduced, url2)
+			})
+
+			It("is dir", func() {
+				url1, _ := neturl.Parse("http://domain.com/reduce/url/self/")
+				url2, _ := neturl.Parse("http://domain.com/reduce/url/self/")
+				reduced := ReduceURL(url1, url2)
+
+				Expect(reduced).To(Equal("./"))
+				expectResolveOk(url1, reduced, url2)
+			})
+		})
+
 		Context("siblings", func() {
 			It("file to file", func() {
 				url1, _ := neturl.Parse("http://domain.com/reduce/url/siblings")
@@ -261,60 +281,152 @@ var _ = Describe("Utils", func() {
 	})
 
 	Describe("LongestCommonPrefix", func() {
-		It("should handle no common prefix", func() {
-			path1 := "/a"
-			path2 := "/b"
-			lcp := LongestCommonPrefix(path1, path2)
+		Context("has slash prefix", func() {
+			It("should handle no common prefix", func() {
+				path1 := "/one"
+				path2 := "/two"
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal("/"))
+				Expect(lcp).To(Equal("/"))
+			})
+
+			It("should handle no common prefix (uneven parts)", func() {
+				path1 := "/one"
+				path2 := "/three"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/"))
+			})
+
+			It("should handle no common prefix (one empty)", func() {
+				path1 := "/"
+				path2 := "/b"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/"))
+			})
+
+			It("should handle both empty", func() {
+				path1 := "/"
+				path2 := "/"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/"))
+			})
+
+			It("should handle common prefix but not whole part", func() {
+				path1 := "/oneone"
+				path2 := "/onetwo"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/"))
+			})
+
+			It("should handle matches", func() {
+				path1 := "/one"
+				path2 := "/one"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/one"))
+			})
+
+			It("should handle common prefix (uneven parts, without slash)", func() {
+				path1 := "/one"
+				path2 := "/one/two"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/one"))
+			})
+
+			It("should handle common prefix (uneven parts, with slash)", func() {
+				path1 := "/one/"
+				path2 := "/one/two"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/one/"))
+			})
+
+			It("should handle common prefix (same parts)", func() {
+				path1 := "/one/one"
+				path2 := "/one/two"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("/one/"))
+			})
 		})
 
-		It("should handle no common prefix (uneven parts)", func() {
-			path1 := "/"
-			path2 := "/b"
-			lcp := LongestCommonPrefix(path1, path2)
+		Context("has no slash prefix", func() {
+			It("should handle no common prefix", func() {
+				path1 := "one"
+				path2 := "two"
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal("/"))
-		})
+				Expect(lcp).To(Equal(""))
+			})
 
-		It("should handle no common prefix (one empty)", func() {
-			path1 := ""
-			path2 := "/b"
-			lcp := LongestCommonPrefix(path1, path2)
+			It("should handle no common prefix (uneven parts)", func() {
+				path1 := "one"
+				path2 := "three"
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal(""))
-		})
+				Expect(lcp).To(Equal(""))
+			})
 
-		It("should handle no common prefix (both empty)", func() {
-			path1 := ""
-			path2 := ""
-			lcp := LongestCommonPrefix(path1, path2)
+			It("should handle no common prefix (one empty)", func() {
+				path1 := ""
+				path2 := "b"
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal(""))
-		})
+				Expect(lcp).To(Equal(""))
+			})
 
-		It("should handle common prefix but not whole part", func() {
-			path1 := "/aa"
-			path2 := "/ab"
-			lcp := LongestCommonPrefix(path1, path2)
+			It("should handle both empty", func() {
+				path1 := ""
+				path2 := ""
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal("/"))
-		})
+				Expect(lcp).To(Equal(""))
+			})
 
-		It("should handle common prefix", func() {
-			path1 := "/a/a"
-			path2 := "/a/b"
-			lcp := LongestCommonPrefix(path1, path2)
+			It("should handle common prefix but not whole part", func() {
+				path1 := "oneone"
+				path2 := "onetwo"
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal("/a/"))
-		})
+				Expect(lcp).To(Equal(""))
+			})
 
-		It("should handle common prefix without slash at the beginning", func() {
-			path1 := "a/a"
-			path2 := "a/b"
-			lcp := LongestCommonPrefix(path1, path2)
+			It("should handle matches", func() {
+				path1 := "one"
+				path2 := "one"
+				lcp := LongestCommonPrefix(path1, path2)
 
-			Expect(lcp).To(Equal("a/"))
+				Expect(lcp).To(Equal("one"))
+			})
+
+			It("should handle common prefix (uneven parts, without slash)", func() {
+				path1 := "one"
+				path2 := "one/two"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("one"))
+			})
+
+			It("should handle common prefix (uneven parts, with slash)", func() {
+				path1 := "one/"
+				path2 := "one/two"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("one/"))
+			})
+
+			It("should handle common prefix (same parts)", func() {
+				path1 := "one/one"
+				path2 := "one/two"
+				lcp := LongestCommonPrefix(path1, path2)
+
+				Expect(lcp).To(Equal("one/"))
+			})
 		})
 	})
 })

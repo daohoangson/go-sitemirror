@@ -18,6 +18,7 @@ type Engine interface {
 	GetCrawler() crawler.Crawler
 	GetServer() web.Server
 
+	AddHostRewrite(string, string)
 	AddHostWhitelisted(string)
 	SetBumpTTL(time.Duration)
 

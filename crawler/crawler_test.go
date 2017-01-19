@@ -143,6 +143,30 @@ var _ = Describe("Crawler", func() {
 		})
 	})
 
+	Describe("SetURLRewriter", func() {
+		It("should rewrite url", func() {
+			url := "http://domain.com/SetURLRewriter/rewrite"
+			urlTargetPath := "/SetURLRewriter/target"
+			urlTarget := "http://domain.com" + urlTargetPath
+			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", urlTarget))
+			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+
+			c := newCrawler()
+			c.SetAutoDownloadDepth(uint64(0))
+			c.SetURLRewriter(func(url *neturl.URL) {
+				url.Host = "domain2.com"
+			})
+
+			c.EnqueueURL(url)
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
+			discoveredURLs := downloaded.GetDiscoveredURLs()
+			Expect(len(discoveredURLs)).To(Equal(1))
+			Expect(discoveredURLs[0].String()).To(Equal("http://domain2.com" + urlTargetPath))
+		})
+	})
+
 	Describe("SetOnURLShouldQueue", func() {
 		It("should enqueue link except one", func() {
 			url := "http://domain.com/SetOnURLShouldQueue/enqueue/except/one"

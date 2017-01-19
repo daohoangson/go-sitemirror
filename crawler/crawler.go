@@ -21,6 +21,7 @@ type crawler struct {
 	workerCount       uint64
 	requestHeader     http.Header
 
+	urlRewriter         *func(*neturl.URL)
 	onURLShouldQueue    *func(*neturl.URL) bool
 	onURLShouldDownload *func(*neturl.URL) bool
 	onDownload          *func(*neturl.URL)
@@ -125,6 +126,10 @@ func (c *crawler) GetRequestHeaderValues(key string) []string {
 	}
 
 	return nil
+}
+
+func (c *crawler) SetURLRewriter(f func(*neturl.URL)) {
+	c.urlRewriter = &f
 }
 
 func (c *crawler) SetOnURLShouldQueue(f func(*neturl.URL) bool) {
@@ -329,9 +334,10 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 	if shouldDownload {
 		loggerContext.Debug("Downloading")
 		downloaded = Download(&Input{
-			Client: c.client,
-			Header: c.requestHeader,
-			URL:    item.URL,
+			Client:   c.client,
+			Header:   c.requestHeader,
+			Rewriter: c.urlRewriter,
+			URL:      item.URL,
 		})
 		atomic.AddUint64(&c.downloadedCount, 1)
 	}

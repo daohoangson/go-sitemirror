@@ -1,8 +1,15 @@
 package crawler
 
 import (
+	"errors"
 	"net/http"
 	neturl "net/url"
+)
+
+var (
+	errorEmptyURL      = errors.New("Empty url")
+	errorEmptyInput    = errors.New("Empty .Input")
+	errorEmptyInputURL = errors.New("Empty .Input.URL")
 )
 
 func (d *Downloaded) AddHeader(key string, value string) {
@@ -41,12 +48,24 @@ func (d *Downloaded) GetHeaderValues(key string) []string {
 
 func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) {
 	if len(url) == 0 {
-		return url, nil
+		return url, errorEmptyURL
+	}
+
+	if d.Input == nil {
+		return url, errorEmptyInput
+	}
+
+	if d.Input.URL == nil {
+		return url, errorEmptyInputURL
 	}
 
 	parsedURL, err := neturl.Parse(url)
 	if err != nil {
 		return url, err
+	}
+
+	if d.Input.Rewriter != nil {
+		(*d.Input.Rewriter)(parsedURL)
 	}
 
 	fullURL := d.BaseURL.ResolveReference(parsedURL)

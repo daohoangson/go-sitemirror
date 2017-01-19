@@ -20,6 +20,7 @@ type Crawler interface {
 	SetRequestHeader(string, string)
 	GetRequestHeaderValues(string) []string
 
+	SetURLRewriter(func(*url.URL))
 	SetOnURLShouldQueue(func(*url.URL) bool)
 	SetOnURLShouldDownload(func(*url.URL) bool)
 	SetOnDownload(func(*url.URL))
@@ -49,9 +50,10 @@ type QueueItem struct {
 }
 
 type Input struct {
-	Client *http.Client
-	Header http.Header
-	URL    *url.URL
+	Client   *http.Client
+	Header   http.Header
+	Rewriter *func(*url.URL)
+	URL      *url.URL
 }
 
 // Downloaded struct contains parsed data after downloading an url.

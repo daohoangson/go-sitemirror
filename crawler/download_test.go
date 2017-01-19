@@ -202,24 +202,7 @@ var _ = Describe("Download", func() {
 			downloaded := downloadWithDefaultClient(url)
 
 			Expect(downloaded.StatusCode).To(Equal(status))
-			Expect(len(downloaded.GetHeaderKeys())).To(Equal(1))
 			Expect(downloaded.GetHeaderValues("Location")).To(Equal([]string{"./target"}))
-			Expect(downloaded.GetHeaderValues("Key")).To(BeNil())
-		})
-
-		It("should not work with invalid url", func() {
-			// have to use 399 status code otherwise http.Client will parse
-			// the location header itself and trigger error too soon
-			status := 399
-			url := "http://domain.com/download/header/location/invalid"
-			targetUrl := t.InvalidURL
-			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(status, targetUrl))
-
-			downloaded := downloadWithDefaultClient(url)
-
-			Expect(downloaded.StatusCode).To(Equal(status))
-			Expect(len(downloaded.GetHeaderKeys())).To(Equal(0))
-			Expect(downloaded.GetHeaderValues("Location")).To(BeNil())
 		})
 	})
 
@@ -584,18 +567,6 @@ var _ = Describe("Download", func() {
 		It("should not pick up empty url", func() {
 			url := "http://domain.com/download/urls/empty/url"
 			html := t.NewHtmlMarkup("<a href=\"\">Link</a>")
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
-			downloaded := downloadWithDefaultClient(url)
-
-			Expect(downloaded.Body).To(Equal(html))
-			Expect(len(downloaded.LinksAssets)).To(Equal(0))
-			Expect(len(downloaded.LinksDiscovered)).To(Equal(0))
-		})
-
-		It("should not pick up invalid url", func() {
-			url := "http://domain.com/download/urls/invalid/url"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", t.InvalidURL))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			downloaded := downloadWithDefaultClient(url)

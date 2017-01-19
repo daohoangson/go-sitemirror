@@ -19,6 +19,7 @@ type engine struct {
 	crawler crawler.Crawler
 	server  web.Server
 
+	hostRewrites   map[string]string
 	hostsWhitelist []string
 	bumpTTL        time.Duration
 
@@ -42,9 +43,14 @@ func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
 	e.crawler = crawler.New(httpClient, logger)
 	e.server = web.NewServer(e.cacher, logger)
 
+	e.bumpTTL = time.Minute
+
 	e.stopped = abool.New()
 	e.downloadedSomething = make(chan interface{})
-	e.bumpTTL = time.Minute
+
+	e.crawler.SetURLRewriter(func(u *neturl.URL) {
+		e.rewriteURLHost(u)
+	})
 
 	e.crawler.SetOnURLShouldQueue(func(u *neturl.URL) bool {
 		if !e.checkHostWhitelisted(u.Host) {
@@ -117,6 +123,19 @@ func (e *engine) GetServer() web.Server {
 	return e.server
 }
 
+func (e *engine) AddHostRewrite(from string, to string) {
+	if e.hostRewrites == nil {
+		e.hostRewrites = make(map[string]string)
+	}
+
+	e.hostRewrites[from] = to
+	e.logger.WithFields(logrus.Fields{
+		"from":    from,
+		"to":      to,
+		"mapping": e.hostRewrites,
+	}).Info("Added host rewrite")
+}
+
 func (e *engine) AddHostWhitelisted(host string) {
 	if e.hostsWhitelist == nil {
 		e.hostsWhitelist = make([]string, 1)
@@ -182,6 +201,26 @@ func (e *engine) Stop() {
 		select {
 		case <-e.downloadedSomething:
 		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
+
+func (e *engine) rewriteURLHost(url *neturl.URL) {
+	if e.hostRewrites == nil {
+		return
+	}
+
+	for from, to := range e.hostRewrites {
+		if url.Host == from {
+			urlBefore := url.String()
+			url.Host = to
+
+			e.logger.WithFields(logrus.Fields{
+				"before": urlBefore,
+				"after":  url.String(),
+			}).Debug("Rewritten url host")
+
+			return
 		}
 	}
 }

@@ -255,6 +255,39 @@ var _ = Describe("Engine", func() {
 		})
 	})
 
+	Describe("hostRewrites", func() {
+		It("should rewrite", func() {
+			url0 := "http://domain.com/engine/download/rewrite/0"
+			url1Path := "/engine/download/rewrite/1"
+			url1 := "http://domain.com" + url1Path
+			url1OtherDomain := "http://other.domain.com" + url1Path
+			html0 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1OtherDomain))
+			httpmock.RegisterResponder("GET", url0, t.NewHtmlResponder(html0))
+			url1Downloaded := false
+			httpmock.RegisterResponder("GET", url1, func(req *http.Request) (*http.Response, error) {
+				url1Downloaded = true
+				return httpmock.NewStringResponse(http.StatusOK, ""), nil
+			})
+			url1OtherDomainDownloaded := false
+			httpmock.RegisterResponder("GET", url1OtherDomain, func(req *http.Request) (*http.Response, error) {
+				url1OtherDomainDownloaded = true
+				return httpmock.NewStringResponse(http.StatusOK, ""), nil
+			})
+
+			e := newEngine()
+			e.AddHostRewrite("other.domain.com", "domain.com")
+			e.MirrorURL(url0, -1)
+			defer e.Stop()
+
+			time.Sleep(sleepTime)
+			Expect(e.GetCrawler().GetLinkFoundCount()).To(Equal(uint64One))
+			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
+			Expect(e.GetCrawler().IsBusy()).To(BeFalse())
+			Expect(url1Downloaded).To(BeTrue())
+			Expect(url1OtherDomainDownloaded).To(BeFalse())
+		})
+	})
+
 	Describe("hostsWhitelist", func() {
 		It("should download from whitelisted host", func() {
 			url0 := "http://domain.com/engine/download/whitelisted/0"

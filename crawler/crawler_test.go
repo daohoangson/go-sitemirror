@@ -86,6 +86,63 @@ var _ = Describe("Crawler", func() {
 		})
 	})
 
+	Describe("RequestHeader", func() {
+		var (
+			requestHeaderKey  string
+			requestHeaderVal1 string
+			requestHeaderVal2 string
+		)
+
+		BeforeEach(func() {
+			now := time.Now()
+			requestHeaderKey = "Now"
+			requestHeaderVal1 = fmt.Sprintf("%s", now)
+			requestHeaderVal2 = fmt.Sprintf("%d", now.Unix())
+		})
+
+		It("should add", func() {
+			c := newCrawler()
+			c.AddRequestHeader(requestHeaderKey, requestHeaderVal1)
+			c.AddRequestHeader(requestHeaderKey, requestHeaderVal2)
+
+			Expect(c.GetRequestHeaderValues(requestHeaderKey)).To(Equal([]string{
+				requestHeaderVal1,
+				requestHeaderVal2,
+			}))
+		})
+
+		It("should set", func() {
+			c := newCrawler()
+			c.SetRequestHeader(requestHeaderKey, requestHeaderVal1)
+			c.SetRequestHeader(requestHeaderKey, requestHeaderVal2)
+
+			Expect(c.GetRequestHeaderValues(requestHeaderKey)).To(Equal([]string{
+				requestHeaderVal2,
+			}))
+		})
+
+		It("should return on no header values", func() {
+			c := newCrawler()
+			Expect(c.GetRequestHeaderValues(requestHeaderKey)).To(BeNil())
+		})
+
+		It("should download with header", func() {
+			url := "http://domain.com/RequestHeader/download/with/header"
+			httpmock.RegisterResponder("GET", url, func(req *http.Request) (*http.Response, error) {
+				resp := httpmock.NewStringResponse(200, req.Header.Get(requestHeaderKey))
+				return resp, nil
+			})
+
+			c := newCrawler()
+			c.AddRequestHeader(requestHeaderKey, requestHeaderVal1)
+			c.EnqueueURL(url)
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
+			Expect(string(downloaded.BodyBytes)).To(Equal(requestHeaderVal1))
+		})
+	})
+
 	Describe("SetOnURLShouldQueue", func() {
 		It("should enqueue link except one", func() {
 			url := "http://domain.com/SetOnURLShouldQueue/enqueue/except/one"

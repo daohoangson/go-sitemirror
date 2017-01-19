@@ -27,24 +27,38 @@ var _ = Describe("Download", func() {
 		url := "http://domain.com/client/nil"
 
 		parsedURL, _ := neturl.Parse(url)
-		Expect(parsedURL).ToNot(BeNil())
-		downloaded := Download(nil, parsedURL)
+		downloaded := Download(nil, parsedURL, nil)
 
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
 
 	It("should not work with nil url.URL", func() {
-		downloaded := Download(http.DefaultClient, nil)
+		downloaded := Download(http.DefaultClient, nil, nil)
 
 		Expect(downloaded.Error).To(HaveOccurred())
+	})
+
+	It("should set request header", func() {
+		url := "http://domain.com/request/header"
+		header := make(http.Header)
+		headerKey := "Key"
+		headerValue := "Value"
+		header.Add(headerKey, headerValue)
+		httpmock.RegisterResponder("GET", url, func(req *http.Request) (*http.Response, error) {
+			resp := httpmock.NewStringResponse(200, req.Header.Get(headerKey))
+			return resp, nil
+		})
+		parsedURL, _ := neturl.Parse(url)
+
+		downloaded := Download(http.DefaultClient, parsedURL, header)
+
+		Expect(string(downloaded.BodyBytes)).To(Equal(headerValue))
 	})
 
 	It("should not work with relative url", func() {
 		url := "relative/url/"
 		parsedURL, _ := neturl.Parse(url)
-
-		Expect(parsedURL).ToNot(BeNil())
-		downloaded := Download(http.DefaultClient, parsedURL)
+		downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
@@ -52,9 +66,7 @@ var _ = Describe("Download", func() {
 	It("should not work with non http/https url", func() {
 		url := "ftp://domain.com/non/http/url"
 		parsedURL, _ := neturl.Parse(url)
-
-		Expect(parsedURL).ToNot(BeNil())
-		downloaded := Download(http.DefaultClient, parsedURL)
+		downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
@@ -62,9 +74,7 @@ var _ = Describe("Download", func() {
 	It("should passthrough client error", func() {
 		url := "http://a.b.c"
 		parsedURL, _ := neturl.Parse(url)
-
-		Expect(parsedURL).ToNot(BeNil())
-		downloaded := Download(http.DefaultClient, parsedURL)
+		downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
@@ -73,10 +83,9 @@ var _ = Describe("Download", func() {
 		It("should match url", func() {
 			url := "http://domain.com/download/url/base"
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(""))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BaseURL).To(Equal(parsedURL))
 			Expect(downloaded.URL).To(Equal(parsedURL))
@@ -88,10 +97,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<base href=\"%s\" />"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, baseHref))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "."))))
 			Expect(downloaded.BaseURL.String()).To(Equal("http://domain.com/some/where/else"))
@@ -102,10 +110,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/url/base/href/empty"
 			html := t.NewHtmlMarkup("<base />")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(downloaded.BaseURL).To(Equal(parsedURL))
@@ -118,10 +125,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/body"
 			body := "foo/bar"
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, body))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(len(downloaded.BodyString)).To(Equal(0))
 			Expect(string(downloaded.BodyBytes)).To(Equal(body))
@@ -131,10 +137,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/body/css/valid"
 			css := "body{background:#fff}"
 			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(css))
 		})
@@ -143,10 +148,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/body/html/valid"
 			html := t.NewHtmlMarkup("<p>Hello&nbsp;World!</p>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 		})
@@ -155,10 +159,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/body/html/invalid"
 			html := t.NewHtmlMarkup("<p>Oops</p")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 		})
@@ -170,10 +173,9 @@ var _ = Describe("Download", func() {
 				` style="font-family:'Noto Sans',sans-serif;"` +
 				`>Text</div>`)
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 		})
@@ -183,10 +185,9 @@ var _ = Describe("Download", func() {
 		It("should match response header value", func() {
 			url := "http://domain.com/download/content/type"
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(""))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.ContentType).To(Equal("text/html"))
 		})
@@ -198,10 +199,9 @@ var _ = Describe("Download", func() {
 			url := fmt.Sprintf("http://domain.com/download/header/location/%d", status)
 			targetUrl := "http://domain.com/download/target/url"
 			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(status, targetUrl))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.StatusCode).To(Equal(status))
 			Expect(downloaded.HeaderLocation.String()).To(Equal(targetUrl))
@@ -214,10 +214,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/header/location/invalid"
 			targetUrl := t.InvalidURL
 			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(status, targetUrl))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.StatusCode).To(Equal(status))
 			Expect(downloaded.HeaderLocation).To(BeNil())
@@ -231,10 +230,9 @@ var _ = Describe("Download", func() {
 			cssTemplate := "body{background:url('%s')}"
 			css := fmt.Sprintf(cssTemplate, targetUrl)
 			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "./target")))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -251,10 +249,9 @@ var _ = Describe("Download", func() {
 			cssTemplate := "body{background:url(\"%s\")}"
 			css := fmt.Sprintf(cssTemplate, targetUrl)
 			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "./target")))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -271,10 +268,9 @@ var _ = Describe("Download", func() {
 			cssTemplate := "body{background:url(%s)}"
 			css := fmt.Sprintf(cssTemplate, targetUrl)
 			httpmock.RegisterResponder("GET", url, t.NewCssResponder(css))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(fmt.Sprintf(cssTemplate, "./target")))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -291,10 +287,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<a href=\"%s\">Link</a><a>Anchor</a>"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
@@ -311,10 +306,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := `<form action="%s"></form><form></form>`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
@@ -331,10 +325,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := `<img src="%s"></img>`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -351,10 +344,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<link rel=\"stylesheet\" href=\"%s\"></link>"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -371,10 +363,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<script src=\"%s\"></script><script>alert('hello world');</script>"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -389,10 +380,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/script"
 			html := t.NewHtmlMarkup("<script>document.getElementsByTagName('base').something();</script>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup("<script></script>")))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
@@ -407,10 +397,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<style>%s</style>"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, css))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			cssNew := fmt.Sprintf(cssTemplate, "./target")
 			htmlNew := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, cssNew))
@@ -429,10 +418,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := `<img src="%s" /><img class="friend" data-hello="world" data-invalid="` + t.InvalidURL + `" />`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -449,10 +437,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := `<img data-src="%s" />`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -470,10 +457,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := `<a href="%s"><img src="%s" /></a>`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl0, targetUrl1))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target/0", "./target/1"))))
 
@@ -496,10 +482,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<link rel=\"stylesheet\" href=\"%s\" /><link />"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
@@ -518,10 +503,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := `<div style="%s"></style>`
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, css))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			cssNew := fmt.Sprintf(cssTemplate, "./target")
 			htmlNew := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, cssNew))
@@ -538,10 +522,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/3xx"
 			targetUrl := "http://domain.com/download/target/url"
 			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(301, targetUrl))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
 
@@ -570,10 +553,9 @@ var _ = Describe("Download", func() {
 					fmt.Sprintf("<img src=\"%s\" />", targetUrlImg) +
 					fmt.Sprintf("<link rel=\"stylesheet\" href=\"%s\" />", targetUrlLink))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(len(downloaded.LinksAssets)).To(Equal(4))
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(3))
@@ -620,10 +602,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/empty/url"
 			html := t.NewHtmlMarkup("<a href=\"\">Link</a>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
@@ -634,10 +615,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/invalid/url"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", t.InvalidURL))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
@@ -648,10 +628,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/non/http/url"
 			html := t.NewHtmlMarkup("<a href=\"ftp://domain.com/non/http/url\">Link</a>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
@@ -662,10 +641,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/data/uri"
 			html := t.NewHtmlMarkup(fmt.Sprintf("<img src=\"%s\" />", t.TransparentDataURI))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
@@ -680,10 +658,9 @@ var _ = Describe("Download", func() {
 			htmlTemplate := "<a href=\"%s\">Link</a>"
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "./target"+fragment))))
 			Expect(len(downloaded.LinksDiscovered)).To(Equal(1))
@@ -697,10 +674,9 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/fragment/only"
 			html := t.NewHtmlMarkup("<a href=\"#\">Link</a>")
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.BodyString).To(Equal(html))
 			Expect(len(downloaded.LinksAssets)).To(Equal(0))
@@ -714,10 +690,9 @@ var _ = Describe("Download", func() {
 			statusCode := 200
 			httpmock.RegisterResponder("GET", url,
 				httpmock.NewStringResponder(statusCode, ""))
-
 			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			downloaded := Download(http.DefaultClient, parsedURL)
+
+			downloaded := Download(http.DefaultClient, parsedURL, nil)
 
 			Expect(downloaded.StatusCode).To(Equal(statusCode))
 		})

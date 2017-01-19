@@ -19,6 +19,7 @@ type crawler struct {
 
 	autoDownloadDepth uint64
 	workerCount       uint64
+	requestHeader     http.Header
 
 	onURLShouldQueue    *func(*neturl.URL) bool
 	onURLShouldDownload *func(*neturl.URL) bool
@@ -50,13 +51,15 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 	}
 	c.client = client
 
-	c.autoDownloadDepth = 1
-	c.workerCount = 4
-
 	if logger == nil {
 		logger = logrus.New()
 	}
 	c.logger = logger
+
+	c.autoDownloadDepth = 1
+	c.workerCount = 4
+
+	c.requestHeader = make(http.Header)
 }
 
 func (c *crawler) SetAutoDownloadDepth(depth uint64) {
@@ -93,6 +96,35 @@ func (c *crawler) SetWorkerCount(count uint64) error {
 
 func (c *crawler) GetWorkerCount() uint64 {
 	return c.workerCount
+}
+
+func (c *crawler) AddRequestHeader(key string, value string) {
+	c.requestHeader.Add(key, value)
+
+	c.logger.WithFields(logrus.Fields{
+		"key":    key,
+		"value":  value,
+		"header": c.requestHeader,
+	}).Info("Added request header")
+}
+
+func (c *crawler) SetRequestHeader(key string, value string) {
+	c.requestHeader.Set(key, value)
+
+	c.logger.WithFields(logrus.Fields{
+		"key":    key,
+		"value":  value,
+		"header": c.requestHeader,
+	}).Info("Set request header")
+}
+
+func (c *crawler) GetRequestHeaderValues(key string) []string {
+	chk := http.CanonicalHeaderKey(key)
+	if values, ok := c.requestHeader[chk]; ok {
+		return values
+	}
+
+	return nil
 }
 
 func (c *crawler) SetOnURLShouldQueue(f func(*neturl.URL) bool) {
@@ -296,7 +328,7 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 
 	if shouldDownload {
 		loggerContext.Debug("Downloading")
-		downloaded = Download(c.client, item.URL)
+		downloaded = Download(c.client, item.URL, c.requestHeader)
 		atomic.AddUint64(&c.downloadedCount, 1)
 	}
 

@@ -23,7 +23,7 @@ const htmlAttrRelStylesheet = "stylesheet"
 const htmlAttrSrc = "src"
 
 // Download returns parsed data after downloading the specified url.
-func Download(client *http.Client, url *neturl.URL) *Downloaded {
+func Download(client *http.Client, url *neturl.URL, header http.Header) *Downloaded {
 	result := newDownloaded(url)
 
 	if client == nil {
@@ -52,7 +52,16 @@ func Download(client *http.Client, url *neturl.URL) *Downloaded {
 		return http.ErrUseLastResponse
 	}
 
-	resp, err := client.Get(url.String())
+	req, _ := http.NewRequest("GET", url.String(), nil)
+	if header != nil {
+		for headerKey, headerValues := range header {
+			for _, headerValue := range headerValues {
+				req.Header.Add(headerKey, headerValue)
+			}
+		}
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		result.Error = err
 		return result

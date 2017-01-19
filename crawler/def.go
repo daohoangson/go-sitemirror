@@ -16,6 +16,9 @@ type Crawler interface {
 	GetAutoDownloadDepth() uint64
 	SetWorkerCount(uint64) error
 	GetWorkerCount() uint64
+	AddRequestHeader(string, string)
+	SetRequestHeader(string, string)
+	GetRequestHeaderValues(string) []string
 
 	SetOnURLShouldQueue(func(*url.URL) bool)
 	SetOnURLShouldDownload(func(*url.URL) bool)

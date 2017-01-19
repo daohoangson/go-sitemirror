@@ -266,12 +266,11 @@ func parseBodyHTMLTagForm(token *html.Token, result *Downloaded) bool {
 }
 
 func parseBodyHTMLTagBase(token *html.Token, result *Downloaded) bool {
-	for i, attr := range token.Attr {
+	for _, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
 			if url, err := neturl.Parse(attr.Val); err == nil {
 				result.BaseURL = result.BaseURL.ResolveReference(url)
-				token.Attr[i].Val = "."
-				return rewriteTokenAttr(token, result)
+				return true
 			}
 		}
 	}

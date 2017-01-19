@@ -104,13 +104,14 @@ var _ = Describe("Download", func() {
 		It("should match base href", func() {
 			url := "http://domain.com/download/url/base/href"
 			baseHref := "/some/where/else"
-			htmlTemplate := "<base href=\"%s\" />"
+			htmlText := "<p>Text</p>"
+			htmlTemplate := "<base href=\"%s\" />" + htmlText
 			html := t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, baseHref))
 			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
 
 			downloaded := downloadWithDefaultClient(url)
 
-			Expect(downloaded.Body).To(Equal(t.NewHtmlMarkup(fmt.Sprintf(htmlTemplate, "."))))
+			Expect(downloaded.Body).To(Equal(t.NewHtmlMarkup(htmlText)))
 			Expect(downloaded.BaseURL.String()).To(Equal("http://domain.com/some/where/else"))
 		})
 

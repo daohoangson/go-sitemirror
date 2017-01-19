@@ -2,6 +2,7 @@ package cacher
 
 import (
 	"io"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -29,10 +30,8 @@ type Input struct {
 	URL        *url.URL
 	TTL        time.Duration
 
-	ContentType string
-	Body        string
-
-	Redirection *url.URL
+	Body   string
+	Header http.Header
 }
 
 const (

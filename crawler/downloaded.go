@@ -1,8 +1,86 @@
 package crawler
 
 import (
+	"net/http"
 	neturl "net/url"
 )
+
+func (d *Downloaded) AddHeader(key string, value string) {
+	if d.header == nil {
+		d.header = make(http.Header)
+	}
+
+	d.header.Add(key, value)
+}
+
+func (d *Downloaded) GetHeaderKeys() []string {
+	if d.header == nil {
+		return nil
+	}
+
+	keys := make([]string, len(d.header))
+	i := 0
+	for key := range d.header {
+		keys[i] = key
+	}
+
+	return keys
+}
+
+func (d *Downloaded) GetHeaderValues(key string) []string {
+	if d.header == nil {
+		return nil
+	}
+
+	if values, ok := d.header[http.CanonicalHeaderKey(key)]; ok {
+		return values
+	}
+
+	return nil
+}
+
+func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) {
+	if len(url) == 0 {
+		return url, nil
+	}
+
+	parsedURL, err := neturl.Parse(url)
+	if err != nil {
+		return url, err
+	}
+
+	fullURL := d.BaseURL.ResolveReference(parsedURL)
+	if fullURL.Scheme != "http" && fullURL.Scheme != "https" {
+		return url, nil
+	}
+
+	filteredURL, _ := neturl.Parse(fullURL.String())
+	filteredURL.Fragment = ""
+	if filteredURL.String() == d.BaseURL.String() {
+		return url, nil
+	}
+
+	link := Link{
+		Context: context,
+		URL:     filteredURL,
+	}
+
+	mapKey := filteredURL.String()
+
+	switch context {
+	case HTMLTagA:
+		d.LinksDiscovered[mapKey] = link
+	case HTMLTagForm:
+		d.LinksDiscovered[mapKey] = link
+	case HTTP3xxLocation:
+		d.LinksDiscovered[mapKey] = link
+	default:
+		d.LinksAssets[mapKey] = link
+	}
+
+	reduced := ReduceURL(d.Input.URL, fullURL)
+	return reduced, nil
+}
 
 func (d *Downloaded) GetAssetURLs() []*neturl.URL {
 	urls := make([]*neturl.URL, len(d.LinksAssets))
@@ -26,61 +104,4 @@ func (d *Downloaded) GetDiscoveredURLs() []*neturl.URL {
 	}
 
 	return urls
-}
-
-func newDownloaded(url *neturl.URL) *Downloaded {
-	d := Downloaded{
-		URL:             url,
-		BaseURL:         url,
-		LinksAssets:     make(map[string]Link),
-		LinksDiscovered: make(map[string]Link),
-	}
-
-	return &d
-}
-
-func (d *Downloaded) appendURL(context urlContext, input string) string {
-	if len(input) == 0 {
-		return input
-	}
-
-	url, err := neturl.Parse(input)
-	if err != nil {
-		return input
-	}
-
-	return d.appendParsedURL(context, input, url)
-}
-
-func (d *Downloaded) appendParsedURL(context urlContext, input string, url *neturl.URL) string {
-	fullURL := d.BaseURL.ResolveReference(url)
-	if fullURL.Scheme != "http" && fullURL.Scheme != "https" {
-		return input
-	}
-
-	filteredURL, _ := neturl.Parse(fullURL.String())
-	filteredURL.Fragment = ""
-	if filteredURL.String() == d.BaseURL.String() {
-		return input
-	}
-
-	link := Link{
-		Context: context,
-		URL:     filteredURL,
-	}
-
-	mapKey := filteredURL.String()
-
-	switch context {
-	case HTMLTagA:
-		d.LinksDiscovered[mapKey] = link
-	case HTMLTagForm:
-		d.LinksDiscovered[mapKey] = link
-	case HTTP3xxLocation:
-		d.LinksDiscovered[mapKey] = link
-	default:
-		d.LinksAssets[mapKey] = link
-	}
-
-	return ReduceURL(d.URL, fullURL)
 }

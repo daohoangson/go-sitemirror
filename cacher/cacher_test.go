@@ -28,6 +28,7 @@ var _ = Describe("HttpCacher", func() {
 	var newHttpCacherWithRootPath = func() Cacher {
 		c := NewHttpCacher(logger)
 		c.SetPath(rootPath)
+		c.SetDefaultTTL(time.Millisecond)
 
 		return c
 	}
@@ -65,7 +66,7 @@ var _ = Describe("HttpCacher", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/exists")
 			cachePath := GenerateCachePath(rootPath, url)
 			f, _ := CreateFile(cachePath)
-			f.Write([]byte("HTTP 200\n\n"))
+			f.WriteString("HTTP 200\n\n")
 			f.Close()
 
 			c := newHttpCacherWithRootPath()
@@ -96,7 +97,7 @@ var _ = Describe("HttpCacher", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/not/exists/empty/file")
 			cachePath := GenerateCachePath(rootPath, url)
 			f, _ := CreateFile(cachePath)
-			f.Write([]byte("HTTP 204\n\n"))
+			f.WriteString("HTTP 204\n\n")
 			f.Close()
 
 			c := newHttpCacherWithRootPath()

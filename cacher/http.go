@@ -32,37 +32,33 @@ func WriteHTTP(w io.Writer, input *Input) {
 		bw.WriteString(writeHTTPFormatExpiresHeader(expires))
 	}
 
-	if input.StatusCode >= 200 && input.StatusCode <= 299 {
-		writeHTTP2xx(bw, input)
-	} else if input.StatusCode >= 300 && input.StatusCode <= 399 {
-		writeHTTP3xx(bw, input)
-	} else {
-		bw.WriteString("\n")
-	}
+	writeHTTPHeader(bw, input)
+	writeHTTPBody(bw, input)
 }
 
 func writeHTTPFormatExpiresHeader(expires time.Time) string {
 	return fmt.Sprintf("%s: %020d\n", HTTPHeaderExpires, expires.UnixNano())
 }
 
-func writeHTTP2xx(bw *bufio.Writer, input *Input) {
-	if len(input.ContentType) > 0 {
-		bw.WriteString(fmt.Sprintf("Content-Type: %s\n", input.ContentType))
+func writeHTTPHeader(bw *bufio.Writer, input *Input) {
+	if input.Header == nil {
+		return
 	}
 
+	for headerKey, headerValues := range input.Header {
+		for _, headerValue := range headerValues {
+			bw.WriteString(fmt.Sprintf("%s: %s\n", headerKey, headerValue))
+		}
+	}
+}
+
+func writeHTTPBody(bw *bufio.Writer, input *Input) {
 	bodyLen := len(input.Body)
 	if bodyLen > 0 {
 		bw.WriteString(fmt.Sprintf("Content-Length: %d\n\n", bodyLen))
 		bw.WriteString(input.Body)
 	} else {
 		bw.WriteString("\n")
-	}
-}
-
-func writeHTTP3xx(bw *bufio.Writer, input *Input) {
-	if input.Redirection != nil {
-		bw.WriteString(fmt.Sprintf("Location: %s\n\n", input.Redirection.String()))
-		return
 	}
 }
 

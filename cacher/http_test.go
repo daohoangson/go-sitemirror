@@ -23,7 +23,11 @@ var _ = Describe("Http", func() {
 			buffer.Reset()
 
 			url, _ := neturl.Parse("http://domain.com/http/input/2xx")
-			input2xx = &Input{StatusCode: 200, URL: url}
+			input2xx = &Input{
+				StatusCode: 200,
+				URL:        url,
+				Header:     make(http.Header),
+			}
 		})
 
 		Describe("StatusCode", func() {
@@ -123,13 +127,15 @@ var _ = Describe("Http", func() {
 
 		Context("2xx", func() {
 			It("should write Content-Type header", func() {
+				headerKey := "Content-Type"
+				headerValue := "plain/text"
 				input := input2xx
-				input.ContentType = "text/html"
+				input.Header.Add(headerKey, headerValue)
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()
-				writtenContentType := getHeaderValue(written, "Content-Type")
-				Expect(writtenContentType).To(Equal(input.ContentType))
+				writtenContentType := getHeaderValue(written, headerKey)
+				Expect(writtenContentType).To(Equal(headerValue))
 				Expect(written).To(HaveSuffix("\n\n"))
 			})
 
@@ -149,14 +155,16 @@ var _ = Describe("Http", func() {
 
 		Context("3xx", func() {
 			It("should write Location header", func() {
+				headerKey := "Location"
+				headerValue := "http://domain.com/target/url"
 				url, _ := neturl.Parse("http://domain.com/http/input/3xx/location")
-				targetUrl, _ := neturl.Parse("http://domain.com/target/url")
-				input := &Input{StatusCode: 301, URL: url, Redirection: targetUrl}
+				input := &Input{StatusCode: 301, URL: url, Header: make(http.Header)}
+				input.Header.Add(headerKey, headerValue)
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()
-				writtenLocation := getHeaderValue(written, "Location")
-				Expect(writtenLocation).To(Equal(targetUrl.String()))
+				writtenLocation := getHeaderValue(written, headerKey)
+				Expect(writtenLocation).To(Equal(headerValue))
 				Expect(written).To(HaveSuffix("\n\n"))
 			})
 		})

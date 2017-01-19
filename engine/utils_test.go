@@ -20,43 +20,35 @@ var _ = Describe("Utils", func() {
 
 		It("should sync url", func() {
 			url, _ := url.Parse("http://domain.com/engine/utils")
-			d := &crawler.Downloaded{URL: url}
+			d := &crawler.Downloaded{Input: &crawler.Input{URL: url}}
 			i := BuildCacherInputFromCrawlerDownloaded(d)
 			Expect(i.URL).To(Equal(url))
 		})
 
-		It("should sync content type", func() {
-			d := &crawler.Downloaded{ContentType: "text/html"}
+		It("should sync body", func() {
+			d := &crawler.Downloaded{Body: "foo/bar"}
 			i := BuildCacherInputFromCrawlerDownloaded(d)
-			Expect(i.ContentType).To(Equal(d.ContentType))
+			Expect(i.Body).To(Equal(d.Body))
 		})
 
-		It("should sync body string", func() {
-			d := &crawler.Downloaded{BodyString: "foo/bar"}
-			i := BuildCacherInputFromCrawlerDownloaded(d)
-			Expect(i.Body).To(Equal(d.BodyString))
-		})
+		It("should sync header content type", func() {
+			headerKey := "Content-Type"
+			headerValue := "plain/text"
+			d := &crawler.Downloaded{}
+			d.AddHeader(headerKey, headerValue)
 
-		It("should sync body bytes", func() {
-			d := &crawler.Downloaded{BodyBytes: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}}
 			i := BuildCacherInputFromCrawlerDownloaded(d)
-			Expect(i.Body).To(Equal(string(d.BodyBytes)))
-		})
-
-		It("should sync body string, ignoring body bytes", func() {
-			d := &crawler.Downloaded{
-				BodyString: "foo/bar",
-				BodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
-			}
-			i := BuildCacherInputFromCrawlerDownloaded(d)
-			Expect(i.Body).To(Equal(d.BodyString))
+			Expect(i.Header.Get(headerKey)).To(Equal(headerValue))
 		})
 
 		It("should sync header location", func() {
-			targetUrl, _ := url.Parse("http://domain.com/engine/utils/target/url")
-			d := &crawler.Downloaded{HeaderLocation: targetUrl}
+			headerKey := "Location"
+			headerValue := "http://domain.com/engine/utils/sync/header/location"
+			d := &crawler.Downloaded{}
+			d.AddHeader(headerKey, headerValue)
+
 			i := BuildCacherInputFromCrawlerDownloaded(d)
-			Expect(i.Redirection).To(Equal(targetUrl))
+			Expect(i.Header.Get(headerKey)).To(Equal(headerValue))
 		})
 	})
 })

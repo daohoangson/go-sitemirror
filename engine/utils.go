@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"net/http"
+
 	"github.com/daohoangson/go-sitemirror/cacher"
 	"github.com/daohoangson/go-sitemirror/crawler"
 )
@@ -12,22 +14,17 @@ func BuildCacherInputFromCrawlerDownloaded(d *crawler.Downloaded) *cacher.Input 
 		i.StatusCode = d.StatusCode
 	}
 
-	if d.URL != nil {
-		i.URL = d.URL
+	if d.Input != nil && d.Input.URL != nil {
+		i.URL = d.Input.URL
 	}
 
-	if len(d.ContentType) > 0 {
-		i.ContentType = d.ContentType
-	}
+	i.Body = d.Body
 
-	if len(d.BodyString) > 0 {
-		i.Body = d.BodyString
-	} else if d.BodyBytes != nil {
-		i.Body = string(d.BodyBytes)
-	}
-
-	if d.HeaderLocation != nil {
-		i.Redirection = d.HeaderLocation
+	i.Header = make(http.Header)
+	for _, headerKey := range d.GetHeaderKeys() {
+		for _, headerValue := range d.GetHeaderValues(headerKey) {
+			i.Header.Add(headerKey, headerValue)
+		}
 	}
 
 	return i

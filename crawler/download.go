@@ -14,54 +14,69 @@ import (
 	htmlAtom "golang.org/x/net/html/atom"
 )
 
-var cssURIRegexp = regexp.MustCompile(`^(url\(['"]?)([^'"]+)(['"]?\))$`)
+var (
+	cssURIRegexp = regexp.MustCompile(`^(url\(['"]?)([^'"]+)(['"]?\))$`)
+)
 
-const htmlAttrAction = "action"
-const htmlAttrHref = "href"
-const htmlAttrRel = "rel"
-const htmlAttrRelStylesheet = "stylesheet"
-const htmlAttrSrc = "src"
+const (
+	htmlAttrAction        = "action"
+	htmlAttrHref          = "href"
+	htmlAttrRel           = "rel"
+	htmlAttrRelStylesheet = "stylesheet"
+	htmlAttrSrc           = "src"
+)
+
+const (
+	httpHeaderContentType = "Content-Type"
+	httpHeaderLocation    = "Location"
+)
 
 // Download returns parsed data after downloading the specified url.
-func Download(client *http.Client, url *neturl.URL, header http.Header) *Downloaded {
-	result := newDownloaded(url)
+func Download(input *Input) *Downloaded {
+	result := &Downloaded{
+		Input: input,
 
-	if client == nil {
-		result.Error = errors.New("http.Client cannot be nil")
+		BaseURL:         input.URL,
+		LinksAssets:     make(map[string]Link),
+		LinksDiscovered: make(map[string]Link),
+	}
+
+	if input.Client == nil {
+		result.Error = errors.New(".Client cannot be nil")
 		return result
 	}
 
-	if url == nil {
-		result.Error = errors.New("url.URL cannot be nil")
+	if input.URL == nil {
+		result.Error = errors.New(".URL cannot be nil")
 		return result
 	}
 
-	if !url.IsAbs() {
-		result.Error = errors.New("URL must be absolute")
+	if !input.URL.IsAbs() {
+		result.Error = errors.New(".URL must be absolute")
 		return result
 	}
 
-	if url.Scheme != "http" && url.Scheme != "https" {
-		result.Error = errors.New("URL scheme must be http/https")
+	if input.URL.Scheme != "http" && input.URL.Scheme != "https" {
+		result.Error = errors.New(".URL.Scheme must be http/https")
 		return result
 	}
 
 	// http://stackoverflow.com/questions/23297520/how-can-i-make-the-go-http-client-not-follow-redirects-automatically
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	input.Client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// do not follow redirects
 		return http.ErrUseLastResponse
 	}
 
-	req, _ := http.NewRequest("GET", url.String(), nil)
-	if header != nil {
-		for headerKey, headerValues := range header {
+	req, _ := http.NewRequest("GET", input.URL.String(), nil)
+	if input.Header != nil {
+		for headerKey, headerValues := range input.Header {
 			for _, headerValue := range headerValues {
 				req.Header.Add(headerKey, headerValue)
 			}
 		}
 	}
 
-	resp, err := client.Do(req)
+	resp, err := input.Client.Do(req)
 	if err != nil {
 		result.Error = err
 		return result
@@ -79,15 +94,19 @@ func Download(client *http.Client, url *neturl.URL, header http.Header) *Downloa
 }
 
 func parseBody(resp *http.Response, result *Downloaded) error {
-	contentType := resp.Header.Get("Content-Type")
-	parts := strings.Split(contentType, ";")
-	result.ContentType = parts[0]
+	respHeaderContentType := resp.Header.Get(httpHeaderContentType)
+	if len(respHeaderContentType) > 0 {
+		result.AddHeader(httpHeaderContentType, respHeaderContentType)
 
-	switch result.ContentType {
-	case "text/css":
-		return parseBodyCSS(resp, result)
-	case "text/html":
-		return parseBodyHTML(resp, result)
+		parts := strings.Split(respHeaderContentType, ";")
+		contentType := parts[0]
+
+		switch contentType {
+		case "text/css":
+			return parseBodyCSS(resp, result)
+		case "text/html":
+			return parseBodyHTML(resp, result)
+		}
 	}
 
 	return parseBodyRaw(resp, result)
@@ -102,7 +121,7 @@ func parseBodyCSS(resp *http.Response, result *Downloaded) error {
 
 	err := parseBodyCSSString(string(body), result)
 
-	result.BodyString = buffer.String()
+	result.Body = buffer.String()
 	result.buffer = nil
 
 	return err
@@ -119,10 +138,10 @@ func parseBodyCSSString(css string, result *Downloaded) error {
 		if token.Type == cssScanner.TokenURI {
 			if m := cssURIRegexp.FindStringSubmatch(token.Value); m != nil {
 				before, url, after := m[1], m[2], m[3]
-				relative := result.appendURL(CSSUri, url)
-				if relative != url {
+				processedURL, err := result.ProcessURL(CSSUri, url)
+				if err == nil && processedURL != url {
 					result.buffer.WriteString(before)
-					result.buffer.WriteString(relative)
+					result.buffer.WriteString(processedURL)
 					result.buffer.WriteString(after)
 					continue
 				}
@@ -147,7 +166,7 @@ func parseBodyHTML(resp *http.Response, result *Downloaded) error {
 		}
 	}
 
-	result.BodyString = buffer.String()
+	result.Body = buffer.String()
 	result.buffer = nil
 
 	return nil
@@ -221,9 +240,9 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 func parseBodyHTMLTagA(token *html.Token, result *Downloaded) bool {
 	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrHref {
-			relative := result.appendURL(HTMLTagA, attr.Val)
-			if relative != attr.Val {
-				token.Attr[i].Val = relative
+			processedURL, err := result.ProcessURL(HTMLTagA, attr.Val)
+			if err == nil && processedURL != attr.Val {
+				token.Attr[i].Val = processedURL
 				return rewriteTokenAttr(token, result)
 			}
 		}
@@ -235,9 +254,9 @@ func parseBodyHTMLTagA(token *html.Token, result *Downloaded) bool {
 func parseBodyHTMLTagForm(token *html.Token, result *Downloaded) bool {
 	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrAction {
-			relative := result.appendURL(HTMLTagForm, attr.Val)
-			if relative != attr.Val {
-				token.Attr[i].Val = relative
+			processedURL, err := result.ProcessURL(HTMLTagForm, attr.Val)
+			if err == nil && processedURL != attr.Val {
+				token.Attr[i].Val = processedURL
 				return rewriteTokenAttr(token, result)
 			}
 		}
@@ -281,9 +300,9 @@ func parseBodyHTMLTagImg(token *html.Token, result *Downloaded) bool {
 			continue
 		}
 
-		relative := result.appendParsedURL(HTMLTagImg, url, parsedURL)
-		if relative != attr.Val {
-			token.Attr[i].Val = relative
+		processedURL, err := result.ProcessURL(HTMLTagImg, url)
+		if err == nil && processedURL != attr.Val {
+			token.Attr[i].Val = processedURL
 			needRewrite = true
 		}
 	}
@@ -313,9 +332,9 @@ func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 	if len(linkHref) > 0 {
 		switch linkRel {
 		case htmlAttrRelStylesheet:
-			relative := result.appendURL(HTMLTagLinkStylesheet, linkHref)
-			if relative != linkHref {
-				token.Attr[linkHrefAttrIndex].Val = relative
+			processedURL, err := result.ProcessURL(HTMLTagLinkStylesheet, linkHref)
+			if err == nil && processedURL != linkHref {
+				token.Attr[linkHrefAttrIndex].Val = processedURL
 				return rewriteTokenAttr(token, result)
 			}
 		}
@@ -327,9 +346,9 @@ func parseBodyHTMLTagLink(token *html.Token, result *Downloaded) bool {
 func parseBodyHTMLTagScript(tokenizer *html.Tokenizer, token *html.Token, result *Downloaded) bool {
 	for i, attr := range token.Attr {
 		if attr.Key == htmlAttrSrc {
-			relative := result.appendURL(HTMLTagScript, attr.Val)
-			if relative != attr.Val {
-				token.Attr[i].Val = relative
+			processedURL, err := result.ProcessURL(HTMLTagScript, attr.Val)
+			if err == nil && processedURL != attr.Val {
+				token.Attr[i].Val = processedURL
 				return rewriteTokenAttr(token, result)
 			}
 		}
@@ -406,19 +425,16 @@ func rewriteTokenAttr(token *html.Token, result *Downloaded) bool {
 
 func parseBodyRaw(resp *http.Response, result *Downloaded) error {
 	body, err := ioutil.ReadAll(resp.Body)
-	result.BodyBytes = body
+	result.Body = string(body)
 	return err
 }
 
 func parseRedirect(resp *http.Response, result *Downloaded) error {
-	location := resp.Header.Get("Location")
-	url, err := neturl.Parse(location)
-	if err != nil {
-		return err
+	location := resp.Header.Get(httpHeaderLocation)
+	processedURL, err := result.ProcessURL(HTTP3xxLocation, location)
+	if err == nil {
+		result.AddHeader(httpHeaderLocation, processedURL)
 	}
 
-	result.HeaderLocation = url
-	result.appendURL(HTTP3xxLocation, location)
-
-	return nil
+	return err
 }

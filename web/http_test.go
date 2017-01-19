@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"time"
 
 	"github.com/daohoangson/go-sitemirror/cacher"
@@ -36,53 +35,37 @@ var _ = Describe("HTTP", func() {
 
 	Describe("ServeDownloaded", func() {
 		It("should write status code, header and content", func() {
+			contentType := "text/plain"
 			downloaded := &crawler.Downloaded{
-				StatusCode:  http.StatusOK,
-				ContentType: "text/plain",
-				BodyBytes:   []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+				StatusCode: http.StatusOK,
+				Body:       "foo/bar",
 			}
+			downloaded.AddHeader("Content-Type", contentType)
 			w := httptest.NewRecorder()
 			si := internal.NewServeInfo(w)
 			ServeDownloaded(downloaded, si)
 
 			Expect(si.HasError()).To(BeFalse())
 			Expect(w.Code).To(Equal(downloaded.StatusCode))
-			Expect(w.Header().Get("Content-Type")).To(Equal(downloaded.ContentType))
-			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(downloaded.BodyBytes))))
+			Expect(w.Header().Get("Content-Type")).To(Equal(contentType))
+			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(downloaded.Body))))
 
 			wBody, _ := ioutil.ReadAll(w.Body)
-			Expect(len(wBody)).To(Equal(len(downloaded.BodyBytes)))
-			Expect(string(wBody)).To(Equal(string(downloaded.BodyBytes)))
+			Expect(string(wBody)).To(Equal(downloaded.Body))
 		})
 
 		It("should write Location header", func() {
 			location := "http://domain.com/http/ServeDownloaded/write/location/header"
-			parsedLocation, _ := url.Parse(location)
 			downloaded := &crawler.Downloaded{
-				StatusCode:     http.StatusMovedPermanently,
-				HeaderLocation: parsedLocation,
+				StatusCode: http.StatusMovedPermanently,
 			}
+			downloaded.AddHeader("Location", location)
 			w := httptest.NewRecorder()
 			si := internal.NewServeInfo(w)
 			ServeDownloaded(downloaded, si)
 			si.Flush()
 
 			Expect(w.Header().Get("Location")).To(Equal(location))
-		})
-
-		It("should write body string", func() {
-			downloaded := &crawler.Downloaded{
-				BodyString: "foo/bar",
-			}
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
-			ServeDownloaded(downloaded, si)
-
-			Expect(w.Header().Get("Content-Length")).To(Equal(fmt.Sprintf("%d", len(downloaded.BodyString))))
-
-			wBody, _ := ioutil.ReadAll(w.Body)
-			Expect(len(wBody)).To(Equal(len(downloaded.BodyString)))
-			Expect(string(wBody)).To(Equal(downloaded.BodyString))
 		})
 	})
 

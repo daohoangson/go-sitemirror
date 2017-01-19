@@ -13,30 +13,22 @@ import (
 	"github.com/daohoangson/go-sitemirror/web/internal"
 )
 
-var regexHTTPStatusCode = regexp.MustCompile(`^HTTP (\d+)\n$`)
-var regexHTTPHeader = regexp.MustCompile(`^([^:]+): (.+)\n$`)
+var (
+	regexHTTPStatusCode = regexp.MustCompile(`^HTTP (\d+)\n$`)
+	regexHTTPHeader     = regexp.MustCompile(`^([^:]+): (.+)\n$`)
+)
 
 func ServeDownloaded(downloaded *crawler.Downloaded, info internal.ServeInfo) {
 	info.SetStatusCode(downloaded.StatusCode)
 
-	if downloaded.HeaderLocation != nil {
-		info.AddHeader("Location", downloaded.HeaderLocation.String())
-		return
+	headerKeys := downloaded.GetHeaderKeys()
+	for _, headerKey := range headerKeys {
+		for _, headerValue := range downloaded.GetHeaderValues(headerKey) {
+			info.AddHeader(headerKey, headerValue)
+		}
 	}
 
-	if len(downloaded.ContentType) > 0 {
-		info.AddHeader("Content-Type", downloaded.ContentType)
-	}
-
-	var bytes []byte
-	if len(downloaded.BodyString) > 0 {
-		bytes = []byte(downloaded.BodyString)
-	} else if downloaded.BodyBytes != nil {
-		bytes = downloaded.BodyBytes
-	}
-	if bytes != nil {
-		info.WriteBody(bytes)
-	}
+	info.WriteBody([]byte(downloaded.Body))
 }
 
 func ServeHTTPCache(input io.Reader, info internal.ServeInfo) {

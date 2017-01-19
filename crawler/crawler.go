@@ -328,7 +328,11 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 
 	if shouldDownload {
 		loggerContext.Debug("Downloading")
-		downloaded = Download(c.client, item.URL, c.requestHeader)
+		downloaded = Download(&Input{
+			Client: c.client,
+			Header: c.requestHeader,
+			URL:    item.URL,
+		})
 		atomic.AddUint64(&c.downloadedCount, 1)
 	}
 
@@ -359,11 +363,11 @@ func (c *crawler) doAutoQueue(workerID uint64, item QueueItem, downloaded *Downl
 	}
 
 	// use the same depth for asset links as they are required for proper rendering
-	c.doAutoQueueURLs(workerID, downloaded.GetAssetURLs(), downloaded.URL, item.Depth)
+	c.doAutoQueueURLs(workerID, downloaded.GetAssetURLs(), downloaded.Input.URL, item.Depth)
 
 	// increase depth for other discovered links
 	// they will need to satisfy depth limit before crawling
-	c.doAutoQueueURLs(workerID, downloaded.GetDiscoveredURLs(), downloaded.URL, item.Depth+1)
+	c.doAutoQueueURLs(workerID, downloaded.GetDiscoveredURLs(), downloaded.Input.URL, item.Depth+1)
 }
 
 func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *neturl.URL, nextDepth uint64) {

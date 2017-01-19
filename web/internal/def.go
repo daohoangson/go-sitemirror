@@ -21,7 +21,7 @@ type ServeInfo interface {
 	SetExpires(time.Time)
 	SetContentLength(int64)
 	AddHeader(string, string)
-	WriteBody(bytes []byte)
+	WriteBody([]byte)
 	CopyBody(source io.Reader)
 
 	Flush() ServeInfo

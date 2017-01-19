@@ -48,20 +48,25 @@ type QueueItem struct {
 	ForceDownload bool
 }
 
+type Input struct {
+	Client *http.Client
+	Header http.Header
+	URL    *url.URL
+}
+
 // Downloaded struct contains parsed data after downloading an url.
 type Downloaded struct {
+	Input *Input
+
 	BaseURL         *url.URL
-	BodyString      string
-	BodyBytes       []byte
-	ContentType     string
+	Body            string
 	Error           error
-	HeaderLocation  *url.URL
 	LinksAssets     map[string]Link
 	LinksDiscovered map[string]Link
 	StatusCode      int
-	URL             *url.URL
 
 	buffer *bytes.Buffer
+	header http.Header
 }
 
 // Link struct is an extracted link from download result.

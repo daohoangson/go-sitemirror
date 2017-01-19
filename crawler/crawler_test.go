@@ -139,7 +139,7 @@ var _ = Describe("Crawler", func() {
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
-			Expect(string(downloaded.BodyBytes)).To(Equal(requestHeaderVal1))
+			Expect(downloaded.Body).To(Equal(requestHeaderVal1))
 		})
 	})
 
@@ -406,7 +406,7 @@ var _ = Describe("Crawler", func() {
 			defer c.Stop()
 
 			downloaded, _ := c.Downloaded()
-			Expect(string(downloaded.BodyBytes)).To(Equal(body))
+			Expect(downloaded.Body).To(Equal(body))
 
 			Expect(c.GetEnqueuedCount()).To(Equal(uint64One))
 			Expect(c.GetDownloadedCount()).To(Equal(uint64One))

@@ -16,6 +16,7 @@ import (
 type crawler struct {
 	client *http.Client
 	logger *logrus.Logger
+	mutex  sync.Mutex
 
 	autoDownloadDepth uint64
 	workerCount       uint64
@@ -64,16 +65,17 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 }
 
 func (c *crawler) SetAutoDownloadDepth(depth uint64) {
-	c.logger.WithFields(logrus.Fields{
-		"old": c.autoDownloadDepth,
-		"new": depth,
-	}).Info("Updating crawler auto download depth")
+	old := atomic.LoadUint64(&c.autoDownloadDepth)
+	atomic.StoreUint64(&c.autoDownloadDepth, depth)
 
-	c.autoDownloadDepth = depth
+	c.logger.WithFields(logrus.Fields{
+		"old": old,
+		"new": depth,
+	}).Info("Updated crawler auto download depth")
 }
 
 func (c *crawler) GetAutoDownloadDepth() uint64 {
-	return c.autoDownloadDepth
+	return atomic.LoadUint64(&c.autoDownloadDepth)
 }
 
 func (c *crawler) SetWorkerCount(count uint64) error {
@@ -85,22 +87,24 @@ func (c *crawler) SetWorkerCount(count uint64) error {
 		return errors.New("Cannot SetWorkerCount after Start")
 	}
 
+	old := atomic.LoadUint64(&c.workerCount)
+	atomic.StoreUint64(&c.workerCount, count)
+
 	c.logger.WithFields(logrus.Fields{
-		"old": c.workerCount,
+		"old": old,
 		"new": count,
-	}).Info("Updating crawler worker count")
-
-	c.workerCount = count
-
+	}).Info("Updated crawler worker count")
 	return nil
 }
 
 func (c *crawler) GetWorkerCount() uint64 {
-	return c.workerCount
+	return atomic.LoadUint64(&c.workerCount)
 }
 
 func (c *crawler) AddRequestHeader(key string, value string) {
+	c.mutex.Lock()
 	c.requestHeader.Add(key, value)
+	c.mutex.Unlock()
 
 	c.logger.WithFields(logrus.Fields{
 		"key":    key,
@@ -110,7 +114,9 @@ func (c *crawler) AddRequestHeader(key string, value string) {
 }
 
 func (c *crawler) SetRequestHeader(key string, value string) {
+	c.mutex.Lock()
 	c.requestHeader.Set(key, value)
+	c.mutex.Unlock()
 
 	c.logger.WithFields(logrus.Fields{
 		"key":    key,
@@ -121,6 +127,9 @@ func (c *crawler) SetRequestHeader(key string, value string) {
 
 func (c *crawler) GetRequestHeaderValues(key string) []string {
 	chk := http.CanonicalHeaderKey(key)
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	if values, ok := c.requestHeader[chk]; ok {
 		return values
 	}
@@ -129,23 +138,36 @@ func (c *crawler) GetRequestHeaderValues(key string) []string {
 }
 
 func (c *crawler) SetURLRewriter(f func(*neturl.URL)) {
+	c.mutex.Lock()
 	c.urlRewriter = &f
+	c.mutex.Unlock()
 }
 
 func (c *crawler) SetOnURLShouldQueue(f func(*neturl.URL) bool) {
+	c.mutex.Lock()
 	c.onURLShouldQueue = &f
+	c.mutex.Unlock()
 }
 
 func (c *crawler) SetOnURLShouldDownload(f func(*neturl.URL) bool) {
+	c.mutex.Lock()
 	c.onURLShouldDownload = &f
+	c.mutex.Unlock()
 }
 
 func (c *crawler) SetOnDownload(f func(*neturl.URL)) {
+	c.mutex.Lock()
 	c.onDownload = &f
+	c.mutex.Unlock()
 }
 
 func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
-	if c.onDownloaded == nil && c.IsRunning() {
+	c.mutex.Lock()
+	old := c.onDownloaded
+	c.onDownloaded = &f
+	c.mutex.Unlock()
+
+	if old == nil && c.IsRunning() {
 		go func() {
 			for {
 				downloaded := c.DownloadedNotBlocking()
@@ -157,8 +179,6 @@ func (c *crawler) SetOnDownloaded(f func(*Downloaded)) {
 			}
 		}()
 	}
-
-	c.onDownloaded = &f
 }
 
 func (c *crawler) GetEnqueuedCount() uint64 {
@@ -215,8 +235,10 @@ func (c *crawler) Start() {
 		})
 		loggerContext.Debug("Starting crawler")
 
+		c.mutex.Lock()
 		c.queue = nbc.New()
 		c.output = make(chan *Downloaded)
+		c.mutex.Unlock()
 
 		for i := uint64(0); i < workerCount; i++ {
 			go func(workerID uint64) {
@@ -254,8 +276,11 @@ func (c *crawler) Stop() {
 		return
 	}
 
+	c.mutex.Lock()
 	close(c.output)
 	close(c.queue.Send)
+	c.mutex.Unlock()
+
 	c.logger.Info("Stopped crawler")
 }
 
@@ -303,8 +328,14 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 		downloaded     *Downloaded
 	)
 
-	if c.onDownload != nil {
-		(*c.onDownload)(item.URL)
+	c.mutex.Lock()
+	onDownload := c.onDownload
+	onURLShouldDownload := c.onURLShouldDownload
+	onDownloaded := c.onDownloaded
+	c.mutex.Unlock()
+
+	if onDownload != nil {
+		(*onDownload)(item.URL)
 	}
 
 	atomic.AddInt64(&c.downloadingCount, 1)
@@ -312,8 +343,8 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 
 	if item.ForceDownload {
 		// do not trigger onURLShouldDownload
-	} else if c.onURLShouldDownload != nil {
-		shouldDownload = (*c.onURLShouldDownload)(item.URL)
+	} else if onURLShouldDownload != nil {
+		shouldDownload = (*onURLShouldDownload)(item.URL)
 		if !shouldDownload {
 			loggerContext.Debug("Skipped as instructed by onURLShouldDownload")
 		}
@@ -336,15 +367,13 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 		loggerContext.WithFields(logrus.Fields{
 			"statusCode": downloaded.StatusCode,
 			"elapsed":    time.Since(start),
-			"total":      c.downloadedCount,
+			"total":      atomic.LoadUint64(&c.downloadedCount),
 		}).Info("Downloaded")
 
-		if c.onDownloaded == nil {
-			if c.IsRunning() {
-				c.output <- downloaded
-			}
-		} else {
-			(*c.onDownloaded)(downloaded)
+		if onDownloaded != nil {
+			(*onDownloaded)(downloaded)
+		} else if c.IsRunning() {
+			c.output <- downloaded
 		}
 	}
 
@@ -379,6 +408,9 @@ func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *n
 	}
 
 	atomic.AddUint64(&c.linkFoundCount, uint64(count))
+	c.mutex.Lock()
+	onURLShouldQueue := c.onURLShouldQueue
+	c.mutex.Unlock()
 
 	if nextDepth > c.autoDownloadDepth {
 		loggerContext.WithField("links", count).Info("Skipped because it is too deep")
@@ -386,8 +418,8 @@ func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *n
 	}
 
 	for _, url := range urls {
-		if c.onURLShouldQueue != nil {
-			shouldQueue := (*c.onURLShouldQueue)(url)
+		if onURLShouldQueue != nil {
+			shouldQueue := (*onURLShouldQueue)(url)
 			if !shouldQueue {
 				loggerContext.WithField("url", url).Debug("Skipped as instructed by onURLShouldQueue")
 				continue

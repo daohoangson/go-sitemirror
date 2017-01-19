@@ -6,6 +6,7 @@ import (
 	neturl "net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -13,6 +14,7 @@ import (
 
 type httpCacher struct {
 	logger *logrus.Logger
+	mutex  sync.Mutex
 
 	path string
 
@@ -43,24 +45,39 @@ func (c *httpCacher) GetMode() cacherMode {
 }
 
 func (c *httpCacher) SetPath(path string) {
-	c.logger.WithFields(logrus.Fields{
-		"old": c.path,
-		"new": path,
-	}).Info("Updating cacher path")
-
+	c.mutex.Lock()
+	old := c.path
 	c.path = path
+	c.mutex.Unlock()
+
+	c.logger.WithFields(logrus.Fields{
+		"old": old,
+		"new": path,
+	}).Info("Updated cacher path")
 }
 
 func (c *httpCacher) GetPath() string {
-	return c.path
+	c.mutex.Lock()
+	path := c.path
+	c.mutex.Unlock()
+
+	return path
 }
 
 func (c *httpCacher) SetDefaultTTL(ttl time.Duration) {
+	c.mutex.Lock()
+	old := c.defaultTTL
 	c.defaultTTL = ttl
+	c.mutex.Unlock()
+
+	c.logger.WithFields(logrus.Fields{
+		"old": old,
+		"new": ttl,
+	}).Info("Updated cacher default ttl")
 }
 
 func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
-	cachePath := GenerateCachePath(c.path, url)
+	cachePath := c.generateCachePath(url)
 	loggerContext := c.logger.WithFields(logrus.Fields{
 		"url":  url,
 		"path": cachePath,
@@ -93,7 +110,7 @@ func (c *httpCacher) Write(input *Input) error {
 		input.TTL = c.defaultTTL
 	}
 
-	cachePath := GenerateCachePath(c.path, input.URL)
+	cachePath := c.generateCachePath(input.URL)
 	f, err := CreateFile(cachePath)
 	if err != nil {
 		return err
@@ -111,7 +128,7 @@ func (c *httpCacher) Write(input *Input) error {
 }
 
 func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
-	cachePath := GenerateCachePath(c.path, url)
+	cachePath := c.generateCachePath(url)
 	newExpires := time.Now().Add(ttl)
 	loggerContext := c.logger.WithFields(logrus.Fields{
 		"url":  url,
@@ -171,7 +188,7 @@ func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
 }
 
 func (c *httpCacher) WritePlaceholder(url *neturl.URL, ttl time.Duration) error {
-	cachePath := GenerateCachePath(c.path, url)
+	cachePath := c.generateCachePath(url)
 	f, err := CreateFile(cachePath)
 	if err != nil {
 		return err
@@ -192,7 +209,7 @@ func (c *httpCacher) WritePlaceholder(url *neturl.URL, ttl time.Duration) error 
 }
 
 func (c *httpCacher) Open(url *neturl.URL) (io.ReadCloser, error) {
-	cachePath := GenerateCachePath(c.path, url)
+	cachePath := c.generateCachePath(url)
 	f, err := os.Open(cachePath)
 
 	if err == nil {
@@ -203,4 +220,12 @@ func (c *httpCacher) Open(url *neturl.URL) (io.ReadCloser, error) {
 	}
 
 	return f, err
+}
+
+func (c *httpCacher) generateCachePath(url *neturl.URL) string {
+	c.mutex.Lock()
+	path := c.path
+	c.mutex.Unlock()
+
+	return GenerateCachePath(path, url)
 }

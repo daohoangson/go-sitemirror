@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	neturl "net/url"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	. "github.com/daohoangson/go-sitemirror/crawler"
 	t "github.com/daohoangson/go-sitemirror/testing"
+	"github.com/tevino/abool"
 	"gopkg.in/jarcoal/httpmock.v1"
 
 	. "github.com/onsi/ginkgo"
@@ -283,11 +285,15 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", urlTarget1, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()
+			defer c.Stop()
 
+			var mutex sync.Mutex
 			urlFound := false
 			urlTarget0Found := false
 			urlTarget1Found := false
 			c.SetOnDownloaded(func(d *Downloaded) {
+				mutex.Lock()
+
 				switch d.BaseURL.String() {
 				case url:
 					urlFound = true
@@ -296,18 +302,21 @@ var _ = Describe("Crawler", func() {
 				case urlTarget1:
 					urlTarget1Found = true
 				}
+
+				mutex.Unlock()
 			})
 
 			enqueueURL(c, url)
-			defer c.Stop()
 
 			time.Sleep(sleepTime)
 			downloaded := c.DownloadedNotBlocking()
 			Expect(downloaded).To(BeNil())
 
+			mutex.Lock()
 			Expect(urlFound).To(BeTrue())
 			Expect(urlTarget0Found).To(BeTrue())
 			Expect(urlTarget1Found).To(BeTrue())
+			mutex.Unlock()
 		})
 
 		It("should trigger func on set", func() {
@@ -318,16 +327,16 @@ var _ = Describe("Crawler", func() {
 			enqueueURL(c, url)
 			defer c.Stop()
 
+			urlFound := abool.New()
 			time.Sleep(sleepTime)
-			urlFound := false
 			c.SetOnDownloaded(func(d *Downloaded) {
 				if d.BaseURL.String() == url {
-					urlFound = true
+					urlFound.Set()
 				}
 			})
-			time.Sleep(sleepTime)
 
-			Expect(urlFound).To(BeTrue())
+			time.Sleep(sleepTime)
+			Expect(urlFound.IsSet()).To(BeTrue())
 		})
 	})
 

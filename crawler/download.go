@@ -61,8 +61,9 @@ func Download(input *Input) *Downloaded {
 		return result
 	}
 
+	httpClient := *input.Client
 	// http://stackoverflow.com/questions/23297520/how-can-i-make-the-go-http-client-not-follow-redirects-automatically
-	input.Client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// do not follow redirects
 		return http.ErrUseLastResponse
 	}
@@ -76,7 +77,7 @@ func Download(input *Input) *Downloaded {
 		}
 	}
 
-	resp, err := input.Client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		result.Error = err
 		return result

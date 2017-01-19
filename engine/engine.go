@@ -15,6 +15,7 @@ import (
 
 type engine struct {
 	logger *logrus.Logger
+	mutex  sync.Mutex
 
 	cacher  cacher.Cacher
 	crawler crawler.Crawler
@@ -82,12 +83,14 @@ func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
 		input := BuildCacherInputFromCrawlerDownloaded(downloaded)
 		e.cacher.Write(input)
 
+		e.mutex.Lock()
 		if !e.stopped.IsSet() {
 			select {
 			case e.downloadedSomething <- true:
 			default:
 			}
 		}
+		e.mutex.Unlock()
 	})
 
 	e.server.SetOnServerIssue(func(issue *web.ServerIssue) {
@@ -129,6 +132,9 @@ func (e *engine) GetServer() web.Server {
 }
 
 func (e *engine) AddHostRewrite(from string, to string) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+
 	if e.hostRewrites == nil {
 		e.hostRewrites = make(map[string]string)
 	}
@@ -142,6 +148,9 @@ func (e *engine) AddHostRewrite(from string, to string) {
 }
 
 func (e *engine) AddHostWhitelisted(host string) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+
 	if e.hostsWhitelist == nil {
 		e.hostsWhitelist = make([]string, 1)
 		e.hostsWhitelist[0] = host
@@ -167,11 +176,15 @@ func (e *engine) AddHostWhitelisted(host string) {
 }
 
 func (e *engine) SetBumpTTL(ttl time.Duration) {
+	e.mutex.Lock()
 	e.bumpTTL = ttl
+	e.mutex.Unlock()
 }
 
 func (e *engine) SetAutoEnqueueInterval(interval time.Duration) {
+	e.mutex.Lock()
 	e.autoEnqueueInterval = interval
+	e.mutex.Unlock()
 }
 
 func (e *engine) Mirror(url *neturl.URL, port int) error {
@@ -247,11 +260,15 @@ func (e *engine) autoEnqueue(url *neturl.URL) {
 }
 
 func (e *engine) rewriteURLHost(url *neturl.URL) {
-	if e.hostRewrites == nil {
+	e.mutex.Lock()
+	hostRewrites := e.hostRewrites
+	e.mutex.Unlock()
+
+	if hostRewrites == nil {
 		return
 	}
 
-	for from, to := range e.hostRewrites {
+	for from, to := range hostRewrites {
 		if url.Host == from {
 			urlBefore := url.String()
 			url.Host = to
@@ -267,11 +284,15 @@ func (e *engine) rewriteURLHost(url *neturl.URL) {
 }
 
 func (e *engine) checkHostWhitelisted(host string) bool {
-	if e.hostsWhitelist == nil {
+	e.mutex.Lock()
+	hostsWhitelist := e.hostsWhitelist
+	e.mutex.Unlock()
+
+	if hostsWhitelist == nil {
 		return true
 	}
 
-	for _, hostWhitelist := range e.hostsWhitelist {
+	for _, hostWhitelist := range hostsWhitelist {
 		if host == hostWhitelist {
 			return true
 		}
@@ -286,6 +307,8 @@ func (e *engine) cleanUp() {
 		e.crawler.Stop()
 		e.server.Stop()
 
+		e.mutex.Lock()
 		close(e.downloadedSomething)
+		e.mutex.Unlock()
 	}
 }

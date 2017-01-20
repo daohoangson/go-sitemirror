@@ -76,6 +76,14 @@ func (c *httpCacher) SetDefaultTTL(ttl time.Duration) {
 	}).Info("Updated cacher default ttl")
 }
 
+func (c *httpCacher) GetDefaultTTL() time.Duration {
+	c.mutex.Lock()
+	ttl := c.defaultTTL
+	c.mutex.Unlock()
+
+	return ttl
+}
+
 func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
 	cachePath := c.generateCachePath(url)
 	loggerContext := c.logger.WithFields(logrus.Fields{

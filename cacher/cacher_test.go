@@ -61,6 +61,14 @@ var _ = Describe("HttpCacher", func() {
 		Expect(c.GetPath()).To(Equal(rootPath))
 	})
 
+	It("should set default ttl", func() {
+		ttl := time.Hour
+		c := NewHttpCacher(logger)
+		c.SetDefaultTTL(ttl)
+
+		Expect(c.GetDefaultTTL()).To(Equal(ttl))
+	})
+
 	Describe("CheckCacheExists", func() {
 		It("should report cache exists", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/exists")

@@ -16,6 +16,7 @@ type Cacher interface {
 	SetPath(string)
 	GetPath() string
 	SetDefaultTTL(time.Duration)
+	GetDefaultTTL() time.Duration
 
 	CheckCacheExists(*url.URL) bool
 	Write(*Input) error

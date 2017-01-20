@@ -147,6 +147,21 @@ func (e *engine) AddHostRewrite(from string, to string) {
 	}).Info("Added host rewrite")
 }
 
+func (e *engine) GetHostRewrites() map[string]string {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+
+	hostRewrites := make(map[string]string)
+
+	if e.hostRewrites != nil {
+		for from, to := range e.hostRewrites {
+			hostRewrites[from] = to
+		}
+	}
+
+	return hostRewrites
+}
+
 func (e *engine) AddHostWhitelisted(host string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
@@ -175,10 +190,33 @@ func (e *engine) AddHostWhitelisted(host string) {
 	}).Info("Added host into whitelist")
 }
 
+func (e *engine) GetHostsWhitelist() []string {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+
+	hostsWhitelist := make([]string, len(e.hostsWhitelist))
+	if e.hostsWhitelist != nil {
+		i := 0
+		for _, host := range e.hostsWhitelist {
+			hostsWhitelist[i] = host
+		}
+	}
+
+	return hostsWhitelist
+}
+
 func (e *engine) SetBumpTTL(ttl time.Duration) {
 	e.mutex.Lock()
 	e.bumpTTL = ttl
 	e.mutex.Unlock()
+}
+
+func (e *engine) GetBumpTTL() time.Duration {
+	e.mutex.Lock()
+	ttl := e.bumpTTL
+	e.mutex.Unlock()
+
+	return ttl
 }
 
 func (e *engine) SetAutoEnqueueInterval(interval time.Duration) {
@@ -187,7 +225,20 @@ func (e *engine) SetAutoEnqueueInterval(interval time.Duration) {
 	e.mutex.Unlock()
 }
 
+func (e *engine) GetAutoEnqueueInterval() time.Duration {
+	e.mutex.Lock()
+	interval := e.autoEnqueueInterval
+	e.mutex.Unlock()
+
+	return interval
+}
+
 func (e *engine) Mirror(url *neturl.URL, port int) error {
+	e.logger.WithFields(logrus.Fields{
+		"url":  url,
+		"port": port,
+	}).Info("Setting up mirror")
+
 	e.autoEnqueue(url)
 	e.crawler.Enqueue(crawler.QueueItem{URL: url})
 

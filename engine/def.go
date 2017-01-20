@@ -19,9 +19,13 @@ type Engine interface {
 	GetServer() web.Server
 
 	AddHostRewrite(string, string)
+	GetHostRewrites() map[string]string
 	AddHostWhitelisted(string)
+	GetHostsWhitelist() []string
 	SetBumpTTL(time.Duration)
+	GetBumpTTL() time.Duration
 	SetAutoEnqueueInterval(time.Duration)
+	GetAutoEnqueueInterval() time.Duration
 
 	Mirror(*url.URL, int) error
 	Stop()

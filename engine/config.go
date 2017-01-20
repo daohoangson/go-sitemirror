@@ -57,7 +57,7 @@ const (
 	ConfigDefaultCrawlerWorkerCount       = uint64(4)
 )
 
-func ParseConfig(arg0 string, otherArgs []string) *Config {
+func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
 	config := &Config{}
 
 	fs := flag.NewFlagSetWithEnvPrefix(arg0, ConfigEnvVarPrefix, 0)
@@ -83,9 +83,9 @@ func ParseConfig(arg0 string, otherArgs []string) *Config {
 	fs.Var(&config.MirrorPorts, "port", "Port to mirror, each port number should immediately follow its URL. "+
 		"For url that doesn't have any port, it will still be mirrored but without a web server.")
 
-	fs.Parse(otherArgs)
+	err := fs.Parse(otherArgs)
 
-	return config
+	return config, err
 }
 
 func FromConfig(config *Config) Engine {

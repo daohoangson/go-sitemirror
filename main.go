@@ -8,7 +8,11 @@ import (
 )
 
 func main() {
-	config := engine.ParseConfig(os.Args[0], os.Args[1:])
+	config, err := engine.ParseConfig(os.Args[0], os.Args[1:])
+	if err != nil {
+		os.Exit(1)
+	}
+
 	e := engine.FromConfig(config)
 
 	c := make(chan os.Signal, 1)

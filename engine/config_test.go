@@ -18,13 +18,12 @@ import (
 )
 
 var _ = Describe("Config", func() {
+	parseConfigWithDefaultArg0 := func(args ...string) *Config {
+		config, _ := ParseConfig(os.Args[0], args)
+		return config
+	}
 
 	Describe("ParseConfig", func() {
-
-		parseConfigWithDefaultArg0 := func(args ...string) *Config {
-			return ParseConfig(os.Args[0], args)
-		}
-
 		It("should work without any args", func() {
 			c := parseConfigWithDefaultArg0()
 
@@ -308,7 +307,7 @@ var _ = Describe("Config", func() {
 
 			It("should set auto download depth", func() {
 				depth := uint64Ten
-				config := ParseConfig("", []string{"-auto-download-depth", fmt.Sprintf("%d", depth)})
+				config := parseConfigWithDefaultArg0("-auto-download-depth", fmt.Sprintf("%d", depth))
 				e := FromConfig(config)
 
 				Expect(e.GetCrawler().GetAutoDownloadDepth()).To(Equal(depth))
@@ -316,14 +315,14 @@ var _ = Describe("Config", func() {
 
 			It("should set worker count", func() {
 				workers := uint64Ten
-				config := ParseConfig("", []string{"-workers", fmt.Sprintf("%d", workers)})
+				config := parseConfigWithDefaultArg0("-workers", fmt.Sprintf("%d", workers))
 				e := FromConfig(config)
 
 				Expect(e.GetCrawler().GetWorkerCount()).To(Equal(workers))
 			})
 
 			It("should add request header", func() {
-				config := ParseConfig("", []string{"-header", "key=value"})
+				config := parseConfigWithDefaultArg0("-header", "key=value")
 				e := FromConfig(config)
 
 				Expect(e.GetCrawler().GetRequestHeaderValues("key")).To(Equal([]string{"value"}))
@@ -350,10 +349,10 @@ var _ = Describe("Config", func() {
 
 			It("should mirror url", func() {
 				url := "http://domain.com/engine/FromConfig/mirror/url"
-				config := ParseConfig("", []string{
+				config := parseConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url,
-				})
+				)
 				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 				e := FromConfig(config)
@@ -368,11 +367,11 @@ var _ = Describe("Config", func() {
 
 			It("should mirror with port", func() {
 				url := "http://domain.com/engine/FromConfig/mirror/with/port"
-				config := ParseConfig("", []string{
+				config := parseConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url,
 					"-port", "0",
-				})
+				)
 				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 				e := FromConfig(config)
@@ -388,11 +387,11 @@ var _ = Describe("Config", func() {
 			It("should mirror multiple", func() {
 				url1 := "http://domain1.com/engine/FromConfig/mirror/multiple"
 				url2 := "http://domain2.com/engine/FromConfig/mirror/multiple"
-				config := ParseConfig("", []string{
+				config := parseConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url1, "-port", "0",
 					"-mirror", url2,
-				})
+				)
 				httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
 				httpmock.RegisterResponder("GET", url2, httpmock.NewStringResponder(200, ""))
 

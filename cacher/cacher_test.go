@@ -26,7 +26,7 @@ var _ = Describe("HttpCacher", func() {
 	logger.Level = logrus.DebugLevel
 
 	var newHttpCacherWithRootPath = func() Cacher {
-		c := NewHttpCacher(logger)
+		c := NewHTTPCacher(logger)
 		c.SetPath(rootPath)
 		c.SetDefaultTTL(time.Millisecond)
 
@@ -42,7 +42,7 @@ var _ = Describe("HttpCacher", func() {
 	})
 
 	It("should use working directory as default path", func() {
-		c := NewHttpCacher(nil)
+		c := NewHTTPCacher(nil)
 		wd, _ := os.Getwd()
 
 		Expect(c.GetPath()).To(Equal(wd))
@@ -51,11 +51,11 @@ var _ = Describe("HttpCacher", func() {
 	It("should return cacher mode", func() {
 		c := newHttpCacherWithRootPath()
 
-		Expect(c.GetMode()).To(Equal(HttpMode))
+		Expect(c.GetMode()).To(Equal(HTTPMode))
 	})
 
 	It("should set path", func() {
-		c := NewHttpCacher(logger)
+		c := NewHTTPCacher(logger)
 		c.SetPath(rootPath)
 
 		Expect(c.GetPath()).To(Equal(rootPath))
@@ -63,7 +63,7 @@ var _ = Describe("HttpCacher", func() {
 
 	It("should set default ttl", func() {
 		ttl := time.Hour
-		c := NewHttpCacher(logger)
+		c := NewHTTPCacher(logger)
 		c.SetDefaultTTL(ttl)
 
 		Expect(c.GetDefaultTTL()).To(Equal(ttl))

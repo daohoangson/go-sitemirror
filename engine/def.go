@@ -11,6 +11,7 @@ import (
 	"github.com/daohoangson/go-sitemirror/web"
 )
 
+// Engine represents an object that can mirror urls
 type Engine interface {
 	init(*http.Client, *logrus.Logger)
 
@@ -32,5 +33,6 @@ type Engine interface {
 }
 
 var (
+	// ResponseBodyMethodNotAllowed the text to respond when user request method is not allowed
 	ResponseBodyMethodNotAllowed = "Sorry, your request is not supported and cannot be processed."
 )

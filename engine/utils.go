@@ -7,6 +7,7 @@ import (
 	"github.com/daohoangson/go-sitemirror/crawler"
 )
 
+// BuildCacherInputFromCrawlerDownloaded returns a cacher.Input with data copied from the specified crawler.Downloaded
 func BuildCacherInputFromCrawlerDownloaded(d *crawler.Downloaded) *cacher.Input {
 	i := &cacher.Input{}
 

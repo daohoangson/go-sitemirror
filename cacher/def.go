@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// Cacher represents an object that can write/open cached data
 type Cacher interface {
 	init(*logrus.Logger)
 
@@ -36,13 +37,17 @@ type Input struct {
 }
 
 const (
-	HTTPHeaderPrefix  = "X-Mirror-"
-	HTTPHeaderURL     = "X-Mirror-Url"
+	// HTTPHeaderPrefix prefix for internal headers
+	HTTPHeaderPrefix = "X-Mirror-"
+	// HTTPHeaderURL header key for cache url
+	HTTPHeaderURL = "X-Mirror-Url"
+	// HTTPHeaderExpires header key for cache expire time in nano second
 	HTTPHeaderExpires = "X-Mirror-Expires"
 )
 
 const (
-	HttpMode cacherMode = 1 + iota
+	// HTTPMode cacher mode http
+	HTTPMode cacherMode = 1 + iota
 )
 
 type cacherMode int

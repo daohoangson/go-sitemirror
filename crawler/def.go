@@ -8,7 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// Crawler must be created with New
+// Crawler represents an object that can process download requests
 type Crawler interface {
 	init(*http.Client, *logrus.Logger)
 
@@ -42,12 +42,14 @@ type Crawler interface {
 	DownloadedNotBlocking() *Downloaded
 }
 
+// QueueItem represents a download request in the queue
 type QueueItem struct {
 	URL           *url.URL
 	Depth         uint64
 	ForceDownload bool
 }
 
+// Input represents a download request ready to be processed
 type Input struct {
 	Client   *http.Client
 	Header   http.Header
@@ -55,7 +57,7 @@ type Input struct {
 	URL      *url.URL
 }
 
-// Downloaded struct contains parsed data after downloading an url.
+// Downloaded represents processed data after downloading
 type Downloaded struct {
 	Input *Input
 
@@ -70,7 +72,7 @@ type Downloaded struct {
 	header http.Header
 }
 
-// Link struct is an extracted link from download result.
+// Link represents an extracted link from download result
 type Link struct {
 	Context urlContext
 	URL     *url.URL

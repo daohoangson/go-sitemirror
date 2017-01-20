@@ -40,7 +40,7 @@ type crawler struct {
 	linkFoundCount   uint64
 }
 
-// New returns a new instance of the crawler
+// New returns a new crawler instance
 func New(client *http.Client, logger *logrus.Logger) Crawler {
 	c := &crawler{}
 	c.init(client, logger)

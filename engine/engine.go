@@ -33,6 +33,7 @@ type engine struct {
 	downloadedSomething chan interface{}
 }
 
+// New returns a new Engine instance
 func New(httpClient *http.Client, logger *logrus.Logger) Engine {
 	e := &engine{}
 	e.init(httpClient, logger)
@@ -45,7 +46,7 @@ func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
 	}
 	e.logger = logger
 
-	e.cacher = cacher.NewHttpCacher(logger)
+	e.cacher = cacher.NewHTTPCacher(logger)
 	e.crawler = crawler.New(httpClient, logger)
 	e.server = web.NewServer(e.cacher, logger)
 

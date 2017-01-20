@@ -25,7 +25,7 @@ var _ = Describe("Server", func() {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 
-	c := cacher.NewHttpCacher(logger)
+	c := cacher.NewHTTPCacher(logger)
 	c.SetPath(rootPath)
 
 	var newServer = func() Server {

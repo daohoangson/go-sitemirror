@@ -13,6 +13,7 @@ import (
 	"github.com/namsral/flag"
 )
 
+// Config represents an engine configuration
 type Config struct {
 	LoggerLevel configLoggerLevel
 
@@ -48,15 +49,23 @@ type configUint64 uint64
 type configURLSlice []*url.URL
 
 const (
-	ConfigEnvVarPrefix                    = "SITEMIRROR"
-	ConfigDefaultLoggerLevel              = logrus.InfoLevel
-	ConfigDefaultBumpTTL                  = time.Minute
-	ConfigDefaultAutoEnqueueInterval      = time.Duration(0)
-	ConfigDefaultCacherDefaultTTL         = 10 * time.Minute
+	// ConfigEnvVarPrefix the environment variable prefix
+	ConfigEnvVarPrefix = "SITEMIRROR"
+	// ConfigDefaultLoggerLevel default value for .LoggerLevel
+	ConfigDefaultLoggerLevel = logrus.InfoLevel
+	// ConfigDefaultBumpTTL default value for .BumpTTL
+	ConfigDefaultBumpTTL = time.Minute
+	// ConfigDefaultAutoEnqueueInterval default value for .AutoEnqueueInterval
+	ConfigDefaultAutoEnqueueInterval = time.Duration(0)
+	// ConfigDefaultCacherDefaultTTL default value for .Cacher.DefaultTTL
+	ConfigDefaultCacherDefaultTTL = 10 * time.Minute
+	// ConfigDefaultCrawlerAutoDownloadDepth default value for .Crawler.AutoDownloadDepth
 	ConfigDefaultCrawlerAutoDownloadDepth = uint64(1)
-	ConfigDefaultCrawlerWorkerCount       = uint64(4)
+	// ConfigDefaultCrawlerWorkerCount default value for .Crawler.WorkerCount
+	ConfigDefaultCrawlerWorkerCount = uint64(4)
 )
 
+// ParseConfig returns configuration derived from command line arguments or environment variables
 func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
 	config := &Config{}
 
@@ -88,6 +97,7 @@ func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
 	return config, err
 }
 
+// FromConfig return an Engine instance with all configuration applied
 func FromConfig(config *Config) Engine {
 	logger := logrus.New()
 	logger.Level = logrus.Level(config.LoggerLevel)

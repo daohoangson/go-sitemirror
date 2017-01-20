@@ -25,6 +25,7 @@ type server struct {
 	listeners map[string]net.Listener
 }
 
+// NewServer returns a new server intance
 func NewServer(cacher cacher.Cacher, logger *logrus.Logger) Server {
 	s := &server{}
 	s.init(cacher, logger)
@@ -33,7 +34,7 @@ func NewServer(cacher cacher.Cacher, logger *logrus.Logger) Server {
 
 func (s *server) init(httpCacher cacher.Cacher, logger *logrus.Logger) {
 	if httpCacher == nil {
-		httpCacher = cacher.NewHttpCacher(nil)
+		httpCacher = cacher.NewHTTPCacher(nil)
 	}
 	s.cacher = httpCacher
 

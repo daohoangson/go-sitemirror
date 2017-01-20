@@ -124,8 +124,8 @@ var _ = Describe("Engine", func() {
 			It("should not download discovered link", func() {
 				urlDo := "http://domain.com/engine/mirror/cache/exists/do/download"
 				urlNo := "http://no.download.com"
-				html := t.NewHtmlMarkup(fmt.Sprintf(`<a href="%s">Link</a>`, urlNo))
-				httpmock.RegisterResponder("GET", urlDo, t.NewHtmlResponder(html))
+				html := t.NewHTMLMarkup(fmt.Sprintf(`<a href="%s">Link</a>`, urlNo))
+				httpmock.RegisterResponder("GET", urlDo, t.NewHTMLResponder(html))
 				parsedUrlNo, _ := neturl.Parse(urlNo)
 				cachePathNo := cacher.GenerateCachePath(rootPath, parsedUrlNo)
 				f, _ := cacher.CreateFile(cachePathNo)
@@ -259,8 +259,8 @@ var _ = Describe("Engine", func() {
 			url1Path := "/engine/download/rewrite/1"
 			url1 := "http://domain.com" + url1Path
 			url1OtherDomain := "http://other.domain.com" + url1Path
-			html0 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1OtherDomain))
-			httpmock.RegisterResponder("GET", url0, t.NewHtmlResponder(html0))
+			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1OtherDomain))
+			httpmock.RegisterResponder("GET", url0, t.NewHTMLResponder(html0))
 			url1Downloaded := false
 			httpmock.RegisterResponder("GET", url1, func(req *http.Request) (*http.Response, error) {
 				url1Downloaded = true
@@ -290,8 +290,8 @@ var _ = Describe("Engine", func() {
 		It("should download from whitelisted host", func() {
 			url0 := "http://domain.com/engine/download/whitelisted/0"
 			url1 := "http://domain.com/engine/download/whitelisted/1"
-			html0 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1))
-			httpmock.RegisterResponder("GET", url0, t.NewHtmlResponder(html0))
+			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1))
+			httpmock.RegisterResponder("GET", url0, t.NewHTMLResponder(html0))
 			httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
 
 			e := newEngine()
@@ -308,9 +308,9 @@ var _ = Describe("Engine", func() {
 			url0 := "http://domain.com/engine/download/whitelisted/0"
 			url1 := "http://domain1.com/engine/download/whitelisted/1"
 			url2 := "http://domain2.com/engine/download/whitelisted/2"
-			html0 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
+			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
 				"<a href=\"%s\">Link</a>", url1, url2))
-			httpmock.RegisterResponder("GET", url0, t.NewHtmlResponder(html0))
+			httpmock.RegisterResponder("GET", url0, t.NewHTMLResponder(html0))
 			httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
 			httpmock.RegisterResponder("GET", url2, httpmock.NewStringResponder(200, ""))
 
@@ -328,8 +328,8 @@ var _ = Describe("Engine", func() {
 		It("should not download from non-whitelisted host", func() {
 			url0 := "http://domain.com/engine/download/whitelisted/0"
 			url1 := "http://domain1.com/engine/download/whitelisted/1"
-			html0 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1))
-			httpmock.RegisterResponder("GET", url0, t.NewHtmlResponder(html0))
+			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1))
+			httpmock.RegisterResponder("GET", url0, t.NewHTMLResponder(html0))
 			httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
 
 			e := newEngine()

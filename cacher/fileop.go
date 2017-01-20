@@ -14,17 +14,21 @@ const (
 	// MaxPathNameLength some file system limits the maximum length of a file name
 	// therefore each path part should not be too long to avoid os level error
 	MaxPathNameLength = 32
-	ShortHashLength   = 6
+	// ShortHashLength length of the short hash
+	ShortHashLength = 6
 )
 
 var (
 	regExpSafePathName = regexp.MustCompile(`[^a-zA-Z0-9\.\-\_\=]`)
 )
 
+// MakeDir creates directory tree for the specified path
 func MakeDir(cachePath string) error {
 	return os.MkdirAll(path.Dir(cachePath), os.ModePerm)
 }
 
+// CreateFile returns a file handle for writing with the specified path.
+// Existing file will be truncated.
 func CreateFile(cachePath string) (*os.File, error) {
 	err := MakeDir(cachePath)
 	if err != nil {
@@ -34,6 +38,8 @@ func CreateFile(cachePath string) (*os.File, error) {
 	return os.OpenFile(cachePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 }
 
+// OpenFile return a file handle for reading/writing with the specified path.
+// File will be created if not already exists.
 func OpenFile(cachePath string) (*os.File, error) {
 	err := MakeDir(cachePath)
 	if err != nil {
@@ -43,6 +49,7 @@ func OpenFile(cachePath string) (*os.File, error) {
 	return os.OpenFile(cachePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 }
 
+// GenerateCachePath returns cache path for the specified url
 func GenerateCachePath(rootPath string, url *url.URL) string {
 	dir, file := path.Split(url.Path)
 
@@ -66,6 +73,7 @@ func GenerateCachePath(rootPath string, url *url.URL) string {
 	return path
 }
 
+// BuildQueryPath returns path elements from the specified query
 func BuildQueryPath(query *url.Values) string {
 	queryKeys := getQuerySortedKeys(query)
 	queryPath := ""
@@ -80,6 +88,7 @@ func BuildQueryPath(query *url.Values) string {
 	return queryPath
 }
 
+// GetSafePathName returns safe version of element name to be used in paths
 func GetSafePathName(name string) string {
 	name = regExpSafePathName.ReplaceAllString(name, "")
 
@@ -93,6 +102,7 @@ func GetSafePathName(name string) string {
 	return name
 }
 
+// GetShortHash returns a short hash of the specified string
 func GetShortHash(s string) string {
 	sum := md5.Sum([]byte(s))
 	return fmt.Sprintf("%x", sum[:ShortHashLength/2])

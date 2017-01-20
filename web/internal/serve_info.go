@@ -20,6 +20,7 @@ type serveInfo struct {
 	responseWrittenHeader bool
 }
 
+// NewServeInfo returns a new ServeInfo instance
 func NewServeInfo(w http.ResponseWriter) ServeInfo {
 	s := &serveInfo{
 		responseWriter: w,

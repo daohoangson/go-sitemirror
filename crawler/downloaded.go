@@ -12,6 +12,7 @@ var (
 	errorEmptyInputURL = errors.New("Empty .Input.URL")
 )
 
+// AddHeader adds a new header
 func (d *Downloaded) AddHeader(key string, value string) {
 	if d.header == nil {
 		d.header = make(http.Header)
@@ -20,6 +21,7 @@ func (d *Downloaded) AddHeader(key string, value string) {
 	d.header.Add(key, value)
 }
 
+// GetHeaderKeys returns all header keys
 func (d *Downloaded) GetHeaderKeys() []string {
 	if d.header == nil {
 		return nil
@@ -34,6 +36,7 @@ func (d *Downloaded) GetHeaderKeys() []string {
 	return keys
 }
 
+// GetHeaderValues returns values of the specified header key
 func (d *Downloaded) GetHeaderValues(key string) []string {
 	if d.header == nil {
 		return nil
@@ -46,6 +49,7 @@ func (d *Downloaded) GetHeaderValues(key string) []string {
 	return nil
 }
 
+// ProcessURL validates url and returns rewritten string representation
 func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) {
 	if len(url) == 0 {
 		return url, errorEmptyURL
@@ -99,6 +103,7 @@ func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) 
 	return reduced, nil
 }
 
+// GetAssetURLs returns resolved asset urls
 func (d *Downloaded) GetAssetURLs() []*neturl.URL {
 	urls := make([]*neturl.URL, len(d.LinksAssets))
 
@@ -111,6 +116,7 @@ func (d *Downloaded) GetAssetURLs() []*neturl.URL {
 	return urls
 }
 
+// GetDiscoveredURLs returns resolved discovered link urls
 func (d *Downloaded) GetDiscoveredURLs() []*neturl.URL {
 	urls := make([]*neturl.URL, len(d.LinksDiscovered))
 

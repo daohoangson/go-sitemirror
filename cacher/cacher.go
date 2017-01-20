@@ -21,7 +21,8 @@ type httpCacher struct {
 	defaultTTL time.Duration
 }
 
-func NewHttpCacher(logger *logrus.Logger) Cacher {
+// NewHTTPCacher returns a new http cacher instance
+func NewHTTPCacher(logger *logrus.Logger) Cacher {
 	c := &httpCacher{}
 	c.init(logger)
 	return c
@@ -41,7 +42,7 @@ func (c *httpCacher) init(logger *logrus.Logger) {
 }
 
 func (c *httpCacher) GetMode() cacherMode {
-	return HttpMode
+	return HTTPMode
 }
 
 func (c *httpCacher) SetPath(path string) {

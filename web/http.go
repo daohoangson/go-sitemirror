@@ -18,6 +18,7 @@ var (
 	regexHTTPHeader     = regexp.MustCompile(`^([^:]+): (.+)\n$`)
 )
 
+// ServeDownloaded streams data directly from downloaded struct to user
 func ServeDownloaded(downloaded *crawler.Downloaded, info internal.ServeInfo) {
 	info.SetStatusCode(downloaded.StatusCode)
 
@@ -31,6 +32,7 @@ func ServeDownloaded(downloaded *crawler.Downloaded, info internal.ServeInfo) {
 	info.WriteBody([]byte(downloaded.Body))
 }
 
+// ServeHTTPCache seves user request with content from cached data
 func ServeHTTPCache(input io.Reader, info internal.ServeInfo) {
 	r := bufio.NewReader(input)
 
@@ -48,6 +50,7 @@ func ServeHTTPCache(input io.Reader, info internal.ServeInfo) {
 	return
 }
 
+// ServeHTTPGetStatusCode serves user request with status code from cached data
 func ServeHTTPGetStatusCode(r *bufio.Reader, info internal.ServeInfo) {
 	line, err := r.ReadString('\n')
 	if err != nil {
@@ -71,6 +74,7 @@ func ServeHTTPGetStatusCode(r *bufio.Reader, info internal.ServeInfo) {
 	info.SetStatusCode(int(statusCode))
 }
 
+// ServeHTTPAddHeaders serves user request with headers from cached data
 func ServeHTTPAddHeaders(r *bufio.Reader, info internal.ServeInfo) {
 	for {
 		line, err := r.ReadString('\n')

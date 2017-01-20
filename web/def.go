@@ -10,6 +10,7 @@ import (
 	"github.com/daohoangson/go-sitemirror/web/internal"
 )
 
+// Server represents an object that can serve user request with cached data
 type Server interface {
 	init(cacher.Cacher, *logrus.Logger)
 
@@ -22,6 +23,7 @@ type Server interface {
 	Stop() []string
 }
 
+// ServerIssue represents an issue that cannot be handled by the server itself
 type ServerIssue struct {
 	URL  *url.URL
 	Type serverIssueType
@@ -29,9 +31,13 @@ type ServerIssue struct {
 }
 
 const (
+	// MethodNotAllowed server issue type when user request is made with restricted method
 	MethodNotAllowed serverIssueType = 1 + iota
+	// CacheNotFound server issue type when existing cache cannot be found
 	CacheNotFound
+	// CacheError server issue type when cache cannot be read
 	CacheError
+	// CacheExpired server issue type when cache has expired
 	CacheExpired
 )
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// ReduceURL returns relative version of url from base
 func ReduceURL(base *neturl.URL, url *neturl.URL) string {
 	if !base.IsAbs() ||
 		!url.IsAbs() ||
@@ -50,6 +51,7 @@ func ReduceURL(base *neturl.URL, url *neturl.URL) string {
 	return reduced.String()
 }
 
+// LongestCommonPrefix returns the common path elements between two paths
 func LongestCommonPrefix(path1 string, path2 string) string {
 	const sep = "/"
 	x, y := strings.Split(path1, sep), strings.Split(path2, sep)

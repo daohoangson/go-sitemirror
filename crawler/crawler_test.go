@@ -157,8 +157,8 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/SetURLRewriter/rewrite"
 			urlTargetPath := "/SetURLRewriter/target"
 			urlTarget := "http://domain.com" + urlTargetPath
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", urlTarget))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", urlTarget))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 
 			c := newCrawler()
 			c.SetAutoDownloadDepth(uint64(0))
@@ -181,9 +181,9 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/SetOnURLShouldQueue/enqueue/except/one"
 			urlShouldQueue := "http://domain.com/SetOnURLShouldQueue/should/queue"
 			urlNotQueue := "http://domain.com/SetOnURLShouldQueue/not/queue"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
 				"<a href=\"%s\">Link</a>", urlShouldQueue, urlNotQueue))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 			httpmock.RegisterResponder("GET", urlShouldQueue, httpmock.NewStringResponder(200, ""))
 
 			c := newCrawler()
@@ -218,9 +218,9 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/SetOnURLShouldDownload/download/except/one"
 			urlDownload := "http://domain.com/SetOnURLShouldDownload/download"
 			urlNotDownload := "http://domain.com/SetOnURLShouldDownload/not/download"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
 				"<a href=\"%s\">Link</a>", urlDownload, urlNotDownload))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 			httpmock.RegisterResponder("GET", urlDownload, httpmock.NewStringResponder(200, ""))
 
 			c := newCrawler()
@@ -278,9 +278,9 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/SetOnDownloaded"
 			urlTarget0 := "http://domain.com/SetOnDownloaded/target/0"
 			urlTarget1 := "http://domain.com/SetOnDownloaded/target/1"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>"+
 				"<a href=\"%s\">Link</a>", urlTarget0, urlTarget1))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 			httpmock.RegisterResponder("GET", urlTarget0, httpmock.NewStringResponder(200, "foo/bar"))
 			httpmock.RegisterResponder("GET", urlTarget1, httpmock.NewStringResponder(200, "foo/bar"))
 
@@ -456,8 +456,8 @@ var _ = Describe("Crawler", func() {
 		It("should enqueue url + found link", func() {
 			url := "http://domain.com/crawler/enqueue/link"
 			targetUrl := "http://domain.com/crawler/enqueue/link/target"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 			httpmock.RegisterResponder("GET", targetUrl, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()
@@ -479,10 +479,10 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/crawl/enqueue/depth/1/only"
 			urlDepth1 := "http://domain.com/crawl/enqueue/depth/1/first"
 			urlDepth2 := "http://domain.com/crawl/enqueue/depth/1/second"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link depth=1</a>", urlDepth1))
-			html1 := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link depth=2</a>", urlDepth2))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
-			httpmock.RegisterResponder("GET", urlDepth1, t.NewHtmlResponder(html1))
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link depth=1</a>", urlDepth1))
+			html1 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link depth=2</a>", urlDepth2))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
+			httpmock.RegisterResponder("GET", urlDepth1, t.NewHTMLResponder(html1))
 
 			c := newCrawler()
 			enqueueURL(c, url)
@@ -505,8 +505,8 @@ var _ = Describe("Crawler", func() {
 		It("should enqueue url without found link (auto download depth = 0)", func() {
 			url := "http://domain.com/crawler/enqueue/no/link"
 			targetUrl := "http://domain.com/crawler/enqueue/no/link/target"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			html := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", targetUrl))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 
 			c := newCrawler()
 			c.SetAutoDownloadDepth(uint64Zero)
@@ -528,9 +528,9 @@ var _ = Describe("Crawler", func() {
 			url := "http://domain.com/crawl/enqueue/asset/not/link"
 			urlAsset := "http://domain.com/crawl/enqueue/asset"
 			urlLink := "http://domain.com/crawl/enqueue/link"
-			html := t.NewHtmlMarkup(fmt.Sprintf("<script src=\"%s\">"+
+			html := t.NewHTMLMarkup(fmt.Sprintf("<script src=\"%s\">"+
 				"</script><a href=\"%s\">Link</a>", urlAsset, urlLink))
-			httpmock.RegisterResponder("GET", url, t.NewHtmlResponder(html))
+			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 			httpmock.RegisterResponder("GET", urlAsset, httpmock.NewStringResponder(200, "foo/bar"))
 
 			c := newCrawler()

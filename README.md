@@ -1,7 +1,9 @@
 # go-sitemirror
 Website mirror app with priority for response consistency.
 
-![](https://api.travis-ci.org/daohoangson/go-sitemirror.svg?branch=master)
+[![GoDoc](https://godoc.org/github.com/daohoangson/go-sitemirror/engine?status.svg)](https://godoc.org/github.com/daohoangson/go-sitemirror/engine)
+[![Go Report Card](https://goreportcard.com/badge/github.com/daohoangson/go-sitemirror)](https://goreportcard.com/report/github.com/daohoangson/go-sitemirror)
+[![Travis CI](https://api.travis-ci.org/daohoangson/go-sitemirror.svg?branch=master)](https://travis-ci.org/daohoangson/go-sitemirror)
 
 ## Goal
 Easy to setup and run a mirror which copies content from some where else and provides a near exact web browsing experience in case the source server / network goes down.

@@ -39,6 +39,8 @@ const (
 	CacheError
 	// CacheExpired server issue type when cache has expired
 	CacheExpired
+	// CrossHostInvalidPath server issue type when an invalid path came in cross-host mode
+	CrossHostInvalidPath
 )
 
 type serverIssueType int

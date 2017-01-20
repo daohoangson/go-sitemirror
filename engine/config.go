@@ -25,6 +25,7 @@ type Config struct {
 	Cacher  configCacher
 	Crawler configCrawler
 
+	Port        int64
 	MirrorURLs  configURLSlice
 	MirrorPorts configIntSlice
 }
@@ -36,8 +37,9 @@ type configCacher struct {
 
 type configCrawler struct {
 	AutoDownloadDepth configUint64
-	WorkerCount       configUint64
+	NoCrossHost       bool
 	RequestHeader     configHTTPHeader
+	WorkerCount       configUint64
 }
 
 type configHTTPHeader http.Header
@@ -61,8 +63,12 @@ const (
 	ConfigDefaultCacherDefaultTTL = 10 * time.Minute
 	// ConfigDefaultCrawlerAutoDownloadDepth default value for .Crawler.AutoDownloadDepth
 	ConfigDefaultCrawlerAutoDownloadDepth = uint64(1)
+	// ConfigDefaultCrawlerNoCrossHost default value for .Crawler.NoCrossHost
+	ConfigDefaultCrawlerNoCrossHost = false
 	// ConfigDefaultCrawlerWorkerCount default value for .Crawler.WorkerCount
 	ConfigDefaultCrawlerWorkerCount = uint64(4)
+	// ConfigDefaultPort default value for .Port
+	ConfigDefaultPort = int64(-1)
 )
 
 // ParseConfig returns configuration derived from command line arguments or environment variables
@@ -84,12 +90,14 @@ func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
 
 	config.Crawler.AutoDownloadDepth = configUint64(ConfigDefaultCrawlerAutoDownloadDepth)
 	fs.Var(&config.Crawler.AutoDownloadDepth, "auto-download-depth", "Maximum link depth for auto downloads, default=1")
+	fs.BoolVar(&config.Crawler.NoCrossHost, "no-cross-host", ConfigDefaultCrawlerNoCrossHost, "Disable cross-host links")
+	fs.Var(&config.Crawler.RequestHeader, "header", "Custom request header, must be 'key=value'")
 	config.Crawler.WorkerCount = configUint64(ConfigDefaultCrawlerWorkerCount)
 	fs.Var(&config.Crawler.WorkerCount, "workers", "Number of download workers, default=4")
-	fs.Var(&config.Crawler.RequestHeader, "header", "Custom request header, must be 'key=value'")
 
+	fs.Int64Var(&config.Port, "port", ConfigDefaultPort, "Port to mirror all sites")
 	fs.Var(&config.MirrorURLs, "mirror", "URL to mirror, multiple urls are supported")
-	fs.Var(&config.MirrorPorts, "port", "Port to mirror, each port number should immediately follow its URL. "+
+	fs.Var(&config.MirrorPorts, "mirror-port", "Port to mirror a single site, each port number should immediately follow its URL. "+
 		"For url that doesn't have any port, it will still be mirrored but without a web server.")
 
 	err := fs.Parse(otherArgs)
@@ -134,7 +142,7 @@ func FromConfig(config *Config) Engine {
 	{
 		crawler := e.GetCrawler()
 		crawler.SetAutoDownloadDepth(uint64(config.Crawler.AutoDownloadDepth))
-		crawler.SetWorkerCount(uint64(config.Crawler.WorkerCount))
+		crawler.SetNoCrossHost(config.Crawler.NoCrossHost)
 
 		if config.Crawler.RequestHeader != nil {
 			requestHeader := http.Header(config.Crawler.RequestHeader)
@@ -144,9 +152,15 @@ func FromConfig(config *Config) Engine {
 				}
 			}
 		}
+
+		crawler.SetWorkerCount(uint64(config.Crawler.WorkerCount))
 	}
 
 	{
+		if config.Port > ConfigDefaultPort {
+			e.Mirror(nil, int(config.Port))
+		}
+
 		if config.MirrorURLs != nil {
 			mirrorURLs := []*url.URL(config.MirrorURLs)
 			mirrorPorts := []int(config.MirrorPorts)

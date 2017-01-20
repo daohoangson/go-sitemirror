@@ -233,6 +233,10 @@ var _ = Describe("Fileop", func() {
 
 			Expect(path0).ToNot(Equal(path1))
 		})
+
+		It("should handle nil url", func() {
+			GenerateCachePath(rootPath, nil)
+		})
 	})
 
 	Describe("BuildQueryPath", func() {

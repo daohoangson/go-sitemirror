@@ -119,6 +119,14 @@ var _ = Describe("ServeInfo", func() {
 			Expect(si.GetStatusCode()).To(BeNumerically(">=", 500))
 			Expect(si.HasError()).To(BeTrue())
 		})
+
+		It("should handle cross host invalid path", func() {
+			si, _ := newServeInfo()
+			si.OnCrossHostInvalidPath()
+
+			Expect(si.GetStatusCode()).To(BeNumerically(">=", 400))
+			Expect(si.GetStatusCode()).To(BeNumerically("<", 500))
+		})
 	})
 
 	Describe("ResponseWriter", func() {

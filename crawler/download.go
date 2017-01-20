@@ -68,7 +68,12 @@ func Download(input *Input) *Downloaded {
 		return http.ErrUseLastResponse
 	}
 
-	req, _ := http.NewRequest("GET", input.URL.String(), nil)
+	req, err := http.NewRequest("GET", input.URL.String(), nil)
+	if err != nil {
+		result.Error = err
+		return result
+	}
+
 	if input.Header != nil {
 		for headerKey, headerValues := range input.Header {
 			for _, headerValue := range headerValues {

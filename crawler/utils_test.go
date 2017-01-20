@@ -55,30 +55,6 @@ var _ = Describe("Utils", func() {
 			})
 		})
 
-		It("should do http->https", func() {
-			url1, _ := neturl.Parse("http://domain.com/reduce/url/http")
-			url2, _ := neturl.Parse("https://domain.com/reduce/url/https")
-			reduced := ReduceURL(url1, url2)
-
-			Expect(reduced).To(Equal("./https"))
-
-			url2InHttp, _ := neturl.Parse(url2.String())
-			url2InHttp.Scheme = "http"
-			expectResolveOk(url1, reduced, url2InHttp)
-		})
-
-		It("should do https->http", func() {
-			url1, _ := neturl.Parse("https://domain.com/reduce/url/https")
-			url2, _ := neturl.Parse("http://domain.com/reduce/url/http")
-			reduced := ReduceURL(url1, url2)
-
-			Expect(reduced).To(Equal("./http"))
-
-			url2InHttps, _ := neturl.Parse(url2.String())
-			url2InHttps.Scheme = "https"
-			expectResolveOk(url1, reduced, url2InHttps)
-		})
-
 		Context("self", func() {
 			It("is file", func() {
 				url1, _ := neturl.Parse("http://domain.com/reduce/url/self")

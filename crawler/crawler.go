@@ -9,6 +9,7 @@ import (
 	"time"
 
 	nbc "github.com/hectane/go-nonblockingchan"
+	"github.com/tevino/abool"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -19,8 +20,9 @@ type crawler struct {
 	mutex  sync.Mutex
 
 	autoDownloadDepth uint64
-	workerCount       uint64
+	noCrossHost       *abool.AtomicBool
 	requestHeader     http.Header
+	workerCount       uint64
 
 	urlRewriter         *func(*neturl.URL)
 	onURLShouldQueue    *func(*neturl.URL) bool
@@ -59,9 +61,9 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 	c.logger = logger
 
 	c.autoDownloadDepth = 1
-	c.workerCount = 4
-
+	c.noCrossHost = abool.New()
 	c.requestHeader = make(http.Header)
+	c.workerCount = 4
 }
 
 func (c *crawler) SetAutoDownloadDepth(depth uint64) {
@@ -78,27 +80,18 @@ func (c *crawler) GetAutoDownloadDepth() uint64 {
 	return atomic.LoadUint64(&c.autoDownloadDepth)
 }
 
-func (c *crawler) SetWorkerCount(count uint64) error {
-	if count < 1 {
-		return errors.New("workerCount must be greater than 1")
-	}
-
-	if c.HasStarted() {
-		return errors.New("Cannot SetWorkerCount after Start")
-	}
-
-	old := atomic.LoadUint64(&c.workerCount)
-	atomic.StoreUint64(&c.workerCount, count)
+func (c *crawler) SetNoCrossHost(value bool) {
+	old := c.noCrossHost.IsSet()
+	c.noCrossHost.SetTo(value)
 
 	c.logger.WithFields(logrus.Fields{
 		"old": old,
-		"new": count,
-	}).Info("Updated crawler worker count")
-	return nil
+		"new": value,
+	}).Info("Updated crawler no cross host")
 }
 
-func (c *crawler) GetWorkerCount() uint64 {
-	return atomic.LoadUint64(&c.workerCount)
+func (c *crawler) GetNoCrossHost() bool {
+	return c.noCrossHost.IsSet()
 }
 
 func (c *crawler) AddRequestHeader(key string, value string) {
@@ -135,6 +128,29 @@ func (c *crawler) GetRequestHeaderValues(key string) []string {
 	}
 
 	return nil
+}
+
+func (c *crawler) SetWorkerCount(count uint64) error {
+	if count < 1 {
+		return errors.New("workerCount must be greater than 1")
+	}
+
+	if c.HasStarted() {
+		return errors.New("Cannot SetWorkerCount after Start")
+	}
+
+	old := atomic.LoadUint64(&c.workerCount)
+	atomic.StoreUint64(&c.workerCount, count)
+
+	c.logger.WithFields(logrus.Fields{
+		"old": old,
+		"new": count,
+	}).Info("Updated crawler worker count")
+	return nil
+}
+
+func (c *crawler) GetWorkerCount() uint64 {
+	return atomic.LoadUint64(&c.workerCount)
 }
 
 func (c *crawler) SetURLRewriter(f func(*neturl.URL)) {
@@ -329,6 +345,9 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 	)
 
 	c.mutex.Lock()
+	client := c.client
+	requestHeader := c.requestHeader
+	urlRewriter := c.urlRewriter
 	onDownload := c.onDownload
 	onURLShouldDownload := c.onURLShouldDownload
 	onDownloaded := c.onDownloaded
@@ -353,10 +372,11 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 	if shouldDownload {
 		loggerContext.Debug("Downloading")
 		downloaded = Download(&Input{
-			Client:   c.client,
-			Header:   c.requestHeader,
-			Rewriter: c.urlRewriter,
-			URL:      item.URL,
+			Client:      client,
+			Header:      requestHeader,
+			NoCrossHost: c.noCrossHost.IsSet(),
+			Rewriter:    urlRewriter,
+			URL:         item.URL,
 		})
 		atomic.AddUint64(&c.downloadedCount, 1)
 	}

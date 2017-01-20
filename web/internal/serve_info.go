@@ -84,6 +84,11 @@ func (si *serveInfo) OnBrokenHeader(t errorType, format string, a ...interface{}
 	return si
 }
 
+func (si *serveInfo) OnCrossHostInvalidPath() ServeInfo {
+	si.statusCode = http.StatusBadRequest
+
+	return si
+}
 func (si *serveInfo) SetStatusCode(statusCode int) {
 	si.statusCode = statusCode
 	si.errorType = 0

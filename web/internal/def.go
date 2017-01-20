@@ -17,6 +17,7 @@ type ServeInfo interface {
 	OnCacheNotFound(error) ServeInfo
 	OnNoStatusCode(errorType, string, ...interface{}) ServeInfo
 	OnBrokenHeader(errorType, string, ...interface{}) ServeInfo
+	OnCrossHostInvalidPath() ServeInfo
 
 	SetStatusCode(int)
 	SetExpires(time.Time)

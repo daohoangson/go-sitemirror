@@ -84,6 +84,18 @@ var _ = Describe("Download", func() {
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
 
+	It("should passthrough request error", func() {
+		url := "http://domain.com/Download/request/error"
+		parsedURL, _ := neturl.Parse(url)
+		parsedURL.Host = "/"
+		downloaded := Download(&Input{
+			Client: http.DefaultClient,
+			URL:    parsedURL,
+		})
+
+		Expect(downloaded.Error).To(HaveOccurred())
+	})
+
 	It("should passthrough client error", func() {
 		url := "http://a.b.c"
 		downloaded := downloadWithDefaultClient(url)

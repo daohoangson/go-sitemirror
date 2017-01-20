@@ -68,31 +68,11 @@ var _ = Describe("Crawler", func() {
 		Expect(c.GetAutoDownloadDepth()).To(Equal(autoDownloadDepth))
 	})
 
-	Describe("WorkerCount", func() {
-		It("should not accept zero", func() {
-			c := newCrawler()
-			err := c.SetWorkerCount(0)
-			Expect(err).To(HaveOccurred())
-		})
+	It("should set no cross host", func() {
+		c := newCrawler()
+		c.SetNoCrossHost(true)
 
-		It("should not work after Start", func() {
-			c := newCrawler()
-			c.Start()
-			defer c.Stop()
-
-			time.Sleep(sleepTime)
-			err := c.SetWorkerCount(1)
-			Expect(err).To(HaveOccurred())
-		})
-
-		It("should work", func() {
-			workerCount := uint64One
-
-			c := newCrawler()
-			err := c.SetWorkerCount(workerCount)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(c.GetWorkerCount()).To(Equal(workerCount))
-		})
+		Expect(c.GetNoCrossHost()).To(BeTrue())
 	})
 
 	Describe("RequestHeader", func() {
@@ -149,6 +129,33 @@ var _ = Describe("Crawler", func() {
 
 			downloaded, _ := c.Downloaded()
 			Expect(downloaded.Body).To(Equal(requestHeaderVal1))
+		})
+	})
+
+	Describe("WorkerCount", func() {
+		It("should not accept zero", func() {
+			c := newCrawler()
+			err := c.SetWorkerCount(0)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should not work after Start", func() {
+			c := newCrawler()
+			c.Start()
+			defer c.Stop()
+
+			time.Sleep(sleepTime)
+			err := c.SetWorkerCount(1)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should work", func() {
+			workerCount := uint64One
+
+			c := newCrawler()
+			err := c.SetWorkerCount(workerCount)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(c.GetWorkerCount()).To(Equal(workerCount))
 		})
 	})
 

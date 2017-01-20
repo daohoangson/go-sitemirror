@@ -14,11 +14,13 @@ type Crawler interface {
 
 	SetAutoDownloadDepth(uint64)
 	GetAutoDownloadDepth() uint64
-	SetWorkerCount(uint64) error
-	GetWorkerCount() uint64
+	SetNoCrossHost(bool)
+	GetNoCrossHost() bool
 	AddRequestHeader(string, string)
 	SetRequestHeader(string, string)
 	GetRequestHeaderValues(string) []string
+	SetWorkerCount(uint64) error
+	GetWorkerCount() uint64
 
 	SetURLRewriter(func(*url.URL))
 	SetOnURLShouldQueue(func(*url.URL) bool)
@@ -51,10 +53,11 @@ type QueueItem struct {
 
 // Input represents a download request ready to be processed
 type Input struct {
-	Client   *http.Client
-	Header   http.Header
-	Rewriter *func(*url.URL)
-	URL      *url.URL
+	Client      *http.Client
+	Header      http.Header
+	NoCrossHost bool
+	Rewriter    *func(*url.URL)
+	URL         *url.URL
 }
 
 // Downloaded represents processed data after downloading

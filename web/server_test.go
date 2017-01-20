@@ -50,6 +50,14 @@ var _ = Describe("Server", func() {
 			l.Close()
 		})
 
+		It("should listen and serve cross-host", func() {
+			s := newServer()
+
+			l, err := s.ListenAndServe(nil, 0)
+			Expect(err).ToNot(HaveOccurred())
+			l.Close()
+		})
+
 		It("should response", func() {
 			root, _ := url.Parse("http://response.com")
 			s := newServer()
@@ -150,6 +158,44 @@ var _ = Describe("Server", func() {
 			Expect(w.Code).To(Equal(http.StatusNotFound))
 		})
 
+		Context("cross-host", func() {
+			It("should response", func() {
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("", "/http/domain.com/Serve/cross/host/response", nil)
+				s.Serve(nil, w, req)
+
+				Expect(w.Code).To(Equal(http.StatusNotFound))
+			})
+
+			It("should response error (no scheme, no host)", func() {
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("", "/", nil)
+				s.Serve(nil, w, req)
+
+				Expect(w.Code).To(Equal(http.StatusBadRequest))
+			})
+
+			It("should response error (no host)", func() {
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("", "/http/", nil)
+				s.Serve(nil, w, req)
+
+				Expect(w.Code).To(Equal(http.StatusBadRequest))
+			})
+
+			It("should response error (bad scheme)", func() {
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("", "/ftp/domain.com/bad/scheme", nil)
+				s.Serve(nil, w, req)
+
+				Expect(w.Code).To(Equal(http.StatusBadRequest))
+			})
+		})
+
 		Describe("SetOnServerIssue", func() {
 			It("should trigger func on method not allowed", func() {
 				root, _ := url.Parse("http://domain.com")
@@ -244,6 +290,24 @@ var _ = Describe("Server", func() {
 				s.Serve(url, w, req)
 
 				Expect(cacheExpiredIssue).ToNot(BeNil())
+			})
+
+			It("should trigger func on cross host invalid path", func() {
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("POST", "/", nil)
+
+				var crossHostInvalidPathIssue *ServerIssue
+				s.SetOnServerIssue(func(issue *ServerIssue) {
+					switch issue.Type {
+					case CrossHostInvalidPath:
+						crossHostInvalidPathIssue = issue
+					}
+				})
+
+				s.Serve(nil, w, req)
+
+				Expect(crossHostInvalidPathIssue).ToNot(BeNil())
 			})
 		})
 	})

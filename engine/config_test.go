@@ -150,18 +150,10 @@ var _ = Describe("Config", func() {
 				})
 			})
 
-			Describe("WorkerCount", func() {
-				It("should parse", func() {
-					c := parseConfigWithDefaultArg0("-workers", "1")
+			It("should parse NoCrossHost", func() {
+				c := parseConfigWithDefaultArg0("-no-cross-host")
 
-					Expect(c.Crawler.WorkerCount).To(BeNumerically("==", 1))
-				})
-
-				It("should handle uint conversion error", func() {
-					c := parseConfigWithDefaultArg0("-workers", "x")
-
-					Expect(c.Crawler.WorkerCount).To(BeNumerically("==", ConfigDefaultCrawlerWorkerCount))
-				})
+				Expect(c.Crawler.NoCrossHost).To(BeTrue())
 			})
 
 			Describe("RequestHeader", func() {
@@ -189,6 +181,26 @@ var _ = Describe("Config", func() {
 					Expect(c.Crawler.RequestHeader).To(BeNil())
 				})
 			})
+
+			Describe("WorkerCount", func() {
+				It("should parse", func() {
+					c := parseConfigWithDefaultArg0("-workers", "1")
+
+					Expect(c.Crawler.WorkerCount).To(BeNumerically("==", 1))
+				})
+
+				It("should handle uint conversion error", func() {
+					c := parseConfigWithDefaultArg0("-workers", "x")
+
+					Expect(c.Crawler.WorkerCount).To(BeNumerically("==", ConfigDefaultCrawlerWorkerCount))
+				})
+			})
+		})
+
+		It("should parse Port", func() {
+			c := parseConfigWithDefaultArg0("-port", "80")
+
+			Expect(c.Port).To(Equal(int64(80)))
 		})
 
 		Describe("MirrorURLs", func() {
@@ -219,14 +231,14 @@ var _ = Describe("Config", func() {
 
 		Describe("MirrorPorts", func() {
 			It("should parse", func() {
-				c := parseConfigWithDefaultArg0("-port", "80")
+				c := parseConfigWithDefaultArg0("-mirror-port", "80")
 
 				Expect(len(c.MirrorPorts)).To(Equal(1))
 				Expect(c.MirrorPorts[0]).To(Equal(80))
 			})
 
 			It("should parse multiple", func() {
-				c := parseConfigWithDefaultArg0("-port", "80", "-port", "81")
+				c := parseConfigWithDefaultArg0("-mirror-port", "80", "-mirror-port", "81")
 
 				Expect(len(c.MirrorPorts)).To(Equal(2))
 				Expect(c.MirrorPorts[0]).To(Equal(80))
@@ -234,7 +246,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should handle int parsing error", func() {
-				c := parseConfigWithDefaultArg0("-port", "x")
+				c := parseConfigWithDefaultArg0("-mirror-port", "x")
 
 				Expect(c.MirrorPorts).To(BeNil())
 			})
@@ -243,7 +255,7 @@ var _ = Describe("Config", func() {
 
 	Describe("FromConfig", func() {
 		It("should return", func() {
-			config := &Config{}
+			config := parseConfigWithDefaultArg0()
 			e := FromConfig(config)
 
 			Expect(e).ToNot(BeNil())
@@ -252,7 +264,7 @@ var _ = Describe("Config", func() {
 		It("should add host rewrite", func() {
 			hostRewrites := make(map[string]string)
 			hostRewrites["domain1.com"] = "domain.com"
-			config := &Config{HostRewrites: hostRewrites}
+			config := parseConfigWithDefaultArg0("-rewrite", "domain1.com=domain.com")
 			e := FromConfig(config)
 
 			Expect(e.GetHostRewrites()).To(Equal(hostRewrites))
@@ -260,7 +272,7 @@ var _ = Describe("Config", func() {
 
 		It("should add host whitelisted", func() {
 			hostsWhitelist := []string{"domain.com"}
-			config := &Config{HostsWhitelist: hostsWhitelist}
+			config := parseConfigWithDefaultArg0("-whitelist", hostsWhitelist[0])
 			e := FromConfig(config)
 
 			Expect(e.GetHostsWhitelist()).To(Equal(hostsWhitelist))
@@ -268,7 +280,7 @@ var _ = Describe("Config", func() {
 
 		It("should set bump ttl", func() {
 			ttl := time.Hour
-			config := &Config{BumpTTL: ttl}
+			config := parseConfigWithDefaultArg0("-cache-bump", fmt.Sprintf("%s", ttl))
 			e := FromConfig(config)
 
 			Expect(e.GetBumpTTL()).To(Equal(ttl))
@@ -276,7 +288,7 @@ var _ = Describe("Config", func() {
 
 		It("should set auto enqueue interval", func() {
 			interval := time.Hour
-			config := &Config{AutoEnqueueInterval: interval}
+			config := parseConfigWithDefaultArg0("-auto-refresh", fmt.Sprintf("%s", interval))
 			e := FromConfig(config)
 
 			Expect(e.GetAutoEnqueueInterval()).To(Equal(interval))
@@ -285,8 +297,7 @@ var _ = Describe("Config", func() {
 		Describe("Cacher", func() {
 			It("should set path", func() {
 				path := "cacher/path"
-				config := &Config{}
-				config.Cacher.Path = path
+				config := parseConfigWithDefaultArg0("-cache-path", path)
 				e := FromConfig(config)
 
 				Expect(e.GetCacher().GetPath()).To(Equal(path))
@@ -294,8 +305,7 @@ var _ = Describe("Config", func() {
 
 			It("should set default ttl", func() {
 				ttl := time.Hour
-				config := &Config{}
-				config.Cacher.DefaultTTL = ttl
+				config := parseConfigWithDefaultArg0("-cache-ttl", fmt.Sprintf("%s", ttl))
 				e := FromConfig(config)
 
 				Expect(e.GetCacher().GetDefaultTTL()).To(Equal(ttl))
@@ -313,12 +323,11 @@ var _ = Describe("Config", func() {
 				Expect(e.GetCrawler().GetAutoDownloadDepth()).To(Equal(depth))
 			})
 
-			It("should set worker count", func() {
-				workers := uint64Ten
-				config := parseConfigWithDefaultArg0("-workers", fmt.Sprintf("%d", workers))
+			It("should set no cross host", func() {
+				config := parseConfigWithDefaultArg0("-no-cross-host")
 				e := FromConfig(config)
 
-				Expect(e.GetCrawler().GetWorkerCount()).To(Equal(workers))
+				Expect(e.GetCrawler().GetNoCrossHost()).To(BeTrue())
 			})
 
 			It("should add request header", func() {
@@ -326,6 +335,14 @@ var _ = Describe("Config", func() {
 				e := FromConfig(config)
 
 				Expect(e.GetCrawler().GetRequestHeaderValues("key")).To(Equal([]string{"value"}))
+			})
+
+			It("should set worker count", func() {
+				workers := uint64Ten
+				config := parseConfigWithDefaultArg0("-workers", fmt.Sprintf("%d", workers))
+				e := FromConfig(config)
+
+				Expect(e.GetCrawler().GetWorkerCount()).To(Equal(workers))
 			})
 		})
 
@@ -345,6 +362,19 @@ var _ = Describe("Config", func() {
 			AfterEach(func() {
 				os.RemoveAll(rootPath)
 				httpmock.DeactivateAndReset()
+			})
+
+			It("should mirror cross-host", func() {
+				config := parseConfigWithDefaultArg0(
+					"-cache-path", rootPath,
+					"-port", "0",
+				)
+
+				e := FromConfig(config)
+				defer e.Stop()
+
+				port, _ := e.GetServer().GetListeningPort("")
+				Expect(port).To(BeNumerically(">", 0))
 			})
 
 			It("should mirror url", func() {
@@ -370,7 +400,7 @@ var _ = Describe("Config", func() {
 				config := parseConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url,
-					"-port", "0",
+					"-mirror-port", "0",
 				)
 				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
@@ -389,7 +419,7 @@ var _ = Describe("Config", func() {
 				url2 := "http://domain2.com/engine/FromConfig/mirror/multiple"
 				config := parseConfigWithDefaultArg0(
 					"-cache-path", rootPath,
-					"-mirror", url1, "-port", "0",
+					"-mirror", url1, "-mirror-port", "0",
 					"-mirror", url2,
 				)
 				httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))

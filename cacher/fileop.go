@@ -3,7 +3,7 @@ package cacher
 import (
 	"crypto/md5"
 	"fmt"
-	"net/url"
+	neturl "net/url"
 	"os"
 	"path"
 	"regexp"
@@ -50,11 +50,23 @@ func OpenFile(cachePath string) (*os.File, error) {
 }
 
 // GenerateCachePath returns cache path for the specified url
-func GenerateCachePath(rootPath string, url *url.URL) string {
-	dir, file := path.Split(url.Path)
+func GenerateCachePath(rootPath string, url *neturl.URL) string {
+	var (
+		urlScheme string
+		urlHost   string
+		urlPath   string
+		queryPath string
+	)
 
-	query := url.Query()
-	queryPath := BuildQueryPath(&query)
+	if url != nil {
+		urlScheme = url.Scheme
+		urlHost = url.Host
+		urlPath = url.Path
+
+		urlQuery := url.Query()
+		queryPath = BuildQueryPath(&urlQuery)
+	}
+	dir, file := path.Split(urlPath)
 
 	fileSafe := file
 	if len(file) > 0 {
@@ -63,10 +75,10 @@ func GenerateCachePath(rootPath string, url *url.URL) string {
 
 	path := path.Join(
 		rootPath,
-		GetSafePathName(url.Host),
+		GetSafePathName(urlHost),
 		dir,
 		queryPath,
-		GetShortHash(url.Path),
+		GetShortHash(urlScheme + urlPath),
 		fileSafe,
 	)
 
@@ -74,7 +86,7 @@ func GenerateCachePath(rootPath string, url *url.URL) string {
 }
 
 // BuildQueryPath returns path elements from the specified query
-func BuildQueryPath(query *url.Values) string {
+func BuildQueryPath(query *neturl.Values) string {
 	queryKeys := getQuerySortedKeys(query)
 	queryPath := ""
 	for _, queryKey := range queryKeys {
@@ -108,7 +120,7 @@ func GetShortHash(s string) string {
 	return fmt.Sprintf("%x", sum[:ShortHashLength/2])
 }
 
-func getQuerySortedKeys(query *url.Values) []string {
+func getQuerySortedKeys(query *neturl.Values) []string {
 	keys := make([]string, len(*query))
 
 	i := 0

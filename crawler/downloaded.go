@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	neturl "net/url"
 )
@@ -99,8 +100,36 @@ func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) 
 		}
 	}
 
-	reduced := ReduceURL(d.Input.URL, fullURL)
+	reduced := d.Reduce(fullURL)
 	return reduced, nil
+}
+
+// Reduce returns relative version of url from .Input.URL
+func (d *Downloaded) Reduce(url *neturl.URL) string {
+	var (
+		crossHostOf = func(target *neturl.URL) *neturl.URL {
+			scheme := target.Scheme
+			if len(scheme) == 0 {
+				scheme = "http"
+			}
+
+			crossHost := *target
+			crossHost.Scheme = "http"
+			crossHost.Path = fmt.Sprintf("/%s/%s%s", scheme, target.Host, target.Path)
+			crossHost.Host = "cross.localhost"
+
+			return &crossHost
+		}
+	)
+
+	if !d.Input.NoCrossHost &&
+		(d.Input.URL.Scheme != url.Scheme ||
+			d.Input.URL.Host != url.Host) {
+		// different host, use cross-host relative path
+		return ReduceURL(crossHostOf(d.Input.URL), crossHostOf(url))
+	}
+
+	return ReduceURL(d.Input.URL, url)
 }
 
 // GetAssetURLs returns resolved asset urls

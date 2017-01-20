@@ -1,0 +1,42 @@
+{
+	"ImportPath": "github.com/daohoangson/go-sitemirror",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.11.0-35-g61e43dc",
+			"Rev": "61e43dc76f7ee59a82bdf3d71033dc12bea4c77d"
+		},
+		{
+			"ImportPath": "github.com/gorilla/css/scanner",
+			"Rev": "67c8b4bb0798a7db705fc51a78814aca3c944316"
+		},
+		{
+			"ImportPath": "github.com/hectane/go-nonblockingchan",
+			"Comment": "v0.1.0",
+			"Rev": "a5c3fb0f46b221ee575b2b7892a3ccf0557bcb5e"
+		},
+		{
+			"ImportPath": "github.com/namsral/flag",
+			"Comment": "v1.7.4-alpha",
+			"Rev": "7fa59bdb55485001d702d9b6e15367cdf26bfde8"
+		},
+		{
+			"ImportPath": "github.com/tevino/abool",
+			"Rev": "3c25f2fe7cd0ef3eabefce1d90efd69a65d35b12"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "da2b4fa28524a3baf148c1b94df4440267063c88"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html/atom",
+			"Rev": "da2b4fa28524a3baf148c1b94df4440267063c88"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "d75a52659825e75fff6158388dddc6a5b04f9ba5"
+		}
+	]
+}

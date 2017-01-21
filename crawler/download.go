@@ -190,62 +190,50 @@ func parseBodyHTMLToken(tokenizer *html.Tokenizer, result *Downloaded) bool {
 		return true
 	}
 
+	done := false
 	switch tokenType {
 	case html.StartTagToken:
 		token := tokenizer.Token()
 
 		switch token.DataAtom {
 		case htmlAtom.A:
-			if parseBodyHTMLTagA(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagA(&token, result)
 		case htmlAtom.Form:
-			if parseBodyHTMLTagForm(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagForm(&token, result)
 		case htmlAtom.Img:
-			if parseBodyHTMLTagImg(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagImg(&token, result)
 		case htmlAtom.Link:
-			if parseBodyHTMLTagLink(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagLink(&token, result)
 		case htmlAtom.Script:
-			if parseBodyHTMLTagScript(tokenizer, &token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagScript(tokenizer, &token, result)
 		case htmlAtom.Style:
-			if parseBodyHTMLTagStyle(tokenizer, result) {
-				return false
-			}
+			done = parseBodyHTMLTagStyle(tokenizer, result)
 		}
 
-		rewriteTokenAttr(&token, result)
-		return false
+		if !done {
+			done = rewriteTokenAttr(&token, result)
+		}
 	case html.SelfClosingTagToken:
 		token := tokenizer.Token()
 
 		switch token.DataAtom {
 		case htmlAtom.Base:
-			if parseBodyHTMLTagBase(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagBase(&token, result)
 		case htmlAtom.Img:
-			if parseBodyHTMLTagImg(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagImg(&token, result)
 		case htmlAtom.Link:
-			if parseBodyHTMLTagLink(&token, result) {
-				return false
-			}
+			done = parseBodyHTMLTagLink(&token, result)
 		}
 
-		rewriteTokenAttr(&token, result)
-		return false
+		if !done {
+			done = rewriteTokenAttr(&token, result)
+		}
 	}
 
-	result.buffer.Write(tokenizer.Raw())
+	if !done {
+		result.buffer.Write(tokenizer.Raw())
+	}
+
 	return false
 }
 

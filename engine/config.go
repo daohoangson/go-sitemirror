@@ -82,18 +82,18 @@ func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
 
 	fs.Var(&config.HostRewrites, "rewrite", "Link rewrites, must be 'source.domain.com=http://target.domain.com/some/path'")
 	fs.Var(&config.HostsWhitelist, "whitelist", "Restricted list of crawlable hosts")
-	fs.DurationVar(&config.BumpTTL, "cache-bump", ConfigDefaultBumpTTL, "Validity of cache bump, default=1m")
+	fs.DurationVar(&config.BumpTTL, "cache-bump", ConfigDefaultBumpTTL, "Validity of cache bump")
 	fs.DurationVar(&config.AutoEnqueueInterval, "auto-refresh", ConfigDefaultAutoEnqueueInterval, "Interval for url auto refreshes, default=no refresh")
 
-	fs.StringVar(&config.Cacher.Path, "cache-path", "", "HTTP Cache path, default = current directory")
-	fs.DurationVar(&config.Cacher.DefaultTTL, "cache-ttl", ConfigDefaultCacherDefaultTTL, "Validity of cached data, default=10m")
+	fs.StringVar(&config.Cacher.Path, "cache-path", "", "HTTP Cache path (default working directory)")
+	fs.DurationVar(&config.Cacher.DefaultTTL, "cache-ttl", ConfigDefaultCacherDefaultTTL, "Validity of cached data")
 
 	config.Crawler.AutoDownloadDepth = configUint64(ConfigDefaultCrawlerAutoDownloadDepth)
 	fs.Var(&config.Crawler.AutoDownloadDepth, "auto-download-depth", "Maximum link depth for auto downloads, default=1")
 	fs.BoolVar(&config.Crawler.NoCrossHost, "no-cross-host", ConfigDefaultCrawlerNoCrossHost, "Disable cross-host links")
 	fs.Var(&config.Crawler.RequestHeader, "header", "Custom request header, must be 'key=value'")
 	config.Crawler.WorkerCount = configUint64(ConfigDefaultCrawlerWorkerCount)
-	fs.Var(&config.Crawler.WorkerCount, "workers", "Number of download workers, default=4")
+	fs.Var(&config.Crawler.WorkerCount, "workers", "Number of download workers")
 
 	fs.Int64Var(&config.Port, "port", ConfigDefaultPort, "Port to mirror all sites")
 	fs.Var(&config.MirrorURLs, "mirror", "URL to mirror, multiple urls are supported")

@@ -15,4 +15,56 @@ Easy to setup and run a mirror which copies content from some where else and pro
 1. A web server should be provided to serve visitor.
 
 ## Usage
-`go-sitemirror -mirror http://github.com -port 8080`
+
+### Mirror everything at `:8080`
+Go to http://localhost:8080/https/github.com/ to see GitHub home page
+
+```
+  go-sitemirror -p 8080
+```
+
+### Mirror GitHub at `:8081`
+Go to http://localhost:8081/ to see GitHub home page
+
+```
+  go-sitemirror -mirror https://github.com \
+    -mirror-port 8081 \
+    -no-cross-host \
+    -whitelist github.com
+```
+
+* `-no-cross-host` to not modify assets urls from other domains
+* `-whitelist` because we don't serve anything other than github.com anyway
+
+### All flags
+
+```
+  -auto-download-depth value
+    	Maximum link depth for auto downloads, default=1 (default 1)
+  -auto-refresh duration
+    	Interval for url auto refreshes, default=no refresh
+  -cache-bump duration
+    	Validity of cache bump (default 1m0s)
+  -cache-path string
+    	HTTP Cache path (default working directory)
+  -cache-ttl duration
+    	Validity of cached data (default 10m0s)
+  -header value
+    	Custom request header, must be 'key=value'
+  -log value
+    	Logging output level (default 4)
+  -mirror value
+    	URL to mirror, multiple urls are supported
+  -mirror-port value
+    	Port to mirror a single site, each port number should immediately follow its URL. For url that doesn't have any port, it will still be mirrored but without a web server.
+  -no-cross-host
+    	Disable cross-host links
+  -port int
+    	Port to mirror all sites (default -1)
+  -rewrite value
+    	Link rewrites, must be 'source.domain.com=http://target.domain.com/some/path'
+  -whitelist value
+    	Restricted list of crawlable hosts
+  -workers value
+    	Number of download workers (default 4)
+```

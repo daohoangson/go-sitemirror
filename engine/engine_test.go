@@ -88,22 +88,6 @@ var _ = Describe("Engine", func() {
 			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
 		})
 
-		It("should download url.URL", func() {
-			url := "http://domain.com/engine/mirror/download/url"
-			body := "body1"
-			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, body))
-
-			e := newEngine()
-
-			parsedURL, _ := neturl.Parse(url)
-			Expect(parsedURL).ToNot(BeNil())
-			e.Mirror(parsedURL, -1)
-			defer e.Stop()
-
-			time.Sleep(sleepTime)
-			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
-		})
-
 		It("should listen and serve", func() {
 			urlPath := "/engine/mirror/listen/and/serve"
 			url := "http://domain.com" + urlPath
@@ -118,6 +102,50 @@ var _ = Describe("Engine", func() {
 			port, _ := e.GetServer().GetListeningPort("domain.com")
 			r, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 			Expect(r.StatusCode).To(Equal(http.StatusOK))
+		})
+
+		Context("Downloaded", func() {
+			It("should write cache", func() {
+				url := "http://domain.com/engine/mirror/download/downloaded/write"
+				parsedURL, _ := neturl.Parse(url)
+				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(http.StatusOK, ""))
+
+				e := newEngine()
+
+				mirrorURL(e, url, -1)
+				defer e.Stop()
+
+				time.Sleep(sleepTime)
+				f, err := e.GetCacher().Open(parsedURL)
+				Expect(err).ToNot(HaveOccurred())
+				f.Close()
+			})
+
+			It("should not overwrite cache with bad data", func() {
+				url := "http://domain.com/engine/mirror/download/downloaded/not/overwrite"
+				parsedURL, _ := neturl.Parse(url)
+				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(http.StatusInternalServerError, ""))
+				cacherInput := &cacher.Input{
+					URL:        parsedURL,
+					StatusCode: http.StatusOK,
+					Body:       "foo/bar",
+				}
+
+				e := newEngine()
+				e.GetCacher().Write(cacherInput)
+				e.GetCrawler().SetOnURLShouldDownload(func(_ *neturl.URL) bool {
+					return true
+				})
+
+				e.GetCrawler().Download(crawler.QueueItem{URL: parsedURL})
+				defer e.Stop()
+
+				time.Sleep(sleepTime)
+				f, _ := e.GetCacher().Open(parsedURL)
+				defer f.Close()
+				written, _ := ioutil.ReadAll(f)
+				Expect(string(written)).To(HavePrefix("HTTP 200\n"))
+			})
 		})
 
 		Context("Crawler cache exists", func() {

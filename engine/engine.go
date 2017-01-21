@@ -84,6 +84,15 @@ func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
 	})
 
 	e.crawler.SetOnDownloaded(func(downloaded *crawler.Downloaded) {
+		if (downloaded.StatusCode == 0 || downloaded.StatusCode >= 500) &&
+			e.cacher.CheckCacheExists(downloaded.Input.URL) {
+			e.logger.WithFields(logrus.Fields{
+				"url":        downloaded.Input.URL,
+				"statusCode": downloaded.StatusCode,
+			}).Debug("Skipped writing cache")
+			return
+		}
+
 		input := BuildCacherInputFromCrawlerDownloaded(downloaded)
 		e.cacher.Write(input)
 

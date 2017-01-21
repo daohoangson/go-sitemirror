@@ -240,8 +240,10 @@ func (e *engine) Mirror(url *neturl.URL, port int) error {
 		"port": port,
 	}).Info("Setting up mirror")
 
-	e.autoEnqueue(url)
-	e.crawler.Enqueue(crawler.QueueItem{URL: url})
+	if url != nil {
+		e.autoEnqueue(url)
+		e.crawler.Enqueue(crawler.QueueItem{URL: url})
+	}
 
 	if port < 0 {
 		return nil

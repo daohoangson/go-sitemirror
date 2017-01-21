@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/daohoangson/go-sitemirror/cacher"
+
 	"gopkg.in/jarcoal/httpmock.v1"
 )
 
@@ -19,8 +21,8 @@ const TransparentDataURI = `data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BA
 // NewCSSResponder returns a new responder with css content type
 func NewCSSResponder(css string) httpmock.Responder {
 	return func(req *http.Request) (*http.Response, error) {
-		resp := httpmock.NewStringResponse(200, css)
-		resp.Header.Add("Content-Type", "text/css")
+		resp := httpmock.NewStringResponse(http.StatusOK, css)
+		resp.Header.Add(cacher.HeaderContentType, "text/css")
 		return resp, nil
 	}
 }
@@ -33,8 +35,8 @@ func NewHTMLMarkup(body string) string {
 // NewHTMLResponder returns a new responder with html content type
 func NewHTMLResponder(html string) httpmock.Responder {
 	return func(req *http.Request) (*http.Response, error) {
-		resp := httpmock.NewStringResponse(200, html)
-		resp.Header.Add("Content-Type", "text/html")
+		resp := httpmock.NewStringResponse(http.StatusOK, html)
+		resp.Header.Add(cacher.HeaderContentType, "text/html")
 		return resp, nil
 	}
 }
@@ -43,7 +45,7 @@ func NewHTMLResponder(html string) httpmock.Responder {
 func NewRedirectResponder(status int, location string) httpmock.Responder {
 	return func(req *http.Request) (*http.Response, error) {
 		resp := httpmock.NewStringResponse(status, "")
-		resp.Header.Add("Location", location)
+		resp.Header.Add(cacher.HeaderLocation, location)
 		return resp, nil
 	}
 }
@@ -52,7 +54,7 @@ func NewRedirectResponder(status int, location string) httpmock.Responder {
 func NewSlowResponder(duration time.Duration) httpmock.Responder {
 	return func(req *http.Request) (*http.Response, error) {
 		time.Sleep(duration)
-		resp := httpmock.NewStringResponse(200, "")
+		resp := httpmock.NewStringResponse(http.StatusOK, "")
 		return resp, nil
 	}
 }

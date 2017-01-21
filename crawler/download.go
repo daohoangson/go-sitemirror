@@ -27,11 +27,6 @@ const (
 	htmlAttrSrc           = "src"
 )
 
-const (
-	httpHeaderContentType = "Content-Type"
-	httpHeaderLocation    = "Location"
-)
-
 // Download returns parsed data after downloading the specified url.
 func Download(input *Input) *Downloaded {
 	result := &Downloaded{
@@ -101,9 +96,19 @@ func Download(input *Input) *Downloaded {
 }
 
 func parseBody(resp *http.Response, result *Downloaded) error {
-	respHeaderContentType := resp.Header.Get(httpHeaderContentType)
+	respHeaderCacheControl := resp.Header.Get(cacher.HeaderCacheControl)
+	if len(respHeaderCacheControl) > 0 {
+		result.AddHeader(cacher.HeaderCacheControl, respHeaderCacheControl)
+	}
+
+	respHeaderExpires := resp.Header.Get(cacher.HeaderExpires)
+	if len(respHeaderExpires) > 0 {
+		result.AddHeader(cacher.HeaderExpires, respHeaderExpires)
+	}
+
+	respHeaderContentType := resp.Header.Get(cacher.HeaderContentType)
 	if len(respHeaderContentType) > 0 {
-		result.AddHeader(httpHeaderContentType, respHeaderContentType)
+		result.AddHeader(cacher.HeaderContentType, respHeaderContentType)
 
 		parts := strings.Split(respHeaderContentType, ";")
 		contentType := parts[0]
@@ -436,10 +441,10 @@ func parseBodyRaw(resp *http.Response, result *Downloaded) error {
 }
 
 func parseRedirect(resp *http.Response, result *Downloaded) error {
-	location := resp.Header.Get(httpHeaderLocation)
+	location := resp.Header.Get(cacher.HeaderLocation)
 	processedURL, err := result.ProcessURL(HTTP3xxLocation, location)
 	if err == nil {
-		result.AddHeader(httpHeaderLocation, processedURL)
+		result.AddHeader(cacher.HeaderLocation, processedURL)
 	}
 
 	return err

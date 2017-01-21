@@ -6,11 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"time"
 )
 
 var (
-	writeHTTPPlaceholderFirstLine = fmt.Sprintf("HTTP %d\n", http.StatusNoContent)
+	writeHTTPCachingHeadersMaxAgeRegexp = regexp.MustCompile(`max-age\s*=\s*(\d+)(\s|$)`)
+	writeHTTPPlaceholderFirstLine       = fmt.Sprintf("HTTP %d\n", http.StatusNoContent)
 )
 
 // WriteHTTP writes cache data in http format
@@ -21,23 +24,61 @@ func WriteHTTP(w io.Writer, input *Input) {
 	bw.WriteString(fmt.Sprintf("HTTP %d\n", input.StatusCode))
 
 	if input.URL != nil {
-		bw.WriteString(fmt.Sprintf("%s: %s\n", HTTPHeaderURL, input.URL.String()))
+		bw.WriteString(fmt.Sprintf("%s: %s\n", CustomHeaderURL, input.URL.String()))
 	}
 
-	now := time.Now()
-	bw.WriteString(fmt.Sprintf("Last-Modified: %s\n", now.Format(http.TimeFormat)))
-	if input.TTL > 0 {
-		expires := now.Add(input.TTL)
-		bw.WriteString(fmt.Sprintf("Cache-Control: public\nExpires: %s\n", expires.Format(http.TimeFormat)))
-		bw.WriteString(writeHTTPFormatExpiresHeader(expires))
-	}
-
+	WriteHTTPCachingHeaders(bw, input)
 	writeHTTPHeader(bw, input)
 	writeHTTPBody(bw, input)
 }
 
-func writeHTTPFormatExpiresHeader(expires time.Time) string {
-	return fmt.Sprintf("%s: %020d\n", HTTPHeaderExpires, expires.UnixNano())
+// WriteHTTPCachingHeaders writes caching related headers
+// like last modified, cache control, expires.
+func WriteHTTPCachingHeaders(bw *bufio.Writer, input *Input) {
+	var (
+		now     = time.Now()
+		expires *time.Time
+	)
+
+	bw.WriteString(fmt.Sprintf("%s: %s\n", HeaderLastModified, now.Format(http.TimeFormat)))
+
+	if expires == nil {
+		inputHeaderExpires := input.Header.Get(HeaderExpires)
+		if len(inputHeaderExpires) > 0 {
+			t, err := time.Parse(http.TimeFormat, inputHeaderExpires)
+			if err == nil {
+				expires = &t
+			}
+		}
+	}
+
+	if expires == nil {
+		inputHeaderCacheControl := input.Header.Get(HeaderCacheControl)
+		maxAgeSubmatch := writeHTTPCachingHeadersMaxAgeRegexp.FindStringSubmatch(inputHeaderCacheControl)
+		if maxAgeSubmatch != nil {
+			if maxAge, err := strconv.ParseInt(maxAgeSubmatch[1], 10, 64); err == nil {
+				expires = &time.Time{}
+				*expires = now.Add(time.Duration(maxAge) * time.Second)
+			}
+		}
+	}
+
+	if expires == nil && input.TTL > 0 {
+		expires = &time.Time{}
+		*expires = now.Add(input.TTL)
+	}
+
+	if expires != nil {
+		bw.WriteString(fmt.Sprintf("%s: public, max-age=%d\n%s: %s\n",
+			HeaderCacheControl, expires.Unix()-now.Unix(),
+			HeaderExpires, expires.Format(http.TimeFormat),
+		))
+		bw.WriteString(formatExpiresHeader(*expires))
+	}
+}
+
+func formatExpiresHeader(expires time.Time) string {
+	return fmt.Sprintf("%s: %020d\n", CustomHeaderExpires, expires.UnixNano())
 }
 
 func writeHTTPHeader(bw *bufio.Writer, input *Input) {
@@ -46,8 +87,13 @@ func writeHTTPHeader(bw *bufio.Writer, input *Input) {
 	}
 
 	for headerKey, headerValues := range input.Header {
-		for _, headerValue := range headerValues {
-			bw.WriteString(fmt.Sprintf("%s: %s\n", headerKey, headerValue))
+		switch headerKey {
+		case HeaderCacheControl:
+		case HeaderExpires:
+		default:
+			for _, headerValue := range headerValues {
+				bw.WriteString(fmt.Sprintf("%s: %s\n", headerKey, headerValue))
+			}
 		}
 	}
 }
@@ -66,8 +112,8 @@ func writeHTTPPlaceholder(w io.Writer, url *url.URL, expires time.Time) error {
 	_, writeError := w.Write([]byte(fmt.Sprintf(
 		"%s%s: %s\n%s\n",
 		writeHTTPPlaceholderFirstLine,
-		HTTPHeaderURL, url.String(),
-		writeHTTPFormatExpiresHeader(expires),
+		CustomHeaderURL, url.String(),
+		formatExpiresHeader(expires),
 	)))
 
 	return writeError

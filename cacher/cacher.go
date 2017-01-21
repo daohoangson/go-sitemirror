@@ -165,8 +165,8 @@ func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
 			break
 		}
 
-		if strings.HasPrefix(line, HTTPHeaderExpires) {
-			newLine := writeHTTPFormatExpiresHeader(newExpires)
+		if strings.HasPrefix(line, CustomHeaderExpires) {
+			newLine := formatExpiresHeader(newExpires)
 			if len(newLine) != len(line) {
 				loggerContext.WithFields(logrus.Fields{
 					"existing": line,

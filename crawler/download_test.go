@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	neturl "net/url"
+	"time"
 
 	"gopkg.in/jarcoal/httpmock.v1"
 
+	"github.com/daohoangson/go-sitemirror/cacher"
 	. "github.com/daohoangson/go-sitemirror/crawler"
 	t "github.com/daohoangson/go-sitemirror/testing"
 
@@ -194,28 +196,80 @@ var _ = Describe("Download", func() {
 		})
 	})
 
-	Describe("ContentType", func() {
-		It("should match response header value", func() {
-			url := "http://domain.com/download/content/type"
-			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(""))
-
-			downloaded := downloadWithDefaultClient(url)
-
-			Expect(downloaded.GetHeaderValues("Content-Type")).To(Equal([]string{"text/html"}))
-		})
-	})
-
 	Describe("Header", func() {
-		It("should work with 3xx response status", func() {
-			status := http.StatusMovedPermanently
-			url := fmt.Sprintf("http://domain.com/download/header/location/%d", status)
-			targetUrl := "http://domain.com/download/header/location/target"
-			httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(status, targetUrl))
+		Context(cacher.HeaderContentType, func() {
+			It("should pick up header value", func() {
+				url := "http://domain.com/download/header/content/type"
+				httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(""))
 
-			downloaded := downloadWithDefaultClient(url)
+				downloaded := downloadWithDefaultClient(url)
 
-			Expect(downloaded.StatusCode).To(Equal(status))
-			Expect(downloaded.GetHeaderValues("Location")).To(Equal([]string{"./target"}))
+				Expect(downloaded.GetHeaderValues(cacher.HeaderContentType)).To(Equal([]string{"text/html"}))
+			})
+		})
+
+		Context(cacher.HeaderCacheControl, func() {
+			It("should pick up header value", func() {
+				url := "http://domain.com/download/header/caching/expires"
+				cacheControl := "public"
+				httpmock.RegisterResponder("GET", url, func(req *http.Request) (*http.Response, error) {
+					resp := httpmock.NewStringResponse(http.StatusOK, "")
+					resp.Header.Add(cacher.HeaderCacheControl, cacheControl)
+					return resp, nil
+				})
+
+				downloaded := downloadWithDefaultClient(url)
+
+				Expect(downloaded.GetHeaderValues(cacher.HeaderCacheControl)).To(Equal([]string{cacheControl}))
+			})
+
+			It("should not pick up value (none given)", func() {
+				url := "http://domain.com/download/header/caching/expires/non"
+				httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(""))
+
+				downloaded := downloadWithDefaultClient(url)
+
+				Expect(downloaded.GetHeaderValues(cacher.HeaderCacheControl)).To(BeNil())
+			})
+		})
+
+		Context(cacher.HeaderExpires, func() {
+			It("should pick up header value", func() {
+				url := "http://domain.com/download/header/caching/expires"
+				expires := time.Now().Add(time.Hour).Format(http.TimeFormat)
+				httpmock.RegisterResponder("GET", url, func(req *http.Request) (*http.Response, error) {
+					resp := httpmock.NewStringResponse(http.StatusOK, "")
+					resp.Header.Add(cacher.HeaderExpires, expires)
+					return resp, nil
+				})
+
+				downloaded := downloadWithDefaultClient(url)
+
+				Expect(downloaded.GetHeaderValues(cacher.HeaderExpires)).To(Equal([]string{expires}))
+			})
+
+			It("should not pick up value (none given)", func() {
+				url := "http://domain.com/download/header/caching/expires/non"
+				httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(""))
+
+				downloaded := downloadWithDefaultClient(url)
+
+				Expect(downloaded.GetHeaderValues(cacher.HeaderExpires)).To(BeNil())
+			})
+		})
+
+		Context(cacher.HeaderLocation, func() {
+			It("should pick up header value", func() {
+				status := http.StatusMovedPermanently
+				url := fmt.Sprintf("http://domain.com/download/header/location/%d", status)
+				targetUrl := "http://domain.com/download/header/location/target"
+				httpmock.RegisterResponder("GET", url, t.NewRedirectResponder(status, targetUrl))
+
+				downloaded := downloadWithDefaultClient(url)
+
+				Expect(downloaded.StatusCode).To(Equal(status))
+				Expect(downloaded.GetHeaderValues(cacher.HeaderLocation)).To(Equal([]string{"./target"}))
+			})
 		})
 	})
 

@@ -35,6 +35,7 @@ func (d *Downloaded) GetHeaderKeys() []string {
 	i := 0
 	for key := range d.header {
 		keys[i] = key
+		i++
 	}
 
 	return keys
@@ -169,5 +170,5 @@ func (d *Downloaded) addHeaderCrossHostRef() {
 	}
 
 	d.addedHeaderCrossHostRef = true
-	d.AddHeader(cacher.HTTPHeaderCrossHostRef, "1")
+	d.AddHeader(cacher.CustomHeaderCrossHostRef, "1")
 }

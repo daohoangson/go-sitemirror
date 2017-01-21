@@ -186,7 +186,7 @@ var _ = Describe("Server", func() {
 				s.Serve(nil, w, req)
 
 				Expect(w.Code).To(Equal(http.StatusMovedPermanently))
-				Expect(w.Header().Get("Location")).To(Equal(path + "/"))
+				Expect(w.Header().Get(cacher.HeaderLocation)).To(Equal(path + "/"))
 			})
 
 			It("should response error (no scheme, no host)", func() {
@@ -291,7 +291,7 @@ var _ = Describe("Server", func() {
 				f, _ := os.Create(cachePath)
 				f.WriteString(fmt.Sprintf(
 					"HTTP 200\n%s: %d\n\n",
-					cacher.HTTPHeaderExpires,
+					cacher.CustomHeaderExpires,
 					time.Now().Add(-1*time.Hour).UnixNano(),
 				))
 				f.Close()

@@ -3,6 +3,7 @@ package engine_test
 import (
 	"net/url"
 
+	"github.com/daohoangson/go-sitemirror/cacher"
 	"github.com/daohoangson/go-sitemirror/crawler"
 	. "github.com/daohoangson/go-sitemirror/engine"
 
@@ -32,7 +33,7 @@ var _ = Describe("Utils", func() {
 		})
 
 		It("should sync header content type", func() {
-			headerKey := "Content-Type"
+			headerKey := cacher.HeaderContentType
 			headerValue := "plain/text"
 			d := &crawler.Downloaded{}
 			d.AddHeader(headerKey, headerValue)
@@ -42,7 +43,7 @@ var _ = Describe("Utils", func() {
 		})
 
 		It("should sync header location", func() {
-			headerKey := "Location"
+			headerKey := cacher.HeaderLocation
 			headerValue := "http://domain.com/engine/utils/sync/header/location"
 			d := &crawler.Downloaded{}
 			d.AddHeader(headerKey, headerValue)

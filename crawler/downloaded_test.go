@@ -50,11 +50,22 @@ var _ = Describe("Downloaded", func() {
 			}))
 		})
 
-		It("should return keys", func() {
+		It("should return key", func() {
 			downloaded.AddHeader(headerKey, headerVal1)
 
 			Expect(downloaded.GetHeaderKeys()).To(Equal([]string{
 				headerKey,
+			}))
+		})
+
+		It("should return all keys", func() {
+			headerKey2 := headerKey + "2"
+			downloaded.AddHeader(headerKey, headerVal1)
+			downloaded.AddHeader(headerKey2, headerVal2)
+
+			Expect(downloaded.GetHeaderKeys()).To(Equal([]string{
+				headerKey,
+				headerKey2,
 			}))
 		})
 
@@ -203,7 +214,7 @@ var _ = Describe("Downloaded", func() {
 					parsedURL, _ := neturl.Parse(url)
 					downloaded.Reduce(parsedURL)
 
-					Expect(len(downloaded.GetHeaderValues(cacher.HTTPHeaderCrossHostRef))).To(Equal(1))
+					Expect(len(downloaded.GetHeaderValues(cacher.CustomHeaderCrossHostRef))).To(Equal(1))
 				})
 
 				It("should set ref header once", func() {
@@ -212,7 +223,7 @@ var _ = Describe("Downloaded", func() {
 					downloaded.Reduce(parsedURL)
 					downloaded.Reduce(parsedURL)
 
-					Expect(len(downloaded.GetHeaderValues(cacher.HTTPHeaderCrossHostRef))).To(Equal(1))
+					Expect(len(downloaded.GetHeaderValues(cacher.CustomHeaderCrossHostRef))).To(Equal(1))
 				})
 
 				It("should not reduce", func() {

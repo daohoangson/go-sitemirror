@@ -183,7 +183,7 @@ func (s *server) serveCrossHost(w http.ResponseWriter, req *http.Request) intern
 		// relative urls do not work correctly if user is on http://localhost/https/domain.com
 		// so we will take care of it here and redirect to ./
 		si.SetStatusCode(http.StatusMovedPermanently)
-		si.AddHeader("Location", fmt.Sprintf("/%s/%s/", targetURL.Scheme, targetURL.Host))
+		si.AddHeader(cacher.HeaderLocation, fmt.Sprintf("/%s/%s/", targetURL.Scheme, targetURL.Host))
 		return si.Flush()
 	}
 

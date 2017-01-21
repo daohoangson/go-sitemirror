@@ -42,14 +42,29 @@ const (
 )
 
 const (
-	// HTTPHeaderPrefix prefix for internal headers
-	HTTPHeaderPrefix = "X-Mirror-"
-	// HTTPHeaderURL header key for cache url
-	HTTPHeaderURL = "X-Mirror-Url"
-	// HTTPHeaderCrossHostRef header key for cross host reference flag
-	HTTPHeaderCrossHostRef = "X-Mirror-Cross-Host-Ref"
-	// HTTPHeaderExpires header key for cache expire time in nano second
-	HTTPHeaderExpires = "X-Mirror-Expires"
+	// CustomHeaderPrefix prefix for internal headers
+	CustomHeaderPrefix = "X-Mirror-"
+	// CustomHeaderURL header key for cache url
+	CustomHeaderURL = "X-Mirror-Url"
+	// CustomHeaderCrossHostRef header key for cross host reference flag
+	CustomHeaderCrossHostRef = "X-Mirror-Cross-Host-Ref"
+	// CustomHeaderExpires header key for cache expire time in nano second
+	CustomHeaderExpires = "X-Mirror-Expires"
+)
+
+const (
+	// HeaderCacheControl http cache control header key
+	HeaderCacheControl = "Cache-Control"
+	// HeaderContentLength http content length header key
+	HeaderContentLength = "Content-Length"
+	// HeaderContentType http content type header key
+	HeaderContentType = "Content-Type"
+	// HeaderExpires http expires header key
+	HeaderExpires = "Expires"
+	// HeaderLastModified http last modified header key
+	HeaderLastModified = "Last-Modified"
+	// HeaderLocation http location header key
+	HeaderLocation = "Location"
 )
 
 const (

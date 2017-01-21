@@ -123,12 +123,12 @@ var _ = Describe("HttpCacher", func() {
 			Expect(writtenString).To(HavePrefix(fmt.Sprintf(
 				"HTTP %d\n%s: %s\n",
 				http.StatusNoContent,
-				HTTPHeaderURL,
+				CustomHeaderURL,
 				url.String(),
 			)))
 			Expect(writtenString).To(HaveSuffix("\n\n"))
 
-			expiresHeaderValue := getHeaderValue(writtenString, HTTPHeaderExpires)
+			expiresHeaderValue := getHeaderValue(writtenString, CustomHeaderExpires)
 			expiresValue, _ := strconv.ParseInt(expiresHeaderValue, 10, 64)
 			Expect(expiresValue).To(BeNumerically(">", 0))
 		}
@@ -145,7 +145,7 @@ var _ = Describe("HttpCacher", func() {
 			Expect(string(written)).To(HavePrefix(fmt.Sprintf(
 				"HTTP %d\n%s: %s\n",
 				input.StatusCode,
-				HTTPHeaderURL,
+				CustomHeaderURL,
 				input.URL.String(),
 			)))
 		})
@@ -177,7 +177,7 @@ var _ = Describe("HttpCacher", func() {
 				c.Write(input)
 				written, _ := ioutil.ReadFile(cachePath)
 				writtenString := string(written)
-				writtenExpiresValue := getHeaderValue(writtenString, HTTPHeaderExpires)
+				writtenExpiresValue := getHeaderValue(writtenString, CustomHeaderExpires)
 				writtenExpires, _ := strconv.ParseInt(writtenExpiresValue, 10, 64)
 				ttl := time.Duration((writtenExpires-time.Now().UnixNano())*2) * time.Second
 
@@ -188,12 +188,12 @@ var _ = Describe("HttpCacher", func() {
 				Expect(len(bumpedString)).To(BeNumerically(">", 0))
 				Expect(bumpedString).ToNot(Equal(writtenString))
 
-				expiresRegexp := regexp.MustCompile(fmt.Sprintf(`%s:[^\n]+\n`, HTTPHeaderExpires))
+				expiresRegexp := regexp.MustCompile(fmt.Sprintf(`%s:[^\n]+\n`, CustomHeaderExpires))
 				writtenWithoutExpires := expiresRegexp.ReplaceAllString(writtenString, "")
 				bumpedWithoutExpires := expiresRegexp.ReplaceAllString(bumpedString, "")
 				Expect(bumpedWithoutExpires).To(Equal(writtenWithoutExpires))
 
-				bumpedExpiresValue := getHeaderValue(bumpedString, HTTPHeaderExpires)
+				bumpedExpiresValue := getHeaderValue(bumpedString, CustomHeaderExpires)
 				bumpedExpires, _ := strconv.ParseInt(bumpedExpiresValue, 10, 64)
 				Expect(bumpedExpires).To(BeNumerically(">", writtenExpires))
 			})
@@ -223,7 +223,7 @@ var _ = Describe("HttpCacher", func() {
 				url, _ := url.Parse("http://domain.com/http/cacher/bump/placeholder/no/expires")
 				cachePath := GenerateHTTPCachePath(rootPath, url)
 				f, _ := CreateFile(cachePath)
-				f.WriteString(fmt.Sprintf("%s: 1\n", HTTPHeaderExpires))
+				f.WriteString(fmt.Sprintf("%s: 1\n", CustomHeaderExpires))
 				f.Close()
 
 				c := newHttpCacherWithRootPath()

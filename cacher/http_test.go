@@ -1,6 +1,7 @@
 package cacher_test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"net/http"
@@ -67,7 +68,7 @@ var _ = Describe("Http", func() {
 			WriteHTTP(&buffer, input)
 
 			written := buffer.String()
-			writtenMirroredUrl := getHeaderValue(written, HTTPHeaderURL)
+			writtenMirroredUrl := getHeaderValue(written, CustomHeaderURL)
 			Expect(writtenMirroredUrl).To(Equal(url.String()))
 		})
 
@@ -76,21 +77,21 @@ var _ = Describe("Http", func() {
 			WriteHTTP(&buffer, input)
 
 			written := buffer.String()
-			writtenLastModified := getHeaderValue(written, "Last-Modified")
+			writtenLastModified := getHeaderValue(written, HeaderLastModified)
 			Expect(len(writtenLastModified)).ToNot(Equal(0))
 
 			_, err := time.Parse(http.TimeFormat, writtenLastModified)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		Describe("TTL", func() {
+		Describe("Caching", func() {
 			It("should write our Expires header", func() {
 				input := input2xx
 				input.TTL = time.Minute
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()
-				writtenExpires := getHeaderValue(written, HTTPHeaderExpires)
+				writtenExpires := getHeaderValue(written, CustomHeaderExpires)
 				Expect(len(writtenExpires)).ToNot(Equal(0))
 
 				timestamp, err := strconv.ParseUint(writtenExpires, 10, 64)
@@ -104,10 +105,10 @@ var _ = Describe("Http", func() {
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()
-				writtenCacheControl := getHeaderValue(written, "Cache-Control")
-				Expect(writtenCacheControl).To(Equal("public"))
+				writtenCacheControl := getHeaderValue(written, HeaderCacheControl)
+				Expect(writtenCacheControl).To(Equal("public, max-age=60"))
 
-				writtenExpires := getHeaderValue(written, "Expires")
+				writtenExpires := getHeaderValue(written, HeaderExpires)
 				Expect(len(writtenExpires)).ToNot(Equal(0))
 
 				t, err := time.Parse(http.TimeFormat, writtenExpires)
@@ -120,14 +121,44 @@ var _ = Describe("Http", func() {
 				WriteHTTP(&buffer, input)
 
 				written := buffer.String()
-				writtenExpires := getHeaderValue(written, HTTPHeaderExpires)
+				writtenExpires := getHeaderValue(written, CustomHeaderExpires)
 				Expect(len(writtenExpires)).To(Equal(0))
+			})
+
+			Describe("WriteHTTPCachingHeaders", func() {
+				It("should pick up value from Expires header", func() {
+					expires := time.Now().Add(time.Hour).Format(http.TimeFormat)
+					input := input2xx
+					input.Header.Add(HeaderExpires, expires)
+					bw := bufio.NewWriter(&buffer)
+					WriteHTTPCachingHeaders(bw, input)
+					bw.Flush()
+
+					written := buffer.String()
+					writtenExpires := getHeaderValue(written, HeaderExpires)
+					Expect(string(writtenExpires)).To(Equal(expires))
+				})
+
+				It("should pick up value from Cache-Control header", func() {
+					maxAge := 3600
+					input := input2xx
+					input.Header.Add(HeaderCacheControl, fmt.Sprintf("max-age=%d", maxAge))
+					bw := bufio.NewWriter(&buffer)
+					WriteHTTPCachingHeaders(bw, input)
+					bw.Flush()
+
+					written := buffer.String()
+					writtenExpires := getHeaderValue(written, CustomHeaderExpires)
+					timestamp, _ := strconv.ParseUint(writtenExpires, 10, 64)
+					Expect(timestamp / uint64(time.Second)).
+						To(BeNumerically("==", time.Now().Add(time.Duration(maxAge)*time.Second).Unix()))
+				})
 			})
 		})
 
 		Context("2xx", func() {
 			It("should write Content-Type header", func() {
-				headerKey := "Content-Type"
+				headerKey := HeaderContentType
 				headerValue := "plain/text"
 				input := input2xx
 				input.Header.Add(headerKey, headerValue)
@@ -155,7 +186,7 @@ var _ = Describe("Http", func() {
 
 		Context("3xx", func() {
 			It("should write Location header", func() {
-				headerKey := "Location"
+				headerKey := HeaderLocation
 				headerValue := "http://domain.com/target/url"
 				url, _ := neturl.Parse("http://domain.com/http/input/3xx/location")
 				input := &Input{StatusCode: 301, URL: url, Header: make(http.Header)}

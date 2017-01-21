@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	neturl "net/url"
+	"strings"
+
+	"github.com/daohoangson/go-sitemirror/cacher"
 )
 
 var (
@@ -74,7 +77,7 @@ func (d *Downloaded) ProcessURL(context urlContext, url string) (string, error) 
 	}
 
 	fullURL := d.BaseURL.ResolveReference(parsedURL)
-	if fullURL.Scheme != "http" && fullURL.Scheme != "https" {
+	if !strings.HasPrefix(fullURL.Scheme, cacher.SchemeDefault) {
 		return url, nil
 	}
 
@@ -110,11 +113,11 @@ func (d *Downloaded) Reduce(url *neturl.URL) string {
 		crossHostOf = func(target *neturl.URL) *neturl.URL {
 			scheme := target.Scheme
 			if len(scheme) == 0 {
-				scheme = "http"
+				scheme = cacher.SchemeDefault
 			}
 
 			crossHost := *target
-			crossHost.Scheme = "http"
+			crossHost.Scheme = cacher.SchemeDefault
 			crossHost.Path = fmt.Sprintf("/%s/%s%s", scheme, target.Host, target.Path)
 			crossHost.Host = "cross.localhost"
 

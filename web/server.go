@@ -192,7 +192,7 @@ func (s *server) serveCrossHost(w http.ResponseWriter, req *http.Request) intern
 
 func (s *server) serveURL(url *url.URL, si internal.ServeInfo, req *http.Request) internal.ServeInfo {
 	if len(url.Scheme) == 0 {
-		url.Scheme = "http"
+		url.Scheme = cacher.SchemeDefault
 	}
 
 	if len(req.Method) > 0 && req.Method != "GET" {

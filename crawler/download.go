@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/daohoangson/go-sitemirror/cacher"
 	cssScanner "github.com/gorilla/css/scanner"
 	"golang.org/x/net/html"
 	htmlAtom "golang.org/x/net/html/atom"
@@ -56,7 +57,7 @@ func Download(input *Input) *Downloaded {
 		return result
 	}
 
-	if input.URL.Scheme != "http" && input.URL.Scheme != "https" {
+	if !strings.HasPrefix(input.URL.Scheme, cacher.SchemeDefault) {
 		result.Error = errors.New(".URL.Scheme must be http/https")
 		return result
 	}

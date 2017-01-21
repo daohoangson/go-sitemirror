@@ -37,6 +37,11 @@ type Input struct {
 }
 
 const (
+	// SchemeDefault the default scheme if none specified
+	SchemeDefault = "http"
+)
+
+const (
 	// HTTPHeaderPrefix prefix for internal headers
 	HTTPHeaderPrefix = "X-Mirror-"
 	// HTTPHeaderURL header key for cache url

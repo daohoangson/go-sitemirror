@@ -236,5 +236,5 @@ func (c *httpCacher) generateCachePath(url *neturl.URL) string {
 	path := c.path
 	c.mutex.Unlock()
 
-	return GenerateCachePath(path, url)
+	return GenerateHTTPCachePath(path, url)
 }

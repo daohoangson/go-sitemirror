@@ -133,7 +133,7 @@ var _ = Describe("Server", func() {
 		It("should response with 501 (empty file -> no first line)", func() {
 			urlPath := "/Serve/501"
 			url, _ := url.Parse("http://domain.com" + urlPath)
-			cachePath := cacher.GenerateCachePath(rootPath, url)
+			cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 			cacheDir, _ := path.Split(cachePath)
 			os.MkdirAll(cacheDir, os.ModePerm)
 			f, _ := os.Create(cachePath)
@@ -259,7 +259,7 @@ var _ = Describe("Server", func() {
 			It("should trigger func on cache error", func() {
 				urlPath := "/SetOnServerIssue/cache/error"
 				url, _ := url.Parse("http://domain.com" + urlPath)
-				cachePath := cacher.GenerateCachePath(rootPath, url)
+				cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
 				os.MkdirAll(cacheDir, os.ModePerm)
 				f, _ := os.Create(cachePath)
@@ -285,7 +285,7 @@ var _ = Describe("Server", func() {
 			It("should trigger func on cache expired", func() {
 				urlPath := "/SetOnServerIssue/cache/expired"
 				url, _ := url.Parse("http://domain.com" + urlPath)
-				cachePath := cacher.GenerateCachePath(rootPath, url)
+				cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
 				os.MkdirAll(cacheDir, os.ModePerm)
 				f, _ := os.Create(cachePath)

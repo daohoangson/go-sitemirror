@@ -49,8 +49,8 @@ func OpenFile(cachePath string) (*os.File, error) {
 	return os.OpenFile(cachePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 }
 
-// GenerateCachePath returns cache path for the specified url
-func GenerateCachePath(rootPath string, url *neturl.URL) string {
+// GenerateHTTPCachePath returns http cache path for the specified url
+func GenerateHTTPCachePath(rootPath string, url *neturl.URL) string {
 	var (
 		urlScheme string
 		urlHost   string
@@ -68,19 +68,23 @@ func GenerateCachePath(rootPath string, url *neturl.URL) string {
 	}
 	dir, file := path.Split(urlPath)
 
-	fileSafe := file
+	var fileSafe string
 	if len(file) > 0 {
 		fileSafe = GetSafePathName(file)
+	}
+
+	dirFileAndQuery := path.Join(dir, fileSafe, queryPath)
+	if len(dirFileAndQuery) > 0 && dirFileAndQuery != "/" {
+		dirFileAndQuery = fmt.Sprintf("%s-%s", dirFileAndQuery, GetShortHash(urlPath))
+	} else {
+		dirFileAndQuery = GetShortHash(urlPath)
 	}
 
 	path := path.Join(
 		rootPath,
 		GetSafePathName(urlScheme),
 		GetSafePathName(urlHost),
-		dir,
-		queryPath,
-		GetShortHash(urlPath),
-		fileSafe,
+		dirFileAndQuery,
 	)
 
 	return path
@@ -94,7 +98,12 @@ func BuildQueryPath(query *neturl.Values) string {
 		queryValues := (*query)[queryKey]
 		sort.Strings(queryValues)
 		for _, queryValue := range queryValues {
-			queryPath = path.Join(queryPath, GetSafePathName(fmt.Sprintf("%s=%s", queryKey, queryValue)))
+			queryElement := queryKey
+			if len(queryValue) > 0 {
+				queryElement = fmt.Sprintf("%s=%s", queryKey, queryValue)
+			}
+
+			queryPath = path.Join(queryPath, GetSafePathName(queryElement))
 		}
 	}
 

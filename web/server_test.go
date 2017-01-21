@@ -158,6 +158,16 @@ var _ = Describe("Server", func() {
 			Expect(w.Code).To(Equal(http.StatusNotFound))
 		})
 
+		It("should default http scheme", func() {
+			root, _ := url.Parse("//domain.com")
+			s := newServer()
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("", "/Serve/default/http", nil)
+			s.Serve(root, w, req)
+
+			Expect(w.Code).To(Equal(http.StatusNotFound))
+		})
+
 		Context("cross-host", func() {
 			It("should response", func() {
 				s := newServer()
@@ -166,6 +176,17 @@ var _ = Describe("Server", func() {
 				s.Serve(nil, w, req)
 
 				Expect(w.Code).To(Equal(http.StatusNotFound))
+			})
+
+			It("should redirect domain root request", func() {
+				path := "/http/domain.com"
+				s := newServer()
+				w := httptest.NewRecorder()
+				req := httptest.NewRequest("", path, nil)
+				s.Serve(nil, w, req)
+
+				Expect(w.Code).To(Equal(http.StatusMovedPermanently))
+				Expect(w.Header().Get("Location")).To(Equal(path + "/"))
 			})
 
 			It("should response error (no scheme, no host)", func() {

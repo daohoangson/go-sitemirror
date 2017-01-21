@@ -175,13 +175,6 @@ var _ = Describe("Engine", func() {
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
 
-				time.Sleep(sleepTime)
-				respRootStart := time.Now()
-				respRoot, _ := http.Get(fmt.Sprintf("http://localhost:%d", port))
-				Expect(respRoot.StatusCode).To(Equal(200))
-				Expect(time.Since(respRootStart)).To(BeNumerically("<", 5*time.Millisecond))
-				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
-
 				respStart := time.Now()
 				resp, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 				Expect(resp.StatusCode).To(Equal(200))
@@ -189,9 +182,9 @@ var _ = Describe("Engine", func() {
 				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
 			})
 
-			It("should queue for cache error", func() {
+			It("should download for cache error", func() {
 				urlRoot := "http://domain.com"
-				urlPath := "/engine/mirror/cache/error/should/queue"
+				urlPath := "/engine/mirror/cache/error/should/download"
 				urlShouldQueue := urlRoot + urlPath
 				httpmock.RegisterResponder("GET", urlRoot+"/", httpmock.NewStringResponder(200, ""))
 				httpmock.RegisterResponder("GET", urlShouldQueue, t.NewSlowResponder(sleepTime))
@@ -207,15 +200,11 @@ var _ = Describe("Engine", func() {
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
 
-				resp1, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
-				Expect(resp1.StatusCode).To(Equal(http.StatusNotImplemented))
-
-				resp2, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
-				Expect(resp2.StatusCode).To(Equal(http.StatusNoContent))
-
-				time.Sleep(sleepTime * 2)
-				resp3, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
-				Expect(resp3.StatusCode).To(Equal(http.StatusOK))
+				respStart := time.Now()
+				resp, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+				Expect(resp.StatusCode).To(Equal(200))
+				Expect(time.Since(respStart)).To(BeNumerically(">", sleepTime))
+				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
 			})
 
 			It("should requeue for cache expired", func() {

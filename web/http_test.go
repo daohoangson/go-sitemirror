@@ -33,6 +33,13 @@ var _ = Describe("HTTP", func() {
 		return bufio.NewReader(newReader(s))
 	}
 
+	newServeInfo := func() (internal.ServeInfo, *httptest.ResponseRecorder) {
+		w := httptest.NewRecorder()
+		si := internal.NewServeInfo(false, w)
+
+		return si, w
+	}
+
 	Describe("ServeDownloaded", func() {
 		It("should write status code, header and content", func() {
 			contentType := "text/plain"
@@ -41,8 +48,7 @@ var _ = Describe("HTTP", func() {
 				Body:       "foo/bar",
 			}
 			downloaded.AddHeader("Content-Type", contentType)
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeDownloaded(downloaded, si)
 
 			Expect(si.HasError()).To(BeFalse())
@@ -60,8 +66,7 @@ var _ = Describe("HTTP", func() {
 				StatusCode: http.StatusMovedPermanently,
 			}
 			downloaded.AddHeader("Location", location)
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeDownloaded(downloaded, si)
 			si.Flush()
 
@@ -79,8 +84,7 @@ var _ = Describe("HTTP", func() {
 				"Content-Length: " + fmt.Sprintf("%d", len(content)) + "\n" +
 				"\n" +
 				string(content))
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeHTTPCache(input, si)
 
 			Expect(si.HasError()).To(BeFalse())
@@ -95,8 +99,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should not write (no status code)", func() {
 			input := newReader("")
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeHTTPCache(input, si)
 			si.Flush()
 
@@ -106,8 +109,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should not write (no header)", func() {
 			input := newReader("HTTP 200\n")
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeHTTPCache(input, si)
 			si.Flush()
 
@@ -119,7 +121,7 @@ var _ = Describe("HTTP", func() {
 	Describe("ServeHTTPGetStatusCode", func() {
 		It("should parse 200", func() {
 			r := newBufioReader("HTTP 200\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			Expect(si.HasError()).To(BeFalse())
@@ -128,7 +130,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should parse 301", func() {
 			r := newBufioReader("HTTP 301\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			Expect(si.HasError()).To(BeFalse())
@@ -137,7 +139,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should parse 404", func() {
 			r := newBufioReader("HTTP 404\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			Expect(si.HasError()).To(BeFalse())
@@ -146,7 +148,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should parse 503", func() {
 			r := newBufioReader("HTTP 503\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			Expect(si.HasError()).To(BeFalse())
@@ -155,7 +157,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle empty input", func() {
 			r := newBufioReader("")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			errorType, err := si.GetError()
@@ -165,7 +167,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle broken input", func() {
 			r := newBufioReader("Oops\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			errorType, err := si.GetError()
@@ -175,7 +177,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle broken status code", func() {
 			r := newBufioReader("HTTP 4294967296\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPGetStatusCode(r, si)
 
 			errorType, err := si.GetError()
@@ -188,8 +190,7 @@ var _ = Describe("HTTP", func() {
 		It("should add Content-Type header", func() {
 			contentType := "application/octet-stream"
 			r := newBufioReader("Content-Type: " + contentType + "\n\n")
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 			si.Flush()
 
@@ -198,18 +199,42 @@ var _ = Describe("HTTP", func() {
 
 		It("should pick up Content-Length header", func() {
 			r := newBufioReader("Content-Length: 1\n\n")
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 			si.Flush()
 
 			Expect(w.Header().Get("Content-Length")).To(Equal("1"))
 		})
 
+		Describe("cross-host ref header", func() {
+			It("should pick up header and continue", func() {
+				statusCode := http.StatusOK
+				r := newBufioReader(fmt.Sprintf("%s: 1\n\n", cacher.HTTPHeaderCrossHostRef))
+				w := httptest.NewRecorder()
+				si := internal.NewServeInfo(true, w)
+				si.SetStatusCode(statusCode)
+				ServeHTTPAddHeaders(r, si)
+				si.Flush()
+
+				Expect(w.Code).To(Equal(statusCode))
+			})
+
+			It("should pick up header and stop", func() {
+				statusCode := http.StatusOK
+				r := newBufioReader(fmt.Sprintf("%s: 1\n\n", cacher.HTTPHeaderCrossHostRef))
+				si, w := newServeInfo()
+				si.SetStatusCode(statusCode)
+				ServeHTTPAddHeaders(r, si)
+				si.Flush()
+
+				Expect(w.Code).To(Equal(http.StatusResetContent))
+			})
+		})
+
 		It("should pick up our expires header", func() {
 			expires := time.Now().Add(time.Minute)
 			r := newBufioReader(fmt.Sprintf("%s: %d\n\n", cacher.HTTPHeaderExpires, expires.UnixNano()))
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 
 			siExpires := si.GetExpires()
@@ -220,8 +245,7 @@ var _ = Describe("HTTP", func() {
 		It("should not add internal headers", func() {
 			r := newBufioReader(fmt.Sprintf("%s-One: 1\nTwo: 2\n%s-Three: 3\n\n",
 				cacher.HTTPHeaderPrefix, cacher.HTTPHeaderPrefix))
-			w := httptest.NewRecorder()
-			si := internal.NewServeInfo(w)
+			si, w := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 			si.Flush()
 
@@ -232,7 +256,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle empty input", func() {
 			r := newBufioReader("")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 
 			errorType, err := si.GetError()
@@ -242,7 +266,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle broken input", func() {
 			r := newBufioReader("Oops\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 
 			errorType, err := si.GetError()
@@ -252,7 +276,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should handle broken content length", func() {
 			r := newBufioReader("Content-Length: 9223372036854775808\n")
-			si := internal.NewServeInfo(httptest.NewRecorder())
+			si, _ := newServeInfo()
 			ServeHTTPAddHeaders(r, si)
 
 			errorType, err := si.GetError()

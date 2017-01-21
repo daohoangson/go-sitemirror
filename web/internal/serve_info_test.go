@@ -17,7 +17,7 @@ var _ = Describe("ServeInfo", func() {
 
 	newServeInfo := func() (ServeInfo, *httptest.ResponseRecorder) {
 		w := httptest.NewRecorder()
-		si := NewServeInfo(w)
+		si := NewServeInfo(false, w)
 
 		return si, w
 	}
@@ -106,7 +106,7 @@ var _ = Describe("ServeInfo", func() {
 
 		It("should handle no status code", func() {
 			si, _ := newServeInfo()
-			si.OnNoStatusCode(ErrorOther, "Error message")
+			si.OnNoStatusCode(ErrorCacheNotFound, "Error message")
 
 			Expect(si.GetStatusCode()).To(BeNumerically(">=", 500))
 			Expect(si.HasError()).To(BeTrue())
@@ -114,7 +114,7 @@ var _ = Describe("ServeInfo", func() {
 
 		It("should handle broken header", func() {
 			si, _ := newServeInfo()
-			si.OnBrokenHeader(ErrorOther, "Error message")
+			si.OnBrokenHeader(ErrorCacheNotFound, "Error message")
 
 			Expect(si.GetStatusCode()).To(BeNumerically(">=", 500))
 			Expect(si.HasError()).To(BeTrue())
@@ -126,6 +126,26 @@ var _ = Describe("ServeInfo", func() {
 
 			Expect(si.GetStatusCode()).To(BeNumerically(">=", 400))
 			Expect(si.GetStatusCode()).To(BeNumerically("<", 500))
+		})
+
+		Describe("OnCrossHostRef", func() {
+			Context("cross-host", func() {
+				It("should not trigger error", func() {
+					si := NewServeInfo(true, httptest.NewRecorder())
+					si.OnCrossHostRef()
+
+					Expect(si.HasError()).To(BeFalse())
+				})
+			})
+
+			Context("non cross-host", func() {
+				It("should trigger error", func() {
+					si := NewServeInfo(false, httptest.NewRecorder())
+					si.OnCrossHostRef()
+
+					Expect(si.HasError()).To(BeTrue())
+				})
+			})
 		})
 	})
 

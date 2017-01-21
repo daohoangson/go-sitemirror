@@ -126,6 +126,8 @@ func (d *Downloaded) Reduce(url *neturl.URL) string {
 		(d.Input.URL.Scheme != url.Scheme ||
 			d.Input.URL.Host != url.Host) {
 		// different host, use cross-host relative path
+		d.addHeaderCrossHostRef()
+
 		return ReduceURL(crossHostOf(d.Input.URL), crossHostOf(url))
 	}
 
@@ -156,4 +158,13 @@ func (d *Downloaded) GetDiscoveredURLs() []*neturl.URL {
 	}
 
 	return urls
+}
+
+func (d *Downloaded) addHeaderCrossHostRef() {
+	if d.addedHeaderCrossHostRef {
+		return
+	}
+
+	d.addedHeaderCrossHostRef = true
+	d.AddHeader(cacher.HTTPHeaderCrossHostRef, "1")
 }

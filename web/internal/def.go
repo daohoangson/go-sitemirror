@@ -18,6 +18,7 @@ type ServeInfo interface {
 	OnNoStatusCode(errorType, string, ...interface{}) ServeInfo
 	OnBrokenHeader(errorType, string, ...interface{}) ServeInfo
 	OnCrossHostInvalidPath() ServeInfo
+	OnCrossHostRef() ServeInfo
 
 	SetStatusCode(int)
 	SetExpires(time.Time)
@@ -42,8 +43,8 @@ const (
 	ErrorWriteBody
 	// ErrorCopyBody serve info error type when occur an error during body copy
 	ErrorCopyBody
-	// ErrorOther generic serve info error type
-	ErrorOther
+	// ErrorCrossHostRefOnNonCrossHost serve info error type when a cross-host reference found in non cross-host context
+	ErrorCrossHostRefOnNonCrossHost
 )
 
 type errorType int

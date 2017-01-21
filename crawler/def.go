@@ -71,8 +71,9 @@ type Downloaded struct {
 	LinksDiscovered map[string]Link
 	StatusCode      int
 
-	buffer *bytes.Buffer
-	header http.Header
+	buffer                  *bytes.Buffer
+	header                  http.Header
+	addedHeaderCrossHostRef bool
 }
 
 // Link represents an extracted link from download result

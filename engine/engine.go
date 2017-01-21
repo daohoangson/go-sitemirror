@@ -94,22 +94,22 @@ func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
 		e.mutex.Unlock()
 	})
 
+	downloadAndServe := func(issue *web.ServerIssue) {
+		e.cacher.WritePlaceholder(issue.URL, e.bumpTTL)
+		downloaded := e.crawler.Download(crawler.QueueItem{
+			URL:           issue.URL,
+			ForceDownload: true,
+		})
+		web.ServeDownloaded(downloaded, issue.Info)
+	}
 	e.server.SetOnServerIssue(func(issue *web.ServerIssue) {
 		switch issue.Type {
 		case web.MethodNotAllowed:
 			issue.Info.WriteBody([]byte(ResponseBodyMethodNotAllowed))
 		case web.CacheNotFound:
-			e.cacher.WritePlaceholder(issue.URL, e.bumpTTL)
-
-			downloaded := e.crawler.Download(crawler.QueueItem{
-				URL:           issue.URL,
-				ForceDownload: true,
-			})
-
-			web.ServeDownloaded(downloaded, issue.Info)
+			downloadAndServe(issue)
 		case web.CacheError:
-			e.cacher.WritePlaceholder(issue.URL, e.bumpTTL)
-			e.crawler.Enqueue(crawler.QueueItem{URL: issue.URL})
+			downloadAndServe(issue)
 		case web.CacheExpired:
 			e.cacher.Bump(issue.URL, e.bumpTTL)
 			e.crawler.Enqueue(crawler.QueueItem{

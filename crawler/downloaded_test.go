@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/daohoangson/go-sitemirror/cacher"
 	. "github.com/daohoangson/go-sitemirror/crawler"
 	t "github.com/daohoangson/go-sitemirror/testing"
 
@@ -195,6 +196,23 @@ var _ = Describe("Downloaded", func() {
 					reduced := downloaded.Reduce(parsedURL)
 
 					Expect(reduced).To(Equal("../../../https/domain2.com/Reduce/cross/scheme"))
+				})
+
+				It("should set ref header", func() {
+					url := "http://domain2.com/Reduce/cross/host/ref/header"
+					parsedURL, _ := neturl.Parse(url)
+					downloaded.Reduce(parsedURL)
+
+					Expect(len(downloaded.GetHeaderValues(cacher.HTTPHeaderCrossHostRef))).To(Equal(1))
+				})
+
+				It("should set ref header once", func() {
+					url := "http://domain2.com/Reduce/cross/host/ref/header/once"
+					parsedURL, _ := neturl.Parse(url)
+					downloaded.Reduce(parsedURL)
+					downloaded.Reduce(parsedURL)
+
+					Expect(len(downloaded.GetHeaderValues(cacher.HTTPHeaderCrossHostRef))).To(Equal(1))
 				})
 
 				It("should not reduce", func() {

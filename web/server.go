@@ -153,14 +153,17 @@ func (s *server) Stop() []string {
 }
 
 func (s *server) serveWithRoot(scheme string, host string, w http.ResponseWriter, req *http.Request) internal.ServeInfo {
+	si := internal.NewServeInfo(false, w)
+
 	targetURL, _ := url.Parse(req.URL.String())
 	targetURL.Scheme = scheme
 	targetURL.Host = host
 
-	return s.serveURL(targetURL, w, req)
+	return s.serveURL(targetURL, si, req)
 }
 
 func (s *server) serveCrossHost(w http.ResponseWriter, req *http.Request) internal.ServeInfo {
+	si := internal.NewServeInfo(true, w)
 	targetURL, _ := url.Parse(req.URL.String())
 
 	matches := regexpCrossHostPath.FindStringSubmatch(targetURL.Path)
@@ -168,7 +171,7 @@ func (s *server) serveCrossHost(w http.ResponseWriter, req *http.Request) intern
 		return s.serveServerIssue(&ServerIssue{
 			Type: CrossHostInvalidPath,
 			URL:  targetURL,
-			Info: internal.NewServeInfo(w).OnCrossHostInvalidPath(),
+			Info: si.OnCrossHostInvalidPath(),
 		})
 	}
 
@@ -179,18 +182,15 @@ func (s *server) serveCrossHost(w http.ResponseWriter, req *http.Request) intern
 	if len(targetURL.Path) == 0 {
 		// relative urls do not work correctly if user is on http://localhost/https/domain.com
 		// so we will take care of it here and redirect to ./
-		redirect := internal.NewServeInfo(w)
-		redirect.SetStatusCode(http.StatusMovedPermanently)
-		redirect.AddHeader("Location", fmt.Sprintf("/%s/%s/", targetURL.Scheme, targetURL.Host))
-		return redirect.Flush()
+		si.SetStatusCode(http.StatusMovedPermanently)
+		si.AddHeader("Location", fmt.Sprintf("/%s/%s/", targetURL.Scheme, targetURL.Host))
+		return si.Flush()
 	}
 
-	return s.serveURL(targetURL, w, req)
+	return s.serveURL(targetURL, si, req)
 }
 
-func (s *server) serveURL(url *url.URL, w http.ResponseWriter, req *http.Request) internal.ServeInfo {
-	si := internal.NewServeInfo(w)
-
+func (s *server) serveURL(url *url.URL, si internal.ServeInfo, req *http.Request) internal.ServeInfo {
 	if len(url.Scheme) == 0 {
 		url.Scheme = "http"
 	}

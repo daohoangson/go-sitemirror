@@ -41,6 +41,8 @@ const (
 	HTTPHeaderPrefix = "X-Mirror-"
 	// HTTPHeaderURL header key for cache url
 	HTTPHeaderURL = "X-Mirror-Url"
+	// HTTPHeaderCrossHostRef header key for cross host reference flag
+	HTTPHeaderCrossHostRef = "X-Mirror-Cross-Host-Ref"
 	// HTTPHeaderExpires header key for cache expire time in nano second
 	HTTPHeaderExpires = "X-Mirror-Expires"
 )

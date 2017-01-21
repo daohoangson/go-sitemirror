@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,14 +16,16 @@ type serveInfo struct {
 
 	errorType             errorType
 	error                 error
+	crossHost             bool
 	responseWriter        http.ResponseWriter
 	responseHeader        http.Header
 	responseWrittenHeader bool
 }
 
 // NewServeInfo returns a new ServeInfo instance
-func NewServeInfo(w http.ResponseWriter) ServeInfo {
+func NewServeInfo(crossHost bool, w http.ResponseWriter) ServeInfo {
 	s := &serveInfo{
+		crossHost:      crossHost,
 		responseWriter: w,
 		responseHeader: make(http.Header),
 	}
@@ -89,6 +92,17 @@ func (si *serveInfo) OnCrossHostInvalidPath() ServeInfo {
 
 	return si
 }
+
+func (si *serveInfo) OnCrossHostRef() ServeInfo {
+	if !si.crossHost {
+		si.statusCode = http.StatusResetContent
+		si.errorType = ErrorCrossHostRefOnNonCrossHost
+		si.error = errors.New("Found cross-host reference in non cross-host context")
+	}
+
+	return si
+}
+
 func (si *serveInfo) SetStatusCode(statusCode int) {
 	si.statusCode = statusCode
 	si.errorType = 0

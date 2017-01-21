@@ -113,6 +113,12 @@ func serveHTTPAddHeader(line string, info internal.ServeInfo) bool {
 
 		info.SetContentLength(contentLength)
 		return false
+	case cacher.HTTPHeaderCrossHostRef:
+		info.OnCrossHostRef()
+		if info.HasError() {
+			return true
+		}
+		return false
 	case cacher.HTTPHeaderExpires:
 		if expires, err := strconv.ParseInt(headerValue, 10, 64); err == nil {
 			t := time.Unix(0, expires)

@@ -254,9 +254,9 @@ var _ = Describe("Engine", func() {
 	})
 
 	Describe("hostRewrites", func() {
-		It("should rewrite", func() {
-			url0 := "http://domain.com/engine/download/rewrite/0"
-			url1Path := "/engine/download/rewrite/1"
+		It("should rewrite host", func() {
+			url0 := "http://domain.com/engine/download/rewrite/host/0"
+			url1Path := "/engine/download/rewrite/host/1"
 			url1 := "http://domain.com" + url1Path
 			url1OtherDomain := "http://other.domain.com" + url1Path
 			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1OtherDomain))
@@ -283,6 +283,69 @@ var _ = Describe("Engine", func() {
 			Expect(e.GetCrawler().IsBusy()).To(BeFalse())
 			Expect(url1Downloaded).To(BeTrue())
 			Expect(url1OtherDomainDownloaded).To(BeFalse())
+		})
+
+		It("should rewrite scheme", func() {
+			url0 := "http://domain.com/engine/download/rewrite/scheme/0"
+			url1Path := "/engine/download/rewrite/scheme/1"
+			url1 := "http://domain.com" + url1Path
+			url1OtherScheme := "https://other.domain.com" + url1Path
+			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1OtherScheme))
+			httpmock.RegisterResponder("GET", url0, t.NewHTMLResponder(html0))
+			url1Downloaded := false
+			httpmock.RegisterResponder("GET", url1, func(req *http.Request) (*http.Response, error) {
+				url1Downloaded = true
+				return httpmock.NewStringResponse(http.StatusOK, ""), nil
+			})
+			url1OtherSchemeDownloaded := false
+			httpmock.RegisterResponder("GET", url1OtherScheme, func(req *http.Request) (*http.Response, error) {
+				url1OtherSchemeDownloaded = true
+				return httpmock.NewStringResponse(http.StatusOK, ""), nil
+			})
+
+			e := newEngine()
+			e.AddHostRewrite("other.domain.com", "http://domain.com")
+			mirrorURL(e, url0, -1)
+			defer e.Stop()
+
+			time.Sleep(sleepTime)
+			Expect(e.GetCrawler().GetLinkFoundCount()).To(Equal(uint64One))
+			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
+			Expect(e.GetCrawler().IsBusy()).To(BeFalse())
+			Expect(url1Downloaded).To(BeTrue())
+			Expect(url1OtherSchemeDownloaded).To(BeFalse())
+		})
+
+		It("should rewrite path", func() {
+			url0 := "http://domain.com/engine/download/rewrite/path/0"
+			url1Path := "/engine/download/rewrite/path/1"
+			url1Prefix := "/prefix"
+			url1 := "http://domain.com" + url1Prefix + url1Path
+			url1OtherPath := "http://other.domain.com" + url1Path
+			html0 := t.NewHTMLMarkup(fmt.Sprintf("<a href=\"%s\">Link</a>", url1OtherPath))
+			httpmock.RegisterResponder("GET", url0, t.NewHTMLResponder(html0))
+			url1Downloaded := false
+			httpmock.RegisterResponder("GET", url1, func(req *http.Request) (*http.Response, error) {
+				url1Downloaded = true
+				return httpmock.NewStringResponse(http.StatusOK, ""), nil
+			})
+			url1OtherPathDownloaded := false
+			httpmock.RegisterResponder("GET", url1OtherPath, func(req *http.Request) (*http.Response, error) {
+				url1OtherPathDownloaded = true
+				return httpmock.NewStringResponse(http.StatusOK, ""), nil
+			})
+
+			e := newEngine()
+			e.AddHostRewrite("other.domain.com", "http://domain.com"+url1Prefix)
+			mirrorURL(e, url0, -1)
+			defer e.Stop()
+
+			time.Sleep(sleepTime)
+			Expect(e.GetCrawler().GetLinkFoundCount()).To(Equal(uint64One))
+			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
+			Expect(e.GetCrawler().IsBusy()).To(BeFalse())
+			Expect(url1Downloaded).To(BeTrue())
+			Expect(url1OtherPathDownloaded).To(BeFalse())
 		})
 	})
 

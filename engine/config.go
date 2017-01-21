@@ -80,7 +80,7 @@ func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
 	config.LoggerLevel = configLoggerLevel(ConfigDefaultLoggerLevel)
 	fs.Var(&config.LoggerLevel, "log", "Logging output level")
 
-	fs.Var(&config.HostRewrites, "rewrite", "Link rewrites, must be 'source.domain.com=target.domain.com'")
+	fs.Var(&config.HostRewrites, "rewrite", "Link rewrites, must be 'source.domain.com=http://target.domain.com/some/path'")
 	fs.Var(&config.HostsWhitelist, "whitelist", "Restricted list of crawlable hosts")
 	fs.DurationVar(&config.BumpTTL, "cache-bump", ConfigDefaultBumpTTL, "Validity of cache bump, default=1m")
 	fs.DurationVar(&config.AutoEnqueueInterval, "auto-refresh", ConfigDefaultAutoEnqueueInterval, "Interval for url auto refreshes, default=no refresh")
@@ -253,7 +253,7 @@ func (f *configStringMap) String() string {
 
 func (f *configStringMap) Set(value string) error {
 	var (
-		help = errors.New("must be 'source.domain.com=target.domain.com'")
+		help = errors.New("must be 'source.domain.com=http://target.domain.com/some/path'")
 	)
 
 	parts := strings.Split(value, "=")

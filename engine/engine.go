@@ -3,6 +3,7 @@ package engine
 import (
 	"net/http"
 	neturl "net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,7 +22,7 @@ type engine struct {
 	crawler crawler.Crawler
 	server  web.Server
 
-	hostRewrites        map[string]string
+	hostRewrites        map[string]engineHostRewrite
 	hostsWhitelist      []string
 	bumpTTL             time.Duration
 	autoEnqueueInterval time.Duration
@@ -32,6 +33,8 @@ type engine struct {
 	stopped             *abool.AtomicBool
 	downloadedSomething chan interface{}
 }
+
+type engineHostRewrite func(*neturl.URL) string
 
 // New returns a new Engine instance
 func New(httpClient *http.Client, logger *logrus.Logger) Engine {
@@ -56,7 +59,7 @@ func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
 	e.downloadedSomething = make(chan interface{})
 
 	e.crawler.SetURLRewriter(func(u *neturl.URL) {
-		e.rewriteURLHost(u)
+		e.rewriteURL(u)
 	})
 
 	e.crawler.SetOnURLShouldQueue(func(u *neturl.URL) bool {
@@ -137,14 +140,32 @@ func (e *engine) AddHostRewrite(from string, to string) {
 	defer e.mutex.Unlock()
 
 	if e.hostRewrites == nil {
-		e.hostRewrites = make(map[string]string)
+		e.hostRewrites = make(map[string]engineHostRewrite)
 	}
 
-	e.hostRewrites[from] = to
+	var parsedTo *neturl.URL
+	if strings.HasPrefix(to, "http") {
+		parsedTo, _ = neturl.Parse(to)
+	}
+
+	e.hostRewrites[from] = func(url *neturl.URL) string {
+		if url != nil {
+			if parsedTo != nil {
+				url.Scheme = parsedTo.Scheme
+				url.Host = parsedTo.Host
+				url.Path = strings.TrimRight(parsedTo.Path, "/") + url.Path
+			} else {
+				url.Host = to
+			}
+		}
+
+		return to
+	}
+
 	e.logger.WithFields(logrus.Fields{
-		"from":    from,
-		"to":      to,
-		"mapping": e.hostRewrites,
+		"from":     from,
+		"to":       to,
+		"mappings": len(e.hostRewrites),
 	}).Info("Added host rewrite")
 }
 
@@ -155,8 +176,8 @@ func (e *engine) GetHostRewrites() map[string]string {
 	hostRewrites := make(map[string]string)
 
 	if e.hostRewrites != nil {
-		for from, to := range e.hostRewrites {
-			hostRewrites[from] = to
+		for from, f := range e.hostRewrites {
+			hostRewrites[from] = f(nil)
 		}
 	}
 
@@ -313,7 +334,7 @@ func (e *engine) autoEnqueue(url *neturl.URL) {
 	})
 }
 
-func (e *engine) rewriteURLHost(url *neturl.URL) {
+func (e *engine) rewriteURL(url *neturl.URL) {
 	e.mutex.Lock()
 	hostRewrites := e.hostRewrites
 	e.mutex.Unlock()
@@ -322,15 +343,15 @@ func (e *engine) rewriteURLHost(url *neturl.URL) {
 		return
 	}
 
-	for from, to := range hostRewrites {
+	for from, f := range hostRewrites {
 		if url.Host == from {
 			urlBefore := url.String()
-			url.Host = to
+			f(url)
 
 			e.logger.WithFields(logrus.Fields{
 				"before": urlBefore,
 				"after":  url.String(),
-			}).Debug("Rewritten url host")
+			}).Debug("Rewritten url")
 
 			return
 		}

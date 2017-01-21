@@ -75,10 +75,11 @@ func GenerateCachePath(rootPath string, url *neturl.URL) string {
 
 	path := path.Join(
 		rootPath,
+		GetSafePathName(urlScheme),
 		GetSafePathName(urlHost),
 		dir,
 		queryPath,
-		GetShortHash(urlScheme + urlPath),
+		GetShortHash(urlPath),
 		fileSafe,
 	)
 

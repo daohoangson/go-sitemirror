@@ -134,34 +134,36 @@ var _ = Describe("Fileop", func() {
 
 		expectIsHashOf := func(actual string, value string) {
 			if len(value) <= MaxPathNameLength {
-				Expect(actual).To(Equal(value))
+				ExpectWithOffset(1, actual).To(Equal(value))
 			} else {
-				Expect(len(actual)).To(Equal(MaxPathNameLength))
+				ExpectWithOffset(1, len(actual)).To(Equal(MaxPathNameLength))
 
 				lengthRemaining := MaxPathNameLength - ShortHashLength - 1
-				Expect(actual[:lengthRemaining]).To(Equal(value[:lengthRemaining]))
+				ExpectWithOffset(1, actual[:lengthRemaining]).To(Equal(value[:lengthRemaining]))
 			}
 		}
 
-		It("should keep url host + path", func() {
+		It("should keep url scheme + host + path", func() {
+			scheme := "http"
 			hostAndDir := "domain.com/fileop/keep/host/path"
 			file := "file"
-			url, _ := url.Parse("http://" + hostAndDir + "/" + file)
+			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file)
 			_, gDir, gFile := generateCachePath(url)
 
-			Expect(gDir).To(Equal(hostAndDir))
+			Expect(gDir).To(Equal(path.Join(scheme, hostAndDir)))
 			Expect(gFile).To(Equal(file))
 		})
 
 		It("should use hash for no path", func() {
+			scheme := "http"
 			host := "domain.com"
-			url, _ := url.Parse("http://" + host)
+			url, _ := url.Parse(scheme + "://" + host)
 			g, _, file := generateCachePath(url)
 
 			gWithoutRoot := g[len(rootPath)+1:]
 			gWithoutFile := gWithoutRoot[:len(gWithoutRoot)-len(file)-1]
 
-			Expect(gWithoutFile).To(Equal(host))
+			Expect(gWithoutFile).To(Equal(path.Join(scheme, host)))
 		})
 
 		It("should use hash for long host", func() {
@@ -172,7 +174,7 @@ var _ = Describe("Fileop", func() {
 			_, gDir, _ := generateCachePath(url)
 
 			gDirParts := strings.Split(gDir, pathSeparator)
-			expectIsHashOf(gDirParts[0], host)
+			expectIsHashOf(gDirParts[1], host)
 		})
 
 		It("should use hash for long file", func() {
@@ -185,22 +187,25 @@ var _ = Describe("Fileop", func() {
 		})
 
 		It("should use hash for no file", func() {
+			scheme := "http"
 			hostAndDir := "domain.com/fileop/hash/no/file/"
-			url, _ := url.Parse("http://" + hostAndDir)
+			url, _ := url.Parse(scheme + "://" + hostAndDir)
 			g, _, _ := generateCachePath(url)
 
 			gDir, _ := path.Split(g)
-			Expect(gDir).To(Equal(rootPath + "/" + hostAndDir))
+			gDir = path.Dir(gDir)
+			Expect(gDir).To(Equal(path.Join(rootPath, scheme, hostAndDir)))
 		})
 
 		It("should keep query", func() {
+			scheme := "http"
 			hostAndDir := "domain.com/fileop/keep/query"
 			file := "file"
 			query := "foo=bar"
-			url, _ := url.Parse("http://" + hostAndDir + "/" + file + "?" + query)
+			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
 			_, gDir, _ := generateCachePath(url)
 
-			Expect(gDir).To(Equal(hostAndDir + "/" + query))
+			Expect(gDir).To(Equal(path.Join(scheme, hostAndDir, query)))
 		})
 
 		It("should use hash for long query", func() {
@@ -216,13 +221,14 @@ var _ = Describe("Fileop", func() {
 		})
 
 		It("should remove slashes from query", func() {
+			scheme := "http"
 			hostAndDir := "domain.com/fileop/remove/slashes/query"
 			file := "file"
 			query := "foo=b/a%2Fr"
-			url, _ := url.Parse("http://" + hostAndDir + "/" + file + "?" + query)
+			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
 			_, gDir, _ := generateCachePath(url)
 
-			Expect(gDir).To(Equal(hostAndDir + "/foo=bar"))
+			Expect(gDir).To(Equal(path.Join(scheme, hostAndDir, "foo=bar")))
 		})
 
 		It("should generate different path for slashes", func() {

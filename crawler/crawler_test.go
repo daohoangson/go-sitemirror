@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	. "github.com/daohoangson/go-sitemirror/crawler"
 	t "github.com/daohoangson/go-sitemirror/testing"
 	"github.com/tevino/abool"
@@ -23,11 +22,8 @@ var _ = Describe("Crawler", func() {
 	const uint64One = uint64(1)
 	const uint64Two = uint64(2)
 
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-
 	var newCrawler = func() Crawler {
-		c := New(http.DefaultClient, logger)
+		c := New(http.DefaultClient, t.Logger())
 
 		return c
 	}
@@ -48,15 +44,7 @@ var _ = Describe("Crawler", func() {
 	})
 
 	It("should work with init(nil, nil)", func() {
-		url := "http://domain.com/crawl/init/nil"
-		httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
-
-		c := New(nil, nil)
-		enqueueURL(c, url)
-		defer c.Stop()
-
-		downloaded, _ := c.Downloaded()
-		Expect(downloaded.BaseURL.String()).To(Equal(url))
+		New(nil, nil)
 	})
 
 	It("should set auto download depth", func() {
@@ -194,10 +182,10 @@ var _ = Describe("Crawler", func() {
 			httpmock.RegisterResponder("GET", urlShouldQueue, httpmock.NewStringResponder(200, ""))
 
 			c := newCrawler()
-			urlNotQueueFound := false
+			urlNotQueueFound := abool.New()
 			c.SetOnURLShouldQueue(func(u *neturl.URL) bool {
 				if u.String() == urlNotQueue {
-					urlNotQueueFound = true
+					urlNotQueueFound.Set()
 					return false
 				}
 
@@ -216,7 +204,7 @@ var _ = Describe("Crawler", func() {
 			time.Sleep(sleepTime)
 			Expect(c.IsBusy()).To(BeFalse())
 
-			Expect(urlNotQueueFound).To(BeTrue())
+			Expect(urlNotQueueFound.IsSet()).To(BeTrue())
 		})
 	})
 

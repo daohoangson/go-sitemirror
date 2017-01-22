@@ -116,7 +116,9 @@ func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
 
 func (c *httpCacher) Write(input *Input) error {
 	if input.TTL == 0 {
+		c.mutex.Lock()
 		input.TTL = c.defaultTTL
+		c.mutex.Unlock()
 	}
 
 	cachePath := c.generateCachePath(input.URL)

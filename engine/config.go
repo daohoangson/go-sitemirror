@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -72,10 +73,11 @@ const (
 )
 
 // ParseConfig returns configuration derived from command line arguments or environment variables
-func ParseConfig(arg0 string, otherArgs []string) (*Config, error) {
+func ParseConfig(arg0 string, otherArgs []string, output io.Writer) (*Config, error) {
 	config := &Config{}
 
 	fs := flag.NewFlagSetWithEnvPrefix(arg0, ConfigEnvVarPrefix, 0)
+	fs.SetOutput(output)
 
 	config.LoggerLevel = configLoggerLevel(ConfigDefaultLoggerLevel)
 	fs.Var(&config.LoggerLevel, "log", "Logging output level")

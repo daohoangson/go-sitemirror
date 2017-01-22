@@ -10,8 +10,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/daohoangson/go-sitemirror/cacher"
+	t "github.com/daohoangson/go-sitemirror/testing"
 	. "github.com/daohoangson/go-sitemirror/web"
 
 	. "github.com/onsi/ginkgo"
@@ -22,14 +22,11 @@ var _ = Describe("Server", func() {
 	tmpDir := os.TempDir()
 	rootPath := path.Join(tmpDir, "_TestServer_")
 
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-
-	c := cacher.NewHTTPCacher(logger)
+	c := cacher.NewHTTPCacher(t.Logger())
 	c.SetPath(rootPath)
 
 	var newServer = func() Server {
-		return NewServer(c, logger)
+		return NewServer(c, t.Logger())
 	}
 
 	BeforeEach(func() {
@@ -38,6 +35,12 @@ var _ = Describe("Server", func() {
 
 	AfterEach(func() {
 		os.RemoveAll(rootPath)
+	})
+
+	It("should work with init(nil, nil)", func() {
+		e := NewServer(nil, nil)
+
+		Expect(e.GetCacher()).ToNot(BeNil())
 	})
 
 	Describe("ListenAndServe", func() {
@@ -89,13 +92,12 @@ var _ = Describe("Server", func() {
 			root, _ := url.Parse("http://not.listen.twice.same.host.com")
 			s := newServer()
 
-			l1, err1 := s.ListenAndServe(root, 0)
+			_, err1 := s.ListenAndServe(root, 0)
 			Expect(err1).ToNot(HaveOccurred())
 			defer s.Stop()
 
-			l2, err2 := s.ListenAndServe(root, 0)
+			_, err2 := s.ListenAndServe(root, 0)
 			Expect(err2).To(HaveOccurred())
-			Expect(l2).To(Equal(l1))
 		})
 
 		Describe("GetListenerPort", func() {
@@ -115,6 +117,30 @@ var _ = Describe("Server", func() {
 				_, err := s.GetListeningPort("return.error.unknown.com")
 
 				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Describe("listenerCloser", func() {
+			It("should close", func() {
+				root, _ := url.Parse("http://listenerClose.should.close/")
+				s := newServer()
+				l, _ := s.ListenAndServe(root, 0)
+
+				err := l.Close()
+
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should not panic on Close() being called twice", func() {
+				root, _ := url.Parse("http://listenerClose.close.twice/")
+				s := newServer()
+				l, _ := s.ListenAndServe(root, 0)
+
+				err1 := l.Close()
+				Expect(err1).ToNot(HaveOccurred())
+
+				err2 := l.Close()
+				Expect(err2).ToNot(HaveOccurred())
 			})
 		})
 	})
@@ -145,17 +171,6 @@ var _ = Describe("Server", func() {
 			s.Serve(url, w, req)
 
 			Expect(w.Code).To(Equal(http.StatusNotImplemented))
-		})
-
-		It("should response on New(nil, nil)", func() {
-			root, _ := url.Parse("http://domain.com")
-			s := NewServer(nil, nil)
-			s.GetCacher().SetPath(rootPath)
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest("", "/new/nil/nil", nil)
-			s.Serve(root, w, req)
-
-			Expect(w.Code).To(Equal(http.StatusNotFound))
 		})
 
 		It("should default http scheme", func() {

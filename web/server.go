@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -22,7 +23,13 @@ type server struct {
 
 	onServerIssue *func(*ServerIssue)
 
+	mutex     sync.Mutex
 	listeners map[string]net.Listener
+}
+
+type listenerCloser struct {
+	server *server
+	host   string
 }
 
 var (
@@ -67,52 +74,41 @@ func (s *server) ListenAndServe(root *url.URL, port int) (io.Closer, error) {
 	if root != nil {
 		host = root.Host
 	}
-	if existing, existingFound := s.listeners[host]; existingFound {
-		return existing, errors.New("Existing listener has been found for this host")
-	}
-
 	loggerContext := s.logger.WithFields(logrus.Fields{
 		"root": root,
 		"port": port,
 	})
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if _, existingFound := s.listeners[host]; existingFound {
+		return nil, errors.New("Existing listener has been found for this host")
+	}
 
 	listener, listenError := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if listenError != nil {
 		loggerContext.WithField("error", listenError).Errorf("Cannot listen")
 		return nil, listenError
 	}
+	s.listeners[host] = listener
 
 	if port == 0 {
 		loggerContext = loggerContext.WithField("addr", listener.Addr().String())
 	}
 
-	start := time.Now()
-	go func() {
-		var f http.HandlerFunc = func(w http.ResponseWriter, req *http.Request) {
-			s.Serve(root, w, req)
-		}
+	s.setupListener(listener, host, root)
 
-		loggerContext.Info("Serving")
-		serveError := http.Serve(listener, f)
-		if serveError != nil {
-			elapsed := time.Since(start)
-			errorContext := loggerContext.WithField("error", serveError)
-			if elapsed > 50*time.Millisecond {
-				// some time has passed, it's likely that it worked
-				// but the listener has been asked to be closed
-				errorContext.Debug("Listener has been closed")
-			} else {
-				errorContext.Errorf("Cannot serve")
-			}
-		}
-	}()
+	closer := &listenerCloser{server: s, host: host}
+	loggerContext.Info("Listening...")
 
-	s.listeners[host] = listener
-	return listener, nil
+	return closer, nil
 }
 
 func (s *server) GetListeningPort(host string) (int, error) {
+	s.mutex.Lock()
 	listener, ok := s.listeners[host]
+	s.mutex.Unlock()
+
 	if !ok {
 		return 0, errors.New("Listener not found")
 	}
@@ -133,23 +129,63 @@ func (s *server) Serve(root *url.URL, w http.ResponseWriter, req *http.Request) 
 }
 
 func (s *server) Stop() []string {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	hosts := make([]string, 0)
 
+	i := 0
+	l := len(s.listeners)
 	for host, listener := range s.listeners {
+		i++
+		loggerContext := s.logger.WithFields(logrus.Fields{
+			"host":  host,
+			"index": i,
+			"total": l,
+		})
+		loggerContext.Debug("Closing listener...")
+
 		err := listener.Close()
-		loggerContext := s.logger.WithField("host", host)
 
 		if err == nil {
-			loggerContext.Info("Stopped listening")
+			loggerContext.Info("Closed listener")
 			hosts = append(hosts, host)
 		} else {
-			loggerContext.WithField("error", err).Error("Cannot stop listening")
+			loggerContext.WithError(err).Error("Cannot close listener")
 		}
 
 		delete(s.listeners, host)
 	}
 
 	return hosts
+}
+
+func (s *server) setupListener(listener net.Listener, host string, root *url.URL) {
+
+	go func() {
+		var f http.HandlerFunc = func(w http.ResponseWriter, req *http.Request) {
+			s.Serve(root, w, req)
+		}
+
+		serveError := http.Serve(listener, f)
+		if serveError != nil {
+			loggerContext := s.logger.WithFields(logrus.Fields{
+				"host":  host,
+				"error": serveError,
+			})
+
+			s.mutex.Lock()
+			_, found := s.listeners[host]
+			s.mutex.Unlock()
+
+			if !found {
+				// no listener record found, probably closed properly
+				loggerContext.Debug("Listener has been closed")
+			} else {
+				loggerContext.Error("Cannot serve")
+			}
+		}
+	}()
 }
 
 func (s *server) serveWithRoot(scheme string, host string, w http.ResponseWriter, req *http.Request) internal.ServeInfo {
@@ -258,4 +294,25 @@ func (s *server) triggerOnServerIssue(issue *ServerIssue) {
 	}
 
 	(*s.onServerIssue)(issue)
+}
+
+func (closer *listenerCloser) Close() error {
+	loggerContext := closer.server.logger.WithField("host", closer.host)
+	loggerContext.Debug("Closing listener...")
+
+	closer.server.mutex.Lock()
+	defer closer.server.mutex.Unlock()
+
+	listener, found := closer.server.listeners[closer.host]
+	if !found {
+		loggerContext.Debug("Listener has already been closed")
+		return nil
+	}
+
+	delete(closer.server.listeners, closer.host)
+	err := listener.Close()
+
+	loggerContext.WithError(err).Info("Closed listener")
+
+	return err
 }

@@ -2,6 +2,7 @@ package crawler_test
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/daohoangson/go-sitemirror/cacher"
@@ -63,7 +64,9 @@ var _ = Describe("Downloaded", func() {
 			downloaded.AddHeader(headerKey, headerVal1)
 			downloaded.AddHeader(headerKey2, headerVal2)
 
-			Expect(downloaded.GetHeaderKeys()).To(Equal([]string{
+			keys := downloaded.GetHeaderKeys()
+			sort.Strings(keys)
+			Expect(keys).To(Equal([]string{
 				headerKey,
 				headerKey2,
 			}))

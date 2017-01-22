@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	. "github.com/daohoangson/go-sitemirror/cacher"
+	t "github.com/daohoangson/go-sitemirror/testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,8 +22,7 @@ var _ = Describe("HttpCacher", func() {
 	tmpDir := os.TempDir()
 	rootPath := path.Join(tmpDir, "_TestHttpCacher_")
 
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
+	logger := t.Logger()
 
 	var newHttpCacherWithRootPath = func() Cacher {
 		c := NewHTTPCacher(logger)

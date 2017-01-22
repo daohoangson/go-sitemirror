@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,8 +19,10 @@ import (
 )
 
 var _ = Describe("Config", func() {
+	buffer := &bytes.Buffer{}
+
 	parseConfigWithDefaultArg0 := func(args ...string) *Config {
-		config, _ := ParseConfig(os.Args[0], args)
+		config, _ := ParseConfig(os.Args[0], args, buffer)
 		return config
 	}
 
@@ -254,9 +257,14 @@ var _ = Describe("Config", func() {
 	})
 
 	Describe("FromConfig", func() {
+		fromConfigWithDefaultArg0 := func(args ...string) Engine {
+			args = append(args, "-log", t.Logger().Level.String())
+			config := parseConfigWithDefaultArg0(args...)
+			return FromConfig(config)
+		}
+
 		It("should return", func() {
-			config := parseConfigWithDefaultArg0()
-			e := FromConfig(config)
+			e := fromConfigWithDefaultArg0()
 
 			Expect(e).ToNot(BeNil())
 		})
@@ -264,32 +272,28 @@ var _ = Describe("Config", func() {
 		It("should add host rewrite", func() {
 			hostRewrites := make(map[string]string)
 			hostRewrites["domain1.com"] = "domain.com"
-			config := parseConfigWithDefaultArg0("-rewrite", "domain1.com=domain.com")
-			e := FromConfig(config)
+			e := fromConfigWithDefaultArg0("-rewrite", "domain1.com=domain.com")
 
 			Expect(e.GetHostRewrites()).To(Equal(hostRewrites))
 		})
 
 		It("should add host whitelisted", func() {
 			hostsWhitelist := []string{"domain.com"}
-			config := parseConfigWithDefaultArg0("-whitelist", hostsWhitelist[0])
-			e := FromConfig(config)
+			e := fromConfigWithDefaultArg0("-whitelist", hostsWhitelist[0])
 
 			Expect(e.GetHostsWhitelist()).To(Equal(hostsWhitelist))
 		})
 
 		It("should set bump ttl", func() {
 			ttl := time.Hour
-			config := parseConfigWithDefaultArg0("-cache-bump", fmt.Sprintf("%s", ttl))
-			e := FromConfig(config)
+			e := fromConfigWithDefaultArg0("-cache-bump", fmt.Sprintf("%s", ttl))
 
 			Expect(e.GetBumpTTL()).To(Equal(ttl))
 		})
 
 		It("should set auto enqueue interval", func() {
 			interval := time.Hour
-			config := parseConfigWithDefaultArg0("-auto-refresh", fmt.Sprintf("%s", interval))
-			e := FromConfig(config)
+			e := fromConfigWithDefaultArg0("-auto-refresh", fmt.Sprintf("%s", interval))
 
 			Expect(e.GetAutoEnqueueInterval()).To(Equal(interval))
 		})
@@ -297,16 +301,14 @@ var _ = Describe("Config", func() {
 		Describe("Cacher", func() {
 			It("should set path", func() {
 				path := "cacher/path"
-				config := parseConfigWithDefaultArg0("-cache-path", path)
-				e := FromConfig(config)
+				e := fromConfigWithDefaultArg0("-cache-path", path)
 
 				Expect(e.GetCacher().GetPath()).To(Equal(path))
 			})
 
 			It("should set default ttl", func() {
 				ttl := time.Hour
-				config := parseConfigWithDefaultArg0("-cache-ttl", fmt.Sprintf("%s", ttl))
-				e := FromConfig(config)
+				e := fromConfigWithDefaultArg0("-cache-ttl", fmt.Sprintf("%s", ttl))
 
 				Expect(e.GetCacher().GetDefaultTTL()).To(Equal(ttl))
 			})
@@ -317,30 +319,26 @@ var _ = Describe("Config", func() {
 
 			It("should set auto download depth", func() {
 				depth := uint64Ten
-				config := parseConfigWithDefaultArg0("-auto-download-depth", fmt.Sprintf("%d", depth))
-				e := FromConfig(config)
+				e := fromConfigWithDefaultArg0("-auto-download-depth", fmt.Sprintf("%d", depth))
 
 				Expect(e.GetCrawler().GetAutoDownloadDepth()).To(Equal(depth))
 			})
 
 			It("should set no cross host", func() {
-				config := parseConfigWithDefaultArg0("-no-cross-host")
-				e := FromConfig(config)
+				e := fromConfigWithDefaultArg0("-no-cross-host")
 
 				Expect(e.GetCrawler().GetNoCrossHost()).To(BeTrue())
 			})
 
 			It("should add request header", func() {
-				config := parseConfigWithDefaultArg0("-header", "key=value")
-				e := FromConfig(config)
+				e := fromConfigWithDefaultArg0("-header", "key=value")
 
 				Expect(e.GetCrawler().GetRequestHeaderValues("key")).To(Equal([]string{"value"}))
 			})
 
 			It("should set worker count", func() {
 				workers := uint64Ten
-				config := parseConfigWithDefaultArg0("-workers", fmt.Sprintf("%d", workers))
-				e := FromConfig(config)
+				e := fromConfigWithDefaultArg0("-workers", fmt.Sprintf("%d", workers))
 
 				Expect(e.GetCrawler().GetWorkerCount()).To(Equal(workers))
 			})
@@ -365,12 +363,11 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should mirror cross-host", func() {
-				config := parseConfigWithDefaultArg0(
+				e := fromConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-port", "0",
 				)
 
-				e := FromConfig(config)
 				defer e.Stop()
 
 				port, _ := e.GetServer().GetListeningPort("")
@@ -379,13 +376,12 @@ var _ = Describe("Config", func() {
 
 			It("should mirror url", func() {
 				url := "http://domain.com/engine/FromConfig/mirror/url"
-				config := parseConfigWithDefaultArg0(
+				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
+
+				e := fromConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url,
 				)
-				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
-
-				e := FromConfig(config)
 				defer e.Stop()
 
 				time.Sleep(sleepTime)
@@ -397,14 +393,13 @@ var _ = Describe("Config", func() {
 
 			It("should mirror with port", func() {
 				url := "http://domain.com/engine/FromConfig/mirror/with/port"
-				config := parseConfigWithDefaultArg0(
+				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
+
+				e := fromConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url,
 					"-mirror-port", "0",
 				)
-				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
-
-				e := FromConfig(config)
 				defer e.Stop()
 
 				time.Sleep(sleepTime)
@@ -417,15 +412,14 @@ var _ = Describe("Config", func() {
 			It("should mirror multiple", func() {
 				url1 := "http://domain1.com/engine/FromConfig/mirror/multiple"
 				url2 := "http://domain2.com/engine/FromConfig/mirror/multiple"
-				config := parseConfigWithDefaultArg0(
+				httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
+				httpmock.RegisterResponder("GET", url2, httpmock.NewStringResponder(200, ""))
+
+				e := fromConfigWithDefaultArg0(
 					"-cache-path", rootPath,
 					"-mirror", url1, "-mirror-port", "0",
 					"-mirror", url2,
 				)
-				httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
-				httpmock.RegisterResponder("GET", url2, httpmock.NewStringResponder(200, ""))
-
-				e := FromConfig(config)
 				defer e.Stop()
 
 				time.Sleep(sleepTime)

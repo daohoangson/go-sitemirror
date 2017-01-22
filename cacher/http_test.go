@@ -126,32 +126,111 @@ var _ = Describe("Http", func() {
 			})
 
 			Describe("WriteHTTPCachingHeaders", func() {
-				It("should pick up value from Expires header", func() {
-					expires := time.Now().Add(time.Hour).Format(http.TimeFormat)
-					input := input2xx
-					input.Header.Add(HeaderExpires, expires)
-					bw := bufio.NewWriter(&buffer)
-					WriteHTTPCachingHeaders(bw, input)
-					bw.Flush()
+				Context(HeaderExpires, func() {
+					It("should pick up header value", func() {
+						expires := time.Now().Add(time.Hour).Format(http.TimeFormat)
+						input := input2xx
+						input.Header.Add(HeaderExpires, expires)
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
 
-					written := buffer.String()
-					writtenExpires := getHeaderValue(written, HeaderExpires)
-					Expect(string(writtenExpires)).To(Equal(expires))
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, HeaderExpires)
+						Expect(string(writtenExpires)).To(Equal(expires))
+					})
+
+					It("should not pick up invalid date", func() {
+						input := input2xx
+						input.Header.Add(HeaderExpires, "Oops")
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
+
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, HeaderExpires)
+						Expect(string(writtenExpires)).To(Equal(""))
+					})
+
+					It("should not pick up date in the past", func() {
+						input := input2xx
+						input.Header.Add(HeaderExpires, time.Now().Add(-24*time.Hour).Format(http.TimeFormat))
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
+
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, HeaderExpires)
+						Expect(string(writtenExpires)).To(Equal(""))
+					})
 				})
 
-				It("should pick up value from Cache-Control header", func() {
-					maxAge := 3600
-					input := input2xx
-					input.Header.Add(HeaderCacheControl, fmt.Sprintf("max-age=%d", maxAge))
-					bw := bufio.NewWriter(&buffer)
-					WriteHTTPCachingHeaders(bw, input)
-					bw.Flush()
+				Context(HeaderCacheControl, func() {
+					It("should pick up header max-age value", func() {
+						maxAge := 3600
+						input := input2xx
+						input.Header.Add(HeaderCacheControl, fmt.Sprintf("max-age=%d", maxAge))
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
 
-					written := buffer.String()
-					writtenExpires := getHeaderValue(written, CustomHeaderExpires)
-					timestamp, _ := strconv.ParseUint(writtenExpires, 10, 64)
-					Expect(timestamp / uint64(time.Second)).
-						To(BeNumerically("==", time.Now().Add(time.Duration(maxAge)*time.Second).Unix()))
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
+						timestamp, _ := strconv.ParseUint(writtenExpires, 10, 64)
+						Expect(timestamp / uint64(time.Second)).
+							To(BeNumerically("==", time.Now().Add(time.Duration(maxAge)*time.Second).Unix()))
+					})
+
+					It("should pick up header max-age value after public", func() {
+						maxAge := 3601
+						input := input2xx
+						input.Header.Add(HeaderCacheControl, fmt.Sprintf("public, max-age=%d", maxAge))
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
+
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
+						timestamp, _ := strconv.ParseUint(writtenExpires, 10, 64)
+						Expect(timestamp / uint64(time.Second)).
+							To(BeNumerically("==", time.Now().Add(time.Duration(maxAge)*time.Second).Unix()))
+					})
+
+					It("should not pick up invalid max-age", func() {
+						input := input2xx
+						input.Header.Add(HeaderCacheControl, "max-age=foo")
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
+
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
+						Expect(string(writtenExpires)).To(Equal(""))
+					})
+
+					It("should not pick up 0 max-age", func() {
+						input := input2xx
+						input.Header.Add(HeaderCacheControl, "max-age=0")
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
+
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
+						Expect(string(writtenExpires)).To(Equal(""))
+					})
+
+					It("should not pick up negative max-age", func() {
+						input := input2xx
+						input.Header.Add(HeaderCacheControl, "max-age=-1")
+						bw := bufio.NewWriter(&buffer)
+						WriteHTTPCachingHeaders(bw, input)
+						bw.Flush()
+
+						written := buffer.String()
+						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
+						Expect(string(writtenExpires)).To(Equal(""))
+					})
 				})
 			})
 		})

@@ -46,7 +46,7 @@ func WriteHTTPCachingHeaders(bw *bufio.Writer, input *Input) {
 		inputHeaderExpires := input.Header.Get(HeaderExpires)
 		if len(inputHeaderExpires) > 0 {
 			t, err := time.Parse(http.TimeFormat, inputHeaderExpires)
-			if err == nil {
+			if err == nil && t.After(now) {
 				expires = &t
 			}
 		}
@@ -56,7 +56,7 @@ func WriteHTTPCachingHeaders(bw *bufio.Writer, input *Input) {
 		inputHeaderCacheControl := input.Header.Get(HeaderCacheControl)
 		maxAgeSubmatch := writeHTTPCachingHeadersMaxAgeRegexp.FindStringSubmatch(inputHeaderCacheControl)
 		if maxAgeSubmatch != nil {
-			if maxAge, err := strconv.ParseInt(maxAgeSubmatch[1], 10, 64); err == nil {
+			if maxAge, err := strconv.ParseInt(maxAgeSubmatch[1], 10, 64); err == nil && maxAge > 0 {
 				expires = &time.Time{}
 				*expires = now.Add(time.Duration(maxAge) * time.Second)
 			}

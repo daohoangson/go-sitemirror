@@ -1,5 +1,7 @@
 FROM golang:1.7-alpine
 
+ARG SITEMIRROR_COMMIT=undefined
+
 # overwrite this via -auto-download-depth
 ENV SITEMIRROR_AUTO_DOWNLOAD_DEPTH "0"
 # overwrite this via -cache-path or just mount from docker host to this directory
@@ -22,6 +24,7 @@ RUN cd "$SITEMIRROR_SOURCE_PATH" \
 	  echo '  set -- go-sitemirror "$@"'; \
     echo 'fi'; \
     \
+    echo "echo COMMIT=$SITEMIRROR_COMMIT"; \
     echo 'exec "$@"'; \
   } > /entrypoint.sh \
   && chmod +x /entrypoint.sh

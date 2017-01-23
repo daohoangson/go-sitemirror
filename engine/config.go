@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/daohoangson/go-sitemirror/cacher"
 	"github.com/namsral/flag"
 )
 
@@ -108,11 +109,11 @@ func ParseConfig(arg0 string, otherArgs []string, output io.Writer) (*Config, er
 }
 
 // FromConfig return an Engine instance with all configuration applied
-func FromConfig(config *Config) Engine {
+func FromConfig(fs cacher.Fs, config *Config) Engine {
 	logger := logrus.New()
 	logger.Level = logrus.Level(config.LoggerLevel)
 
-	e := New(http.DefaultClient, logger)
+	e := New(fs, http.DefaultClient, logger)
 
 	{
 		if config.HostRewrites != nil {

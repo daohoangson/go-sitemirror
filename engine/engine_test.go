@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	neturl "net/url"
-	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -23,17 +21,17 @@ import (
 )
 
 var _ = Describe("Engine", func() {
+	const rootPath = "/Engine/Tests"
 	const sleepTime = 20 * time.Millisecond
 	const uint64Zero = uint64(0)
 	const uint64One = uint64(1)
 	const uint64Two = uint64(2)
 	const uint64Three = uint64(3)
 
-	tmpDir := os.TempDir()
-	rootPath := path.Join(tmpDir, "_TestEngine_")
+	var fs cacher.Fs
 
 	var newEngine = func() Engine {
-		e := New(http.DefaultClient, t.Logger())
+		e := New(fs, http.DefaultClient, t.Logger())
 		e.GetCacher().SetPath(rootPath)
 
 		return e
@@ -49,16 +47,17 @@ var _ = Describe("Engine", func() {
 	BeforeEach(func() {
 		httpmock.Activate()
 		httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
-		os.Mkdir(rootPath, os.ModePerm)
+
+		fs = t.NewFs()
+		fs.MkdirAll(rootPath, 0777)
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(rootPath)
 		httpmock.DeactivateAndReset()
 	})
 
-	It("should work with init(nil, nil)", func() {
-		New(nil, nil)
+	It("should work with init(nil, nil, nil)", func() {
+		New(nil, nil, nil)
 	})
 
 	Describe("Mirror", func() {
@@ -143,8 +142,8 @@ var _ = Describe("Engine", func() {
 				httpmock.RegisterResponder("GET", urlDo, t.NewHTMLResponder(html))
 				parsedUrlNo, _ := neturl.Parse(urlNo)
 				cachePathNo := cacher.GenerateHTTPCachePath(rootPath, parsedUrlNo)
-				f, _ := cacher.CreateFile(cachePathNo)
-				f.WriteString("HTTP 200\n\n")
+				f, _ := cacher.CreateFile(fs, cachePathNo)
+				f.Write([]byte("HTTP 200\n\n"))
 				f.Close()
 
 				e := newEngine()
@@ -205,8 +204,8 @@ var _ = Describe("Engine", func() {
 				httpmock.RegisterResponder("GET", urlShouldQueue, t.NewSlowResponder(sleepTime))
 				parsedUrlShouldQueue, _ := neturl.Parse(urlShouldQueue)
 				cachePath := cacher.GenerateHTTPCachePath(rootPath, parsedUrlShouldQueue)
-				f, _ := cacher.CreateFile(cachePath)
-				f.WriteString(strings.Repeat("0", 100))
+				f, _ := cacher.CreateFile(fs, cachePath)
+				f.Write([]byte(strings.Repeat("0", 100)))
 				f.Close()
 
 				e := newEngine()

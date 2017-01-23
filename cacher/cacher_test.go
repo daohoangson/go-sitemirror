@@ -21,27 +21,28 @@ import (
 var _ = Describe("HttpCacher", func() {
 	tmpDir := os.TempDir()
 	rootPath := path.Join(tmpDir, "_TestHttpCacher_")
+	fs := NewFs()
 
 	logger := t.Logger()
 
 	var newHttpCacherWithRootPath = func() Cacher {
-		c := NewHTTPCacher(logger)
+		c := NewHTTPCacher(fs, logger)
 		c.SetPath(rootPath)
-		c.SetDefaultTTL(time.Millisecond)
+		c.SetDefaultTTL(time.Second)
 
 		return c
 	}
 
 	BeforeEach(func() {
-		os.Mkdir(rootPath, os.ModePerm)
+		fs.MkdirAll(rootPath, os.ModePerm)
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(rootPath)
+		fs.RemoveAll(rootPath)
 	})
 
 	It("should use working directory as default path", func() {
-		c := NewHTTPCacher(nil)
+		c := NewHTTPCacher(nil, nil)
 		wd, _ := os.Getwd()
 
 		Expect(c.GetPath()).To(Equal(wd))
@@ -54,15 +55,16 @@ var _ = Describe("HttpCacher", func() {
 	})
 
 	It("should set path", func() {
-		c := NewHTTPCacher(logger)
-		c.SetPath(rootPath)
+		path := "/should/set/path"
+		c := newHttpCacherWithRootPath()
+		c.SetPath(path)
 
-		Expect(c.GetPath()).To(Equal(rootPath))
+		Expect(c.GetPath()).To(Equal(path))
 	})
 
 	It("should set default ttl", func() {
 		ttl := time.Hour
-		c := NewHTTPCacher(logger)
+		c := newHttpCacherWithRootPath()
 		c.SetDefaultTTL(ttl)
 
 		Expect(c.GetDefaultTTL()).To(Equal(ttl))
@@ -72,8 +74,8 @@ var _ = Describe("HttpCacher", func() {
 		It("should report cache exists", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/exists")
 			cachePath := GenerateHTTPCachePath(rootPath, url)
-			f, _ := CreateFile(cachePath)
-			f.WriteString("HTTP 200\n\n")
+			f, _ := CreateFile(fs, cachePath)
+			f.Write([]byte("HTTP 200\n\n"))
 			f.Close()
 
 			c := newHttpCacherWithRootPath()
@@ -92,7 +94,7 @@ var _ = Describe("HttpCacher", func() {
 		It("should report cache not exists (empty file)", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/not/exists/empty/file")
 			cachePath := GenerateHTTPCachePath(rootPath, url)
-			f, _ := CreateFile(cachePath)
+			f, _ := CreateFile(fs, cachePath)
 			f.Close()
 
 			c := newHttpCacherWithRootPath()
@@ -103,8 +105,8 @@ var _ = Describe("HttpCacher", func() {
 		It("should report cache not exists (placeholder)", func() {
 			url, _ := url.Parse("http://domain.com/cacher/check/cache/not/exists/empty/file")
 			cachePath := GenerateHTTPCachePath(rootPath, url)
-			f, _ := CreateFile(cachePath)
-			f.WriteString("HTTP 204\n\n")
+			f, _ := CreateFile(fs, cachePath)
+			f.Write([]byte("HTTP 204\n\n"))
 			f.Close()
 
 			c := newHttpCacherWithRootPath()
@@ -154,7 +156,7 @@ var _ = Describe("HttpCacher", func() {
 			input := &Input{URL: url}
 			cachePath := GenerateHTTPCachePath(rootPath, input.URL)
 			cacheDir := path.Dir(cachePath)
-			f, _ := CreateFile(cacheDir)
+			f, _ := CreateFile(fs, cacheDir)
 			f.Close()
 
 			c := newHttpCacherWithRootPath()
@@ -208,8 +210,8 @@ var _ = Describe("HttpCacher", func() {
 			It("should write placeholder (no expires header)", func() {
 				url, _ := url.Parse("http://domain.com/http/cacher/bump/placeholder/no/expires")
 				cachePath := GenerateHTTPCachePath(rootPath, url)
-				f, _ := CreateFile(cachePath)
-				f.WriteString("\n")
+				f, _ := CreateFile(fs, cachePath)
+				f.Write([]byte("\n"))
 				f.Close()
 
 				c := newHttpCacherWithRootPath()
@@ -221,8 +223,8 @@ var _ = Describe("HttpCacher", func() {
 			It("should write placeholder (too short expires header)", func() {
 				url, _ := url.Parse("http://domain.com/http/cacher/bump/placeholder/no/expires")
 				cachePath := GenerateHTTPCachePath(rootPath, url)
-				f, _ := CreateFile(cachePath)
-				f.WriteString(fmt.Sprintf("%s: 1\n", CustomHeaderExpires))
+				f, _ := CreateFile(fs, cachePath)
+				f.Write([]byte(fmt.Sprintf("%s: 1\n", CustomHeaderExpires)))
 				f.Close()
 
 				c := newHttpCacherWithRootPath()
@@ -236,7 +238,7 @@ var _ = Describe("HttpCacher", func() {
 				input := &Input{URL: url}
 				cachePath := GenerateHTTPCachePath(rootPath, input.URL)
 				cacheDir := path.Dir(cachePath)
-				f, _ := CreateFile(cacheDir)
+				f, _ := CreateFile(fs, cacheDir)
 				f.Close()
 
 				c := newHttpCacherWithRootPath()
@@ -259,7 +261,7 @@ var _ = Describe("HttpCacher", func() {
 				url, _ := url.Parse("http://domain.com/http/cacher/not/write/placeholder/dir/as/file")
 				cachePath := GenerateHTTPCachePath(rootPath, url)
 				cacheDir := path.Dir(cachePath)
-				f, _ := CreateFile(cacheDir)
+				f, _ := CreateFile(fs, cacheDir)
 				f.Close()
 
 				c := newHttpCacherWithRootPath()
@@ -277,7 +279,7 @@ var _ = Describe("HttpCacher", func() {
 		It("should open without error", func() {
 			url, _ := url.Parse("http://domain.com/cacher/delete/ok")
 			cachePath := GenerateHTTPCachePath(rootPath, url)
-			f1, _ := CreateFile(cachePath)
+			f1, _ := CreateFile(fs, cachePath)
 			f1.Close()
 
 			c := newHttpCacherWithRootPath()

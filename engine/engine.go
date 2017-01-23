@@ -37,19 +37,19 @@ type engine struct {
 type engineHostRewrite func(*neturl.URL) string
 
 // New returns a new Engine instance
-func New(httpClient *http.Client, logger *logrus.Logger) Engine {
+func New(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logger) Engine {
 	e := &engine{}
-	e.init(httpClient, logger)
+	e.init(fs, httpClient, logger)
 	return e
 }
 
-func (e *engine) init(httpClient *http.Client, logger *logrus.Logger) {
+func (e *engine) init(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logger) {
 	if logger == nil {
 		logger = logrus.New()
 	}
 	e.logger = logger
 
-	e.cacher = cacher.NewHTTPCacher(logger)
+	e.cacher = cacher.NewHTTPCacher(fs, logger)
 	e.crawler = crawler.New(httpClient, logger)
 	e.server = web.NewServer(e.cacher, logger)
 

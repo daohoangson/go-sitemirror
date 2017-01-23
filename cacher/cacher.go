@@ -13,6 +13,7 @@ import (
 )
 
 type httpCacher struct {
+	fs     Fs
 	logger *logrus.Logger
 	mutex  sync.Mutex
 
@@ -22,19 +23,24 @@ type httpCacher struct {
 }
 
 // NewHTTPCacher returns a new http cacher instance
-func NewHTTPCacher(logger *logrus.Logger) Cacher {
+func NewHTTPCacher(fs Fs, logger *logrus.Logger) Cacher {
 	c := &httpCacher{}
-	c.init(logger)
+	c.init(fs, logger)
 	return c
 }
 
-func (c *httpCacher) init(logger *logrus.Logger) {
+func (c *httpCacher) init(fs Fs, logger *logrus.Logger) {
+	if fs == nil {
+		fs = NewFs()
+	}
+	c.fs = fs
+
 	if logger == nil {
 		logger = logrus.New()
 	}
 	c.logger = logger
 
-	if wd, err := os.Getwd(); err == nil {
+	if wd, err := fs.Getwd(); err == nil {
 		c.path = wd
 	}
 
@@ -86,13 +92,17 @@ func (c *httpCacher) GetDefaultTTL() time.Duration {
 }
 
 func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
+	c.mutex.Lock()
+	fs := c.fs
+	c.mutex.Unlock()
+
 	cachePath := c.generateCachePath(url)
 	loggerContext := c.logger.WithFields(logrus.Fields{
 		"url":  url,
 		"path": cachePath,
 	})
 
-	f, openError := os.Open(cachePath)
+	f, openError := fs.OpenFile(cachePath, os.O_RDONLY, 0)
 	if openError != nil {
 		loggerContext.WithError(openError).Debug("Cannot open file -> cache not exists")
 		return false
@@ -115,14 +125,15 @@ func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
 }
 
 func (c *httpCacher) Write(input *Input) error {
+	c.mutex.Lock()
 	if input.TTL == 0 {
-		c.mutex.Lock()
 		input.TTL = c.defaultTTL
-		c.mutex.Unlock()
 	}
+	fs := c.fs
+	c.mutex.Unlock()
 
 	cachePath := c.generateCachePath(input.URL)
-	f, err := CreateFile(cachePath)
+	f, err := CreateFile(fs, cachePath)
 	if err != nil {
 		return err
 	}
@@ -139,6 +150,10 @@ func (c *httpCacher) Write(input *Input) error {
 }
 
 func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
+	c.mutex.Lock()
+	fs := c.fs
+	c.mutex.Unlock()
+
 	cachePath := c.generateCachePath(url)
 	newExpires := time.Now().Add(ttl)
 	loggerContext := c.logger.WithFields(logrus.Fields{
@@ -147,7 +162,7 @@ func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
 		"time": newExpires,
 	})
 
-	f, openError := OpenFile(cachePath)
+	f, openError := OpenFile(fs, cachePath)
 	if openError != nil {
 		return openError
 	}
@@ -199,8 +214,12 @@ func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
 }
 
 func (c *httpCacher) WritePlaceholder(url *neturl.URL, ttl time.Duration) error {
+	c.mutex.Lock()
+	fs := c.fs
+	c.mutex.Unlock()
+
 	cachePath := c.generateCachePath(url)
-	f, err := CreateFile(cachePath)
+	f, err := CreateFile(fs, cachePath)
 	if err != nil {
 		return err
 	}
@@ -220,8 +239,12 @@ func (c *httpCacher) WritePlaceholder(url *neturl.URL, ttl time.Duration) error 
 }
 
 func (c *httpCacher) Open(url *neturl.URL) (io.ReadCloser, error) {
+	c.mutex.Lock()
+	fs := c.fs
+	c.mutex.Unlock()
+
 	cachePath := c.generateCachePath(url)
-	f, err := os.Open(cachePath)
+	f, err := fs.OpenFile(cachePath, os.O_RDONLY, 0)
 
 	if err == nil {
 		c.logger.WithFields(logrus.Fields{

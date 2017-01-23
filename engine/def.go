@@ -13,7 +13,7 @@ import (
 
 // Engine represents an object that can mirror urls
 type Engine interface {
-	init(*http.Client, *logrus.Logger)
+	init(cacher.Fs, *http.Client, *logrus.Logger)
 
 	GetCacher() cacher.Cacher
 	GetCrawler() crawler.Crawler

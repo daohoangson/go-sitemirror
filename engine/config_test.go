@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"time"
 
 	httpmock "gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/daohoangson/go-sitemirror/cacher"
 	. "github.com/daohoangson/go-sitemirror/engine"
 	t "github.com/daohoangson/go-sitemirror/testing"
 
@@ -257,11 +257,20 @@ var _ = Describe("Config", func() {
 	})
 
 	Describe("FromConfig", func() {
+		const rootPath = "/FromConfig/Tests"
+
+		var fs cacher.Fs
+
 		fromConfigWithDefaultArg0 := func(args ...string) Engine {
 			args = append(args, "-log", t.Logger().Level.String())
 			config := parseConfigWithDefaultArg0(args...)
-			return FromConfig(config)
+			return FromConfig(fs, config)
 		}
+
+		BeforeEach(func() {
+			fs = t.NewFs()
+			fs.MkdirAll(rootPath, 0777)
+		})
 
 		It("should return", func() {
 			e := fromConfigWithDefaultArg0()
@@ -349,16 +358,11 @@ var _ = Describe("Config", func() {
 			const uint64One = uint64(1)
 			const uint64Two = uint64(2)
 
-			tmpDir := os.TempDir()
-			rootPath := path.Join(tmpDir, "_TestFromConfig_")
-
 			BeforeEach(func() {
 				httpmock.Activate()
-				os.Mkdir(rootPath, os.ModePerm)
 			})
 
 			AfterEach(func() {
-				os.RemoveAll(rootPath)
 				httpmock.DeactivateAndReset()
 			})
 

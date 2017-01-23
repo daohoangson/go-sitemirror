@@ -23,30 +23,30 @@ var (
 )
 
 // MakeDir creates directory tree for the specified path
-func MakeDir(cachePath string) error {
-	return os.MkdirAll(path.Dir(cachePath), os.ModePerm)
+func MakeDir(fs Fs, cachePath string) error {
+	return fs.MkdirAll(path.Dir(cachePath), os.ModePerm)
 }
 
 // CreateFile returns a file handle for writing with the specified path.
 // Existing file will be truncated.
-func CreateFile(cachePath string) (*os.File, error) {
-	err := MakeDir(cachePath)
+func CreateFile(fs Fs, cachePath string) (File, error) {
+	err := MakeDir(fs, cachePath)
 	if err != nil {
 		return nil, err
 	}
 
-	return os.OpenFile(cachePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	return fs.OpenFile(cachePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 }
 
 // OpenFile return a file handle for reading/writing with the specified path.
 // File will be created if not already exists.
-func OpenFile(cachePath string) (*os.File, error) {
-	err := MakeDir(cachePath)
+func OpenFile(fs Fs, cachePath string) (File, error) {
+	err := MakeDir(fs, cachePath)
 	if err != nil {
 		return nil, err
 	}
 
-	return os.OpenFile(cachePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	return fs.OpenFile(cachePath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 }
 
 // GenerateHTTPCachePath returns http cache path for the specified url

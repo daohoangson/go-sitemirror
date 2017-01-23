@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path"
 	"sort"
 	"time"
@@ -19,22 +18,20 @@ import (
 )
 
 var _ = Describe("Server", func() {
-	tmpDir := os.TempDir()
-	rootPath := path.Join(tmpDir, "_TestServer_")
-
-	c := cacher.NewHTTPCacher(t.Logger())
-	c.SetPath(rootPath)
+	const rootPath = "/Server/Tests"
+	var fs cacher.Fs
+	var c cacher.Cacher
 
 	var newServer = func() Server {
+		c = cacher.NewHTTPCacher(fs, t.Logger())
+		c.SetPath(rootPath)
+
 		return NewServer(c, t.Logger())
 	}
 
 	BeforeEach(func() {
-		os.Mkdir(rootPath, os.ModePerm)
-	})
-
-	AfterEach(func() {
-		os.RemoveAll(rootPath)
+		fs = t.NewFs()
+		fs.MkdirAll(rootPath, 0777)
 	})
 
 	It("should work with init(nil, nil)", func() {
@@ -161,8 +158,8 @@ var _ = Describe("Server", func() {
 			url, _ := url.Parse("http://domain.com" + urlPath)
 			cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 			cacheDir, _ := path.Split(cachePath)
-			os.MkdirAll(cacheDir, os.ModePerm)
-			f, _ := os.Create(cachePath)
+			fs.MkdirAll(cacheDir, 0777)
+			f, _ := t.FsCreate(fs, cachePath)
 			f.Close()
 
 			s := newServer()
@@ -276,8 +273,8 @@ var _ = Describe("Server", func() {
 				url, _ := url.Parse("http://domain.com" + urlPath)
 				cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
-				os.MkdirAll(cacheDir, os.ModePerm)
-				f, _ := os.Create(cachePath)
+				fs.MkdirAll(cacheDir, 0777)
+				f, _ := t.FsCreate(fs, cachePath)
 				f.Close()
 
 				s := newServer()
@@ -302,13 +299,13 @@ var _ = Describe("Server", func() {
 				url, _ := url.Parse("http://domain.com" + urlPath)
 				cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
-				os.MkdirAll(cacheDir, os.ModePerm)
-				f, _ := os.Create(cachePath)
-				f.WriteString(fmt.Sprintf(
+				fs.MkdirAll(cacheDir, 0777)
+				f, _ := t.FsCreate(fs, cachePath)
+				f.Write([]byte(fmt.Sprintf(
 					"HTTP 200\n%s: %d\n\n",
 					cacher.CustomHeaderExpires,
 					time.Now().Add(-1*time.Hour).UnixNano(),
-				))
+				)))
 				f.Close()
 
 				s := newServer()

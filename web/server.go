@@ -45,7 +45,7 @@ func NewServer(cacher cacher.Cacher, logger *logrus.Logger) Server {
 
 func (s *server) init(httpCacher cacher.Cacher, logger *logrus.Logger) {
 	if httpCacher == nil {
-		httpCacher = cacher.NewHTTPCacher(nil)
+		httpCacher = cacher.NewHTTPCacher(nil, nil)
 	}
 	s.cacher = httpCacher
 

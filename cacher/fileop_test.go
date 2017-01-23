@@ -8,27 +8,30 @@ import (
 	"strings"
 
 	. "github.com/daohoangson/go-sitemirror/cacher"
+	t "github.com/daohoangson/go-sitemirror/testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Fileop", func() {
+
 	Describe("CreateFile", func() {
 		tmpDir := os.TempDir()
-		rootPath := path.Join(tmpDir, "_TestCreateFile_")
+		rootPath := path.Join(tmpDir, "_TestFileopCreateFile_")
+		fs := NewFs()
 
 		BeforeEach(func() {
-			os.Mkdir(rootPath, os.ModePerm)
+			fs.MkdirAll(rootPath, os.ModePerm)
 		})
 
 		AfterEach(func() {
-			os.RemoveAll(rootPath)
+			fs.RemoveAll(rootPath)
 		})
 
 		It("should create dir", func() {
 			path := path.Join(rootPath, "dir", "file")
-			f, _ := CreateFile(path)
+			f, _ := CreateFile(fs, path)
 			defer f.Close()
 
 			Expect(f.Name()).To(Equal(path))
@@ -37,11 +40,11 @@ var _ = Describe("Fileop", func() {
 		It("should write new file", func() {
 			bytes := []byte{1}
 			path := path.Join(rootPath, "file")
-			w, _ := CreateFile(path)
+			w, _ := CreateFile(fs, path)
 			w.Write(bytes)
 			w.Close()
 
-			read, _ := ioutil.ReadFile(path)
+			read, _ := t.FsReadFile(fs, path)
 			Expect(read).To(Equal(bytes))
 		})
 
@@ -49,34 +52,35 @@ var _ = Describe("Fileop", func() {
 			bytes1 := []byte{0, 0, 0, 0, 0, 0, 0, 1}
 			bytes2 := []byte{2}
 			path := path.Join(rootPath, "file-existed")
-			w1, _ := os.Create(path)
+			w1, _ := t.FsCreate(fs, path)
 			w1.Write(bytes1)
 			w1.Close()
 
-			w2, _ := CreateFile(path)
+			w2, _ := CreateFile(fs, path)
 			w2.Write(bytes2)
 			w2.Close()
 
-			read, _ := ioutil.ReadFile(path)
+			read, _ := t.FsReadFile(fs, path)
 			Expect(read).To(Equal(bytes2))
 		})
 	})
 
 	Describe("OpenFile", func() {
 		tmpDir := os.TempDir()
-		rootPath := path.Join(tmpDir, "_TestOpenFile_")
+		rootPath := path.Join(tmpDir, "_TestFileopOpenFile_")
+		fs := NewFs()
 
 		BeforeEach(func() {
-			os.Mkdir(rootPath, os.ModePerm)
+			fs.MkdirAll(rootPath, os.ModePerm)
 		})
 
 		AfterEach(func() {
-			os.RemoveAll(rootPath)
+			fs.RemoveAll(rootPath)
 		})
 
 		It("should create dir", func() {
 			path := path.Join(rootPath, "dir", "file")
-			f, _ := OpenFile(path)
+			f, _ := OpenFile(fs, path)
 			defer f.Close()
 
 			Expect(f.Name()).To(Equal(path))
@@ -85,7 +89,7 @@ var _ = Describe("Fileop", func() {
 		It("should write new file", func() {
 			bytes := []byte{1}
 			path := path.Join(rootPath, "file")
-			w, _ := OpenFile(path)
+			w, _ := OpenFile(fs, path)
 			w.Write(bytes)
 			w.Close()
 
@@ -97,16 +101,16 @@ var _ = Describe("Fileop", func() {
 			bytes1 := []byte{1}
 			bytes2 := []byte{2}
 			path := path.Join(rootPath, "file-existed")
-			w1, _ := os.Create(path)
+			w1, _ := t.FsCreate(fs, path)
 			w1.Write(bytes1)
 			w1.Close()
 
-			w2, _ := OpenFile(path)
+			w2, _ := OpenFile(fs, path)
 			w2.Seek(0, 2)
 			w2.Write(bytes2)
 			w2.Close()
 
-			read, _ := ioutil.ReadFile(path)
+			read, _ := t.FsReadFile(fs, path)
 			Expect(read[:len(bytes1)]).To(Equal(bytes1))
 			Expect(read[len(bytes1):]).To(Equal(bytes2))
 		})

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -11,7 +12,7 @@ import (
 
 // Cacher represents an object that can write/open cached data
 type Cacher interface {
-	init(*logrus.Logger)
+	init(Fs, *logrus.Logger)
 
 	GetMode() cacherMode
 	SetPath(string)
@@ -34,6 +35,26 @@ type Input struct {
 
 	Body   string
 	Header http.Header
+}
+
+// Fs represents file system with funcs to manipulate directories and files
+type Fs interface {
+	Getwd() (string, error)
+	MkdirAll(string, os.FileMode) error
+	OpenFile(string, int, os.FileMode) (File, error)
+	RemoveAll(string) error
+}
+
+// File represents a file, similar to *os.File
+type File interface {
+	io.Reader
+	io.Writer
+	io.WriterAt
+	io.Closer
+	io.Seeker
+
+	Name() string
+	Truncate(int64) error
 }
 
 const (

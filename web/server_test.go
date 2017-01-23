@@ -375,17 +375,6 @@ var _ = Describe("Server", func() {
 			Expect(hosts).To(Equal([]string{root1.Host, root3.Host}))
 		})
 
-		It("should stop slowly", func() {
-			root1, _ := url.Parse("http://stop.slowly.com")
-			s := newServer()
-
-			s.ListenAndServe(root1, 0)
-
-			time.Sleep(50 * time.Millisecond)
-			hosts := s.Stop()
-			Expect(len(hosts)).To(Equal(1))
-		})
-
 		It("should do no op on stop being called twice", func() {
 			s := newServer()
 			s.Stop()

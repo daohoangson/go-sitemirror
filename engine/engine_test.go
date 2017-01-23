@@ -22,7 +22,7 @@ import (
 
 var _ = Describe("Engine", func() {
 	const rootPath = "/Engine/Tests"
-	const sleepTime = 20 * time.Millisecond
+	const sleepTime = 5 * time.Millisecond
 	const uint64Zero = uint64(0)
 	const uint64One = uint64(1)
 	const uint64Two = uint64(2)
@@ -461,17 +461,20 @@ var _ = Describe("Engine", func() {
 	})
 
 	Describe("SetAutoEnqueueInterval", func() {
+		intervalBase := time.Millisecond
+		interval := 4 * intervalBase
+		testTime := 10 * intervalBase
+
 		It("should set interval", func() {
-			interval := time.Millisecond
 			url := "http://domain.com/engine/SetAutoEnqueueInterval/set"
 			parsedURL, _ := neturl.Parse(url)
 			httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(http.StatusOK, ""))
 
 			e := newEngine()
-			e.SetAutoEnqueueInterval(2 * interval)
+			e.SetAutoEnqueueInterval(interval)
 			e.Mirror(parsedURL, -1)
 
-			time.Sleep(5 * interval)
+			time.Sleep(testTime)
 			e.Stop()
 
 			// .Mirror enqueues the first time
@@ -480,7 +483,6 @@ var _ = Describe("Engine", func() {
 		})
 
 		It("should auto enqueue all urls", func() {
-			interval := time.Millisecond
 			url0 := "http://domain.com/engine/SetAutoEnqueueInterval/enqueue/all/0"
 			parsedURL0, _ := neturl.Parse(url0)
 			url1 := "http://domain.com/engine/SetAutoEnqueueInterval/enqueue/all/1"
@@ -489,11 +491,11 @@ var _ = Describe("Engine", func() {
 			httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(http.StatusOK, ""))
 
 			e := newEngine()
-			e.SetAutoEnqueueInterval(2 * interval)
+			e.SetAutoEnqueueInterval(interval)
 			e.Mirror(parsedURL0, -1)
 			e.Mirror(parsedURL1, -1)
 
-			time.Sleep(5 * interval)
+			time.Sleep(testTime)
 			e.Stop()
 
 			// .Mirror enqueues the two first times

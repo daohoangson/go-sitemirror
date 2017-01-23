@@ -17,7 +17,7 @@ import (
 )
 
 var _ = Describe("Crawler", func() {
-	const sleepTime = 20 * time.Millisecond
+	const sleepTime = 5 * time.Millisecond
 	const uint64Zero = uint64(0)
 	const uint64One = uint64(1)
 	const uint64Two = uint64(2)

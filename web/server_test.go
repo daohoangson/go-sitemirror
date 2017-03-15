@@ -153,6 +153,17 @@ var _ = Describe("Server", func() {
 			Expect(w.Code).To(Equal(http.StatusNotFound))
 		})
 
+		It("should disallow robots", func() {
+			root, _ := url.Parse("http://domain.com")
+			s := newServer()
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("", "/robots.txt", nil)
+			s.Serve(root, w, req)
+
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Body.String()).To(ContainSubstring("Disallow: /"))
+		})
+
 		It("should response with 501 (empty file -> no first line)", func() {
 			urlPath := "/Serve/501"
 			url, _ := url.Parse("http://domain.com" + urlPath)

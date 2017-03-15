@@ -239,6 +239,10 @@ func (s *server) serveURL(url *url.URL, si internal.ServeInfo, req *http.Request
 		})
 	}
 
+	if url.Path == "/robots.txt" {
+		return s.serveRobotsTxt(si)
+	}
+
 	cache, err := s.cacher.Open(url)
 	if err != nil {
 		return s.serveServerIssue(&ServerIssue{
@@ -270,6 +274,12 @@ func (s *server) serveURL(url *url.URL, si internal.ServeInfo, req *http.Request
 	}
 
 	loggerContext.WithField("statusCode", si.GetStatusCode()).Debug("Served")
+	return si.Flush()
+}
+
+func (s *server) serveRobotsTxt(si internal.ServeInfo) internal.ServeInfo {
+	si.SetStatusCode(http.StatusOK)
+	si.WriteBody([]byte("User-agent: *\nDisallow: /\n"))
 	return si.Flush()
 }
 

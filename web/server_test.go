@@ -77,14 +77,6 @@ var _ = Describe("Server", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
-		It("should not listen on privileged port", func() {
-			root, _ := url.Parse("http://not.listen.privileged.port.com")
-			s := newServer()
-			_, err := s.ListenAndServe(root, 80)
-
-			Expect(err).To(HaveOccurred())
-		})
-
 		It("should not listen twice for the same host", func() {
 			root, _ := url.Parse("http://not.listen.twice.same.host.com")
 			s := newServer()

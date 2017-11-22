@@ -1,4 +1,4 @@
-FROM golang:1.7-alpine
+FROM golang:1.9.2-alpine
 
 ARG SITEMIRROR_COMMIT=undefined
 

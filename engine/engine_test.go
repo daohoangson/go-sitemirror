@@ -23,12 +23,14 @@ import (
 var _ = Describe("Engine", func() {
 	const rootPath = "/Engine/Tests"
 	const sleepTime = 5 * time.Millisecond
-	const uint64Zero = uint64(0)
 	const uint64One = uint64(1)
 	const uint64Two = uint64(2)
 	const uint64Three = uint64(3)
 
 	var fs cacher.Fs
+	var httpClient = &http.Client{
+		Transport: httpmock.InitialTransport,
+	}
 
 	var newEngine = func() Engine {
 		e := New(fs, http.DefaultClient, t.Logger())
@@ -86,7 +88,7 @@ var _ = Describe("Engine", func() {
 
 			time.Sleep(sleepTime)
 			port, _ := e.GetServer().GetListeningPort("domain.com")
-			r, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+			r, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 			Expect(r.StatusCode).To(Equal(http.StatusOK))
 		})
 
@@ -168,7 +170,7 @@ var _ = Describe("Engine", func() {
 				defer e.Stop()
 
 				port, _ := e.GetServer().GetListeningPort("domain.com")
-				resp, _ := http.Post(fmt.Sprintf("http://localhost:%d", port), "", bytes.NewReader([]byte{}))
+				resp, _ := httpClient.Post(fmt.Sprintf("http://localhost:%d", port), "", bytes.NewReader([]byte{}))
 				Expect(resp.StatusCode).To(Equal(http.StatusMethodNotAllowed))
 
 				respBody, _ := ioutil.ReadAll(resp.Body)
@@ -190,7 +192,7 @@ var _ = Describe("Engine", func() {
 				port, _ := e.GetServer().GetListeningPort("domain.com")
 
 				respStart := time.Now()
-				resp, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+				resp, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(time.Since(respStart)).To(BeNumerically(">", sleepTime))
 				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
@@ -215,7 +217,7 @@ var _ = Describe("Engine", func() {
 				port, _ := e.GetServer().GetListeningPort("domain.com")
 
 				respStart := time.Now()
-				resp, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+				resp, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 				Expect(resp.StatusCode).To(Equal(200))
 				Expect(time.Since(respStart)).To(BeNumerically(">", sleepTime))
 				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
@@ -239,17 +241,17 @@ var _ = Describe("Engine", func() {
 				time.Sleep(sleepTime)
 				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
 
-				resp1, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+				resp1, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 				Expect(resp1.StatusCode).To(Equal(http.StatusOK))
 				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
 
 				time.Sleep(sleepTime)
-				resp2, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+				resp2, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 				Expect(resp2.StatusCode).To(Equal(http.StatusOK))
 				Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64Two))
 
 				time.Sleep(sleepTime)
-				resp3, _ := http.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
+				resp3, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d"+urlPath, port))
 				Expect(resp3.StatusCode).To(Equal(http.StatusOK))
 				Expect(e.GetCrawler().GetDownloadedCount()).To(BeNumerically(">=", 3))
 			})

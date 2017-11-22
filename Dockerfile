@@ -1,22 +1,27 @@
-FROM golang:1.9.2-alpine
+FROM golang:1.9.2-stretch as builder
 
 ARG SITEMIRROR_COMMIT=undefined
-
-# overwrite this via -auto-download-depth
-ENV SITEMIRROR_AUTO_DOWNLOAD_DEPTH "0"
-# overwrite this via -cache-path or just mount from docker host to this directory
-ENV SITEMIRROR_CACHE_PATH "/cache"
-# overwrite this via -port
-ENV SITEMIRROR_PORT "80"
 
 ENV SITEMIRROR_SOURCE_PATH "/go/src/github.com/daohoangson/go-sitemirror"
 
 COPY . "$SITEMIRROR_SOURCE_PATH"
 
 RUN cd "$SITEMIRROR_SOURCE_PATH" \
-  && go install -ldflags "-X github.com/daohoangson/go-sitemirror/crawler.version=$SITEMIRROR_COMMIT" \
-  && { \
-    echo '#!/bin/sh'; \
+  && go get -u github.com/golang/dep/cmd/dep \
+  && dep ensure \
+  && go install -ldflags "-X github.com/daohoangson/go-sitemirror/crawler.version=$SITEMIRROR_COMMIT"
+
+FROM debian:stretch-slim
+
+RUN apt-get update \
+    && apt-get install -y \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /go/bin/go-sitemirror /usr/local/bin/.
+
+RUN { \
+    echo '#!/bin/bash'; \
     \
     echo 'set -e'; \
     \
@@ -24,10 +29,18 @@ RUN cd "$SITEMIRROR_SOURCE_PATH" \
 	  echo '  set -- go-sitemirror "$@"'; \
     echo 'fi'; \
     \
-    echo "echo COMMIT=$SITEMIRROR_COMMIT"; \
     echo 'exec "$@"'; \
   } > /entrypoint.sh \
   && chmod +x /entrypoint.sh
+
+# overwrite this via -auto-download-depth
+ENV SITEMIRROR_AUTO_DOWNLOAD_DEPTH "0"
+
+# overwrite this via -cache-path or just mount from docker host to this directory
+ENV SITEMIRROR_CACHE_PATH "/cache"
+
+# overwrite this via -port
+ENV SITEMIRROR_PORT "80"
 
 EXPOSE 80
 CMD ["go-sitemirror"]

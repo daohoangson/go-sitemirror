@@ -13,5 +13,7 @@ matrix:
 
 script:
   - diff -u <(echo -n) <(gofmt -d .)
-  - go vet $(go list ./... | grep -v /vendor/)
-  - go test -v -race $(go list ./... | grep -v /vendor/)
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure
+  - go vet $(go list ./...)
+  - go test -v -race $(go list ./...)

@@ -103,6 +103,21 @@ var _ = Describe("Crawler", func() {
 			Expect(c.GetRequestHeaderValues(requestHeaderKey)).To(BeNil())
 		})
 
+		It("should download with User-Agent", func() {
+			url := "http://domain.com/RequestHeader/download/with/User-Agent"
+			httpmock.RegisterResponder("GET", url, func(req *http.Request) (*http.Response, error) {
+				resp := httpmock.NewStringResponse(200, req.UserAgent())
+				return resp, nil
+			})
+
+			c := newCrawler()
+			enqueueURL(c, url)
+			defer c.Stop()
+
+			downloaded, _ := c.Downloaded()
+			Expect(downloaded.Body).To(HavePrefix("go-sitemirror"))
+		})
+
 		It("should download with header", func() {
 			url := "http://domain.com/RequestHeader/download/with/header"
 			httpmock.RegisterResponder("GET", url, func(req *http.Request) (*http.Response, error) {

@@ -14,7 +14,7 @@ ENV SITEMIRROR_SOURCE_PATH "/go/src/github.com/daohoangson/go-sitemirror"
 COPY . "$SITEMIRROR_SOURCE_PATH"
 
 RUN cd "$SITEMIRROR_SOURCE_PATH" \
-  && go install \
+  && go install -ldflags "-X github.com/daohoangson/go-sitemirror/crawler.version=$SITEMIRROR_COMMIT" \
   && { \
     echo '#!/bin/sh'; \
     \

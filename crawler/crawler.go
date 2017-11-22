@@ -8,11 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	nbc "github.com/hectane/go-nonblockingchan"
+	"github.com/hectane/go-nonblockingchan"
 	"github.com/tevino/abool"
 
 	"github.com/Sirupsen/logrus"
 )
+
+var version = "unknown"
 
 type crawler struct {
 	client *http.Client
@@ -64,6 +66,13 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 	c.noCrossHost = abool.New()
 	c.requestHeader = make(http.Header)
 	c.workerCount = 4
+
+	userAgent := "go-sitemirror/" + version
+	c.requestHeader.Add("User-Agent", userAgent)
+	logger.WithFields(logrus.Fields{
+		"clientTimeout": client.Timeout,
+		"userAgent":     userAgent,
+	}).Debug("Initialized crawler")
 }
 
 func (c *crawler) GetClientTimeout() time.Duration {

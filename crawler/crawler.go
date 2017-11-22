@@ -2,17 +2,16 @@ package crawler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	neturl "net/url"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/hectane/go-nonblockingchan"
 	"github.com/tevino/abool"
-
-	"github.com/Sirupsen/logrus"
-	"fmt"
 )
 
 var version = "unknown"

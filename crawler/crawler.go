@@ -12,6 +12,7 @@ import (
 	"github.com/tevino/abool"
 
 	"github.com/Sirupsen/logrus"
+	"fmt"
 )
 
 var version = "unknown"
@@ -67,7 +68,7 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 	c.requestHeader = make(http.Header)
 	c.workerCount = 4
 
-	userAgent := "go-sitemirror/" + version
+	userAgent := fmt.Sprintf("go-sitemirror/%s (Googlebot wannabe)", version)
 	c.requestHeader.Add("User-Agent", userAgent)
 	logger.WithFields(logrus.Fields{
 		"clientTimeout": client.Timeout,
@@ -400,11 +401,18 @@ func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
 	atomic.AddInt64(&c.downloadingCount, -1)
 
 	if downloaded != nil {
-		loggerContext.WithFields(logrus.Fields{
-			"statusCode": downloaded.StatusCode,
-			"elapsed":    time.Since(start),
-			"total":      atomic.LoadUint64(&c.downloadedCount),
-		}).Info("Downloaded")
+		if downloaded.Error != nil {
+			loggerContext.WithFields(logrus.Fields{
+				"error":   downloaded.Error,
+				"elapsed": time.Since(start),
+			}).Error("Error downloading")
+		} else {
+			loggerContext.WithFields(logrus.Fields{
+				"statusCode": downloaded.StatusCode,
+				"elapsed":    time.Since(start),
+				"total":      atomic.LoadUint64(&c.downloadedCount),
+			}).Info("Downloaded")
+		}
 
 		if onDownloaded != nil {
 			(*onDownloaded)(downloaded)

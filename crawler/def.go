@@ -6,12 +6,14 @@ import (
 	"net/url"
 
 	"github.com/Sirupsen/logrus"
+	"time"
 )
 
 // Crawler represents an object that can process download requests
 type Crawler interface {
 	init(*http.Client, *logrus.Logger)
 
+	GetClientTimeout() time.Duration
 	SetAutoDownloadDepth(uint64)
 	GetAutoDownloadDepth() uint64
 	SetNoCrossHost(bool)

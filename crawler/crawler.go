@@ -66,6 +66,13 @@ func (c *crawler) init(client *http.Client, logger *logrus.Logger) {
 	c.workerCount = 4
 }
 
+func (c *crawler) GetClientTimeout() time.Duration {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	return c.client.Timeout
+}
+
 func (c *crawler) SetAutoDownloadDepth(depth uint64) {
 	old := atomic.LoadUint64(&c.autoDownloadDepth)
 	atomic.StoreUint64(&c.autoDownloadDepth, depth)

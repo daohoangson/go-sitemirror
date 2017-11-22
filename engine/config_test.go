@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	httpmock "gopkg.in/jarcoal/httpmock.v1"
+	"gopkg.in/jarcoal/httpmock.v1"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/daohoangson/go-sitemirror/cacher"
@@ -121,6 +121,12 @@ var _ = Describe("Config", func() {
 			c := parseConfigWithDefaultArg0("-auto-refresh", "1m")
 
 			Expect(c.AutoEnqueueInterval).To(Equal(time.Minute))
+		})
+
+		It("should parse HttpTimeout", func() {
+			c := parseConfigWithDefaultArg0("-http-timeout", "1m")
+
+			Expect(c.HttpTimeout).To(Equal(time.Minute))
 		})
 
 		Describe("Cacher", func() {
@@ -305,6 +311,21 @@ var _ = Describe("Config", func() {
 			e := fromConfigWithDefaultArg0("-auto-refresh", fmt.Sprintf("%s", interval))
 
 			Expect(e.GetAutoEnqueueInterval()).To(Equal(interval))
+		})
+
+		Describe("HttpTimeout", func() {
+			It("should set default", func() {
+				e := fromConfigWithDefaultArg0()
+
+				Expect(e.GetCrawler().GetClientTimeout()).NotTo(Equal(time.Duration(0)))
+			})
+
+			It("should set value", func() {
+				interval := time.Hour
+				e := fromConfigWithDefaultArg0("-http-timeout", fmt.Sprintf("%s", interval))
+
+				Expect(e.GetCrawler().GetClientTimeout()).To(Equal(interval))
+			})
 		})
 
 		Describe("Cacher", func() {

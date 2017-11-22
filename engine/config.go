@@ -23,6 +23,7 @@ type Config struct {
 	HostsWhitelist      configStringSlice
 	BumpTTL             time.Duration
 	AutoEnqueueInterval time.Duration
+	HttpTimeout         time.Duration
 
 	Cacher  configCacher
 	Crawler configCrawler
@@ -61,6 +62,8 @@ const (
 	ConfigDefaultBumpTTL = time.Minute
 	// ConfigDefaultAutoEnqueueInterval default value for .AutoEnqueueInterval
 	ConfigDefaultAutoEnqueueInterval = time.Duration(0)
+	// ConfigDefaultHttpTimeout default value for .HttpTimeout
+	ConfigDefaultHttpTimeout = 10 * time.Second
 	// ConfigDefaultCacherDefaultTTL default value for .Cacher.DefaultTTL
 	ConfigDefaultCacherDefaultTTL = 10 * time.Minute
 	// ConfigDefaultCrawlerAutoDownloadDepth default value for .Crawler.AutoDownloadDepth
@@ -87,6 +90,7 @@ func ParseConfig(arg0 string, otherArgs []string, output io.Writer) (*Config, er
 	fs.Var(&config.HostsWhitelist, "whitelist", "Restricted list of crawlable hosts")
 	fs.DurationVar(&config.BumpTTL, "cache-bump", ConfigDefaultBumpTTL, "Validity of cache bump")
 	fs.DurationVar(&config.AutoEnqueueInterval, "auto-refresh", ConfigDefaultAutoEnqueueInterval, "Interval for url auto refreshes, default=no refresh")
+	fs.DurationVar(&config.HttpTimeout, "http-timeout", ConfigDefaultHttpTimeout, "HTTP request timeout")
 
 	fs.StringVar(&config.Cacher.Path, "cache-path", "", "HTTP Cache path (default working directory)")
 	fs.DurationVar(&config.Cacher.DefaultTTL, "cache-ttl", ConfigDefaultCacherDefaultTTL, "Validity of cached data")
@@ -110,10 +114,14 @@ func ParseConfig(arg0 string, otherArgs []string, output io.Writer) (*Config, er
 
 // FromConfig return an Engine instance with all configuration applied
 func FromConfig(fs cacher.Fs, config *Config) Engine {
+	httpClient := &http.Client{
+		Timeout: config.HttpTimeout,
+	}
+
 	logger := logrus.New()
 	logger.Level = logrus.Level(config.LoggerLevel)
 
-	e := New(fs, http.DefaultClient, logger)
+	e := New(fs, httpClient, logger)
 
 	{
 		if config.HostRewrites != nil {

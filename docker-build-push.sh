@@ -1,23 +1,22 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-IMAGE_NAME="$1"
-if [ "x$IMAGE_NAME" = "x" ]; then
-  echo 'Please specify image name to build and push'
-  exit 1
-fi
+_imageName=${1:-'xfrocks/go-sitemirror'}
+_gitHead=`git rev-parse HEAD`
+_tagged="$_imageName:$_gitHead"
 
-GIT_HEAD=`git rev-parse HEAD`
+echo "Building image $_tagged"
+docker build . -t "$_imageName" -t "$_tagged" --build-arg SITEMIRROR_COMMIT="$_gitHead"
 
-echo "Building image $IMAGE_NAME:$GIT_HEAD"
-docker build . -t "$IMAGE_NAME" -t "$IMAGE_NAME:$GIT_HEAD" --build-arg SITEMIRROR_COMMIT="$GIT_HEAD"
+while true
+do
+  read -p "Push image? [yN]" yn
+  case $yn in
+    [Yy]* ) break;;
+    * ) exit;;
+  esac
+done
 
-read -p "Push image? [yN]" yn
-case $yn in
-	[Yy]* ) break;;
-	* ) exit;;
-esac
-
-docker push "$IMAGE_NAME"
-docker push "$IMAGE_NAME:$GIT_HEAD"
+docker push "$_imageName"
+docker push "$_tagged"

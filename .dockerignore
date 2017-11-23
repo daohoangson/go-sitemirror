@@ -1,5 +1,2 @@
 /.git
-/Dockerfile
 /cache
-/docker*
-/vendor

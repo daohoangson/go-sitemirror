@@ -117,8 +117,6 @@ var _ = Describe("Fileop", func() {
 	})
 
 	Describe("GenerateHTTPCachePath", func() {
-		const pathSeparator = "/"
-
 		tmpDir := os.TempDir()
 		rootPath := path.Join(tmpDir, "_TestGenerateHTTPCachePath_")
 

@@ -67,7 +67,7 @@ func (s *server) SetOnServerIssue(f func(*ServerIssue)) {
 
 func (s *server) ListenAndServe(root *url.URL, port int) (io.Closer, error) {
 	if port < 0 {
-		return nil, errors.New("Invalid port")
+		return nil, errors.New("invalid port")
 	}
 
 	var host string
@@ -82,7 +82,7 @@ func (s *server) ListenAndServe(root *url.URL, port int) (io.Closer, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if _, existingFound := s.listeners[host]; existingFound {
-		return nil, errors.New("Existing listener has been found for this host")
+		return nil, errors.New("existing listener has been found for this host")
 	}
 
 	listener, listenError := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -110,7 +110,7 @@ func (s *server) GetListeningPort(host string) (int, error) {
 	s.mutex.Unlock()
 
 	if !ok {
-		return 0, errors.New("Listener not found")
+		return 0, errors.New("listener not found")
 	}
 
 	addr := listener.Addr().String()

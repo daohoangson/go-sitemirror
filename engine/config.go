@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
+	neturl "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -51,7 +51,7 @@ type configIntSlice []int
 type configStringMap map[string]string
 type configStringSlice []string
 type configUint64 uint64
-type configURLSlice []*url.URL
+type configURLSlice []*neturl.URL
 
 const (
 	// ConfigEnvVarPrefix the environment variable prefix
@@ -97,6 +97,7 @@ func ParseConfig(arg0 string, otherArgs []string, output io.Writer) (*Config, er
 
 	config.Crawler.AutoDownloadDepth = configUint64(ConfigDefaultCrawlerAutoDownloadDepth)
 	fs.Var(&config.Crawler.AutoDownloadDepth, "auto-download-depth", "Maximum link depth for auto downloads, default=1")
+	//noinspection GoBoolExpressions
 	fs.BoolVar(&config.Crawler.NoCrossHost, "no-cross-host", ConfigDefaultCrawlerNoCrossHost, "Disable cross-host links")
 	fs.Var(&config.Crawler.RequestHeader, "header", "Custom request header, must be 'key=value'")
 	config.Crawler.WorkerCount = configUint64(ConfigDefaultCrawlerWorkerCount)
@@ -143,11 +144,11 @@ func FromConfig(fs cacher.Fs, config *Config) Engine {
 	}
 
 	{
-		cacher := e.GetCacher()
+		cacherObj := e.GetCacher()
 		if len(config.Cacher.Path) > 0 {
-			cacher.SetPath(config.Cacher.Path)
+			cacherObj.SetPath(config.Cacher.Path)
 		}
-		cacher.SetDefaultTTL(config.Cacher.DefaultTTL)
+		cacherObj.SetDefaultTTL(config.Cacher.DefaultTTL)
 	}
 
 	{
@@ -173,7 +174,7 @@ func FromConfig(fs cacher.Fs, config *Config) Engine {
 		}
 
 		if config.MirrorURLs != nil {
-			mirrorURLs := []*url.URL(config.MirrorURLs)
+			mirrorURLs := []*neturl.URL(config.MirrorURLs)
 			mirrorPorts := []int(config.MirrorPorts)
 			for i, url := range mirrorURLs {
 				port := -1
@@ -254,7 +255,7 @@ func (f *configIntSlice) Set(value string) error {
 		return err
 	}
 
-	(*f) = append(*f, int(parsedInt64))
+	*f = append(*f, int(parsedInt64))
 	return nil
 }
 
@@ -286,7 +287,7 @@ func (f *configStringSlice) String() string {
 }
 
 func (f *configStringSlice) Set(value string) error {
-	(*f) = append(*f, value)
+	*f = append(*f, value)
 	return nil
 }
 
@@ -309,11 +310,11 @@ func (f *configURLSlice) String() string {
 }
 
 func (f *configURLSlice) Set(value string) error {
-	parsedURL, err := url.Parse(value)
+	parsedURL, err := neturl.Parse(value)
 	if err != nil {
 		return err
 	}
 
-	(*f) = append(*f, parsedURL)
+	*f = append(*f, parsedURL)
 	return nil
 }

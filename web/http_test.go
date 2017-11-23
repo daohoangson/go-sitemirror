@@ -21,10 +21,6 @@ import (
 
 var _ = Describe("HTTP", func() {
 
-	const int64Zero = int64(0)
-	const int64One = int64(1)
-	const int64Two = int64(2)
-
 	newReader := func(s string) io.Reader {
 		return bytes.NewReader([]byte(s))
 	}

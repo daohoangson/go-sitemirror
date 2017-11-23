@@ -2,6 +2,7 @@ package internal_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -34,7 +35,7 @@ var _ = Describe("ServeInfo", func() {
 
 		It("should reset error on new status code", func() {
 			si, _ := newServeInfo()
-			si.OnCacheNotFound(fmt.Errorf("Error message"))
+			si.OnCacheNotFound(errors.New("text"))
 			Expect(si.HasError()).To(BeTrue())
 
 			si.SetStatusCode(http.StatusOK)
@@ -72,7 +73,7 @@ var _ = Describe("ServeInfo", func() {
 	Describe("Error", func() {
 		It("should return error", func() {
 			si, _ := newServeInfo()
-			si.OnCacheNotFound(fmt.Errorf("Error message"))
+			si.OnCacheNotFound(errors.New("text"))
 
 			Expect(si.HasError()).To(BeTrue())
 
@@ -98,7 +99,7 @@ var _ = Describe("ServeInfo", func() {
 
 		It("should handle cache not found", func() {
 			si, _ := newServeInfo()
-			si.OnCacheNotFound(fmt.Errorf("Error message"))
+			si.OnCacheNotFound(errors.New("text"))
 
 			Expect(si.GetStatusCode()).To(BeNumerically(">=", 400))
 			Expect(si.HasError()).To(BeTrue())
@@ -194,7 +195,7 @@ var _ = Describe("ServeInfo", func() {
 		})
 
 		It("should copy body (length=0)", func() {
-			slice := []byte{}
+			var slice []byte
 			buffer := bytes.NewBuffer(slice)
 
 			si, w := newServeInfo()
@@ -205,7 +206,7 @@ var _ = Describe("ServeInfo", func() {
 		})
 
 		It("should copy body (EOF)", func() {
-			slice := []byte{}
+			var slice []byte
 			buffer := bytes.NewBuffer(slice)
 
 			si, _ := newServeInfo()

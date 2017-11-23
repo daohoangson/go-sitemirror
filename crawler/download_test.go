@@ -465,11 +465,14 @@ var _ = Describe("Download", func() {
 			url := "http://domain.com/download/urls/img"
 			targetUrl := "http://domain.com/download/urls/target"
 			htmlTemplate := `<img src="%s" /><img class="friend" data-hello="world" data-invalid="` + t.InvalidURL + `" />`
+
+			//noinspection GoPlaceholderCount
 			html := t.NewHTMLMarkup(fmt.Sprintf(htmlTemplate, targetUrl))
 			httpmock.RegisterResponder("GET", url, t.NewHTMLResponder(html))
 
 			downloaded := downloadWithDefaultClient(url)
 
+			//noinspection GoPlaceholderCount
 			Expect(downloaded.Body).To(Equal(t.NewHTMLMarkup(fmt.Sprintf(htmlTemplate, "./target"))))
 			Expect(len(downloaded.LinksAssets)).To(Equal(1))
 
@@ -633,7 +636,7 @@ var _ = Describe("Download", func() {
 			}
 
 			foundCount := 0
-			for _, _ = range found {
+			for range found {
 				foundCount++
 			}
 

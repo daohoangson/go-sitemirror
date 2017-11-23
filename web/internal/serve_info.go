@@ -97,7 +97,7 @@ func (si *serveInfo) OnCrossHostRef() ServeInfo {
 	if !si.crossHost {
 		si.statusCode = http.StatusResetContent
 		si.errorType = ErrorCrossHostRefOnNonCrossHost
-		si.error = errors.New("Found cross-host reference in non cross-host context")
+		si.error = errors.New("cross-host reference found in non cross-host context")
 	}
 
 	return si

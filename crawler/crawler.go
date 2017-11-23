@@ -153,7 +153,7 @@ func (c *crawler) SetWorkerCount(count uint64) error {
 	}
 
 	if c.HasStarted() {
-		return errors.New("Cannot SetWorkerCount after Start")
+		return errors.New("cannot SetWorkerCount after Start")
 	}
 
 	old := atomic.LoadUint64(&c.workerCount)

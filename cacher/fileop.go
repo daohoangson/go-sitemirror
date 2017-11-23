@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	regExpSafePathName = regexp.MustCompile(`[^a-zA-Z0-9\.\-\_\=]`)
+	regExpSafePathName = regexp.MustCompile(`[^a-zA-Z0-9.\-_=]`)
 )
 
 // MakeDir creates directory tree for the specified path
@@ -80,14 +80,14 @@ func GenerateHTTPCachePath(rootPath string, url *neturl.URL) string {
 		dirFileAndQuery = GetShortHash(urlPath)
 	}
 
-	path := path.Join(
+	cachePath := path.Join(
 		rootPath,
 		GetSafePathName(urlScheme),
 		GetSafePathName(urlHost),
 		dirFileAndQuery,
 	)
 
-	return path
+	return cachePath
 }
 
 // BuildQueryPath returns path elements from the specified query

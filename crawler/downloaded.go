@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	errorEmptyURL      = errors.New("Empty url")
-	errorEmptyInput    = errors.New("Empty .Input")
-	errorEmptyInputURL = errors.New("Empty .Input.URL")
+	errorEmptyURL      = errors.New("empty url")
+	errorEmptyInput    = errors.New("empty .Input")
+	errorEmptyInputURL = errors.New("empty .Input.URL")
 )
 
 // AddHeader adds a new header

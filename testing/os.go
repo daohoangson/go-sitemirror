@@ -188,7 +188,7 @@ func (fs *fakeFs) OpenFile(name string, flag int, perm os.FileMode) (cacher.File
 	node.mutex.Unlock()
 
 	if flag&os.O_APPEND != 0 {
-		f.Seek(0, os.SEEK_END)
+		f.Seek(0, io.SeekEnd)
 	}
 
 	fs.logger.WithFields(logrus.Fields{
@@ -242,11 +242,11 @@ func (fn *fakeNode) newFile(name string, perm os.FileMode) (*fakeNode, error) {
 }
 
 func newFakeNode(parent *fakeNode, name string, perm os.FileMode, isDir bool) *fakeNode {
-	path := path.Join(parent.path, name)
+	nodePath := path.Join(parent.path, name)
 
 	fn := &fakeNode{
-		logger: parent.logger.WithField("path", path),
-		path:   path,
+		logger: parent.logger.WithField("path", nodePath),
+		path:   nodePath,
 		perm:   perm,
 	}
 
@@ -310,7 +310,7 @@ func (ff *fakeFile) Write(p []byte) (int, error) {
 }
 
 func (ff *fakeFile) WriteAt(p []byte, off int64) (int, error) {
-	ff.Seek(off, os.SEEK_SET)
+	ff.Seek(off, io.SeekStart)
 	return ff.Write(p)
 }
 
@@ -336,11 +336,11 @@ func (ff *fakeFile) Seek(offset int64, whence int) (int64, error) {
 	defer ff.node.mutex.Unlock()
 
 	switch whence {
-	case os.SEEK_SET:
+	case io.SeekStart:
 		ff.pos = offset
-	case os.SEEK_CUR:
+	case io.SeekCurrent:
 		ff.pos += offset
-	case os.SEEK_END:
+	case io.SeekEnd:
 		ff.pos = int64(len(ff.bytes)-1) - offset
 	}
 

@@ -67,7 +67,7 @@ func (e *engine) init(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logg
 			e.logger.WithFields(logrus.Fields{
 				"host": u.Host,
 				"list": e.hostsWhitelist,
-			}).Info("Host is not whitelisted")
+			}).Debug("Host is not whitelisted")
 			return false
 		}
 
@@ -76,7 +76,7 @@ func (e *engine) init(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logg
 
 	e.crawler.SetOnURLShouldDownload(func(u *neturl.URL) bool {
 		if e.cacher.CheckCacheExists(u) {
-			e.logger.WithField("url", u).Info("Cache exists for url")
+			e.logger.WithField("url", u).Debug("Cache exists for url")
 			return false
 		}
 

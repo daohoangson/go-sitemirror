@@ -319,8 +319,6 @@ func (c *crawler) Stop() {
 func (c *crawler) Enqueue(item QueueItem) {
 	c.Start()
 	c.doEnqueue(item)
-
-	c.logger.WithField("item", item).Info("Enqueued")
 }
 
 func (c *crawler) Download(item QueueItem) *Downloaded {
@@ -350,6 +348,8 @@ func (c *crawler) doEnqueue(item QueueItem) {
 	atomic.AddInt64(&c.queuingCount, 1)
 
 	c.queue.Send <- item
+
+	c.logger.WithField("item", item).Debug("Enqueued")
 }
 
 func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
@@ -456,7 +456,7 @@ func (c *crawler) doAutoQueueURLs(workerID uint64, urls []*neturl.URL, source *n
 	c.mutex.Unlock()
 
 	if nextDepth > c.autoDownloadDepth {
-		loggerContext.WithField("links", count).Info("Skipped because it is too deep")
+		loggerContext.WithField("links", count).Debug("Skipped because it is too deep")
 		return
 	}
 

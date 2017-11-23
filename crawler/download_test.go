@@ -86,7 +86,16 @@ var _ = Describe("Download", func() {
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
 
-	It("should passthrough request error", func() {
+	It("should fix root", func() {
+		host := "download.fix-root.com"
+		url := "http://" + host
+		httpmock.RegisterResponder("GET", url+"/", httpmock.NewStringResponder(http.StatusOK, ""))
+
+		downloaded := downloadWithDefaultClient(url)
+		Expect(downloaded.StatusCode).To(Equal(http.StatusOK))
+	})
+
+	It("should relay request error", func() {
 		url := "http://domain.com/Download/request/error"
 		parsedURL, _ := neturl.Parse(url)
 		parsedURL.Host = "/"
@@ -98,7 +107,7 @@ var _ = Describe("Download", func() {
 		Expect(downloaded.Error).To(HaveOccurred())
 	})
 
-	It("should passthrough client error", func() {
+	It("should relay client error", func() {
 		url := "http://a.b.c"
 		downloaded := downloadWithDefaultClient(url)
 

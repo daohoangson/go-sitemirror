@@ -92,6 +92,27 @@ var _ = Describe("Engine", func() {
 			Expect(r.StatusCode).To(Equal(http.StatusOK))
 		})
 
+		It("should enqueue correct root URL", func() {
+			host := "engine.mirror.enqueue-correct-root.com"
+			url := "http://" + host
+			httpmock.RegisterResponder("GET", url+"/", httpmock.NewStringResponder(http.StatusOK, ""))
+
+			e := newEngine()
+
+			mirrorURL(e, url, 0)
+			defer e.Stop()
+
+			time.Sleep(sleepTime)
+			port, _ := e.GetServer().GetListeningPort(host)
+			r1, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d", port))
+			Expect(r1.StatusCode).To(Equal(http.StatusOK))
+
+			r2, _ := httpClient.Get(fmt.Sprintf("http://localhost:%d/", port))
+			Expect(r2.StatusCode).To(Equal(http.StatusOK))
+
+			Expect(e.GetCrawler().GetDownloadedCount()).To(Equal(uint64One))
+		})
+
 		Context("Downloaded", func() {
 			It("should write cache", func() {
 				url := "http://domain.com/engine/mirror/download/downloaded/write"

@@ -265,21 +265,34 @@ func (e *engine) GetAutoEnqueueInterval() time.Duration {
 }
 
 func (e *engine) Mirror(url *neturl.URL, port int) error {
-	e.logger.WithFields(logrus.Fields{
-		"url":  url,
-		"port": port,
-	}).Info("Setting up mirror")
+	var root *neturl.URL
 
 	if url != nil {
-		e.autoEnqueue(url)
-		e.crawler.Enqueue(crawler.QueueItem{URL: url})
+		root, _ = neturl.Parse(url.String())
+		if len(root.Path) == 0 {
+			root.Path = "/"
+		}
+
+		e.autoEnqueue(root)
+		e.crawler.Enqueue(crawler.QueueItem{URL: root})
 	}
 
 	if port < 0 {
 		return nil
 	}
 
-	_, err := e.server.ListenAndServe(url, port)
+	_, err := e.server.ListenAndServe(root, port)
+
+	loggerContext := e.logger.WithFields(logrus.Fields{
+		"url":  url,
+		"port": port,
+		"root": root,
+	})
+	if err != nil {
+		loggerContext.Error("Mirror cannot be setup")
+	} else {
+		loggerContext.Info("Mirror is up")
+	}
 
 	return err
 }

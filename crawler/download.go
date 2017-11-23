@@ -64,7 +64,13 @@ func Download(input *Input) *Downloaded {
 		return http.ErrUseLastResponse
 	}
 
-	req, err := http.NewRequest("GET", input.URL.String(), nil)
+	url := input.URL
+	if len(url.Path) == 0 {
+		url, _ = neturl.Parse(url.String())
+		url.Path = "/"
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		result.Error = err
 		return result

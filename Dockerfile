@@ -7,8 +7,7 @@ ENV SITEMIRROR_SOURCE_PATH "/go/src/github.com/daohoangson/go-sitemirror"
 COPY . "$SITEMIRROR_SOURCE_PATH"
 
 RUN cd "$SITEMIRROR_SOURCE_PATH" \
-  && go get -u github.com/golang/dep/cmd/dep \
-  && dep ensure \
+  && ./testing/scripts.sh \
   && go install -ldflags "-X github.com/daohoangson/go-sitemirror/crawler.version=$SITEMIRROR_COMMIT"
 
 FROM debian:stretch-slim

@@ -27,6 +27,12 @@ const (
 	htmlAttrSrc           = "src"
 )
 
+//noinspection GoUnusedParameter
+func checkRedirect(*http.Request, []*http.Request) error {
+	// do not follow redirects
+	return http.ErrUseLastResponse
+}
+
 // Download returns parsed data after downloading the specified url.
 func Download(input *Input) *Downloaded {
 	result := &Downloaded{
@@ -59,10 +65,7 @@ func Download(input *Input) *Downloaded {
 
 	httpClient := *input.Client
 	// http://stackoverflow.com/questions/23297520/how-can-i-make-the-go-http-client-not-follow-redirects-automatically
-	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		// do not follow redirects
-		return http.ErrUseLastResponse
-	}
+	httpClient.CheckRedirect = checkRedirect
 
 	url := input.URL
 	if len(url.Path) == 0 {

@@ -34,6 +34,7 @@ type crawler struct {
 
 	output           chan *Downloaded
 	queue            *nbc.NonBlockingChan
+	queueOpen        bool
 	workerStartOnce  sync.Once
 	workersStarted   uint64
 	workersRunning   int64
@@ -270,6 +271,7 @@ func (c *crawler) Start() {
 		c.mutex.Lock()
 		c.queue = nbc.New()
 		c.output = make(chan *Downloaded)
+		c.queueOpen = true
 		c.mutex.Unlock()
 
 		for i := uint64(0); i < workerCount; i++ {
@@ -309,6 +311,7 @@ func (c *crawler) Stop() {
 	}
 
 	c.mutex.Lock()
+	c.queueOpen = false
 	close(c.output)
 	close(c.queue.Send)
 	c.mutex.Unlock()
@@ -347,7 +350,11 @@ func (c *crawler) doEnqueue(item QueueItem) {
 	atomic.AddUint64(&c.enqueuedCount, 1)
 	atomic.AddInt64(&c.queuingCount, 1)
 
-	c.queue.Send <- item
+	c.mutex.Lock()
+	if c.queueOpen {
+		c.queue.Send <- item
+	}
+	c.mutex.Unlock()
 
 	c.logger.WithField("item", item).Debug("Enqueued")
 }

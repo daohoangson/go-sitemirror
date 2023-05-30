@@ -45,7 +45,7 @@ Do the same GitHub mirroring but with Docker.
   docker run --rm -it \
     -p 8081:8081 \
     -v "$PWD/cache:/cache" \
-    xfrocks/go-sitemirror -mirror https://github.com \
+    ghcr.io/daohoangson/go-sitemirror -mirror https://github.com \
     -mirror-port 8081 \
     -no-cross-host \
     -whitelist github.com

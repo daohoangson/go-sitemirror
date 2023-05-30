@@ -2,6 +2,7 @@ package cacher
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	neturl "net/url"
 	"os"
@@ -107,7 +108,7 @@ func (c *httpCacher) CheckCacheExists(url *neturl.URL) bool {
 		loggerContext.WithError(openError).Debug("Cannot open file -> cache not exists")
 		return false
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	buffer := make([]byte, len(writeHTTPPlaceholderFirstLine))
 	n, readError := f.Read(buffer)
@@ -137,9 +138,12 @@ func (c *httpCacher) Write(input *Input) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
-	WriteHTTP(f, input)
+	writeError := WriteHTTP(f, input)
+	if writeError != nil {
+		return fmt.Errorf("WriteHTTP: %s", writeError)
+	}
 
 	c.logger.WithFields(logrus.Fields{
 		"url":  input.URL,
@@ -166,7 +170,7 @@ func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
 	if openError != nil {
 		return openError
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// try to replace the line
 	r := bufio.NewReader(f)
@@ -195,15 +199,25 @@ func (c *httpCacher) Bump(url *neturl.URL, ttl time.Duration) error {
 			bytes := []byte(newLine)
 			position, _ := f.Seek(0, 1)
 			position -= int64(r.Buffered()) + int64(len(bytes))
-			f.WriteAt(bytes, position)
+			_, writeError := f.WriteAt(bytes, position)
+			if writeError != nil {
+				return writeError
+			}
+
 			loggerContext.Info("Bumped")
 			return nil
 		}
 	}
 
 	// invalid file or data, just write the placeholder
-	f.Truncate(0)
-	f.Seek(0, 0)
+	truncateError := f.Truncate(0)
+	if truncateError != nil {
+		return fmt.Errorf("f.Truncate(0): %w", truncateError)
+	}
+	_, seekError := f.Seek(0, 0)
+	if seekError != nil {
+		return fmt.Errorf("f.Seek(0, 0): %w", seekError)
+	}
 	writeError := writeHTTPPlaceholder(f, url, newExpires)
 
 	if writeError == nil {
@@ -223,7 +237,7 @@ func (c *httpCacher) WritePlaceholder(url *neturl.URL, ttl time.Duration) error 
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	writeError := writeHTTPPlaceholder(f, url, time.Now().Add(ttl))
 

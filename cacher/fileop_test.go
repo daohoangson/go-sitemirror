@@ -1,7 +1,7 @@
 package cacher_test
 
 import (
-	"io/ioutil"
+	"fmt"
 	"net/url"
 	"os"
 	"path"
@@ -14,25 +14,25 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Fileop", func() {
+var _ = Describe("File op", func() {
 
 	Describe("CreateFile", func() {
 		tmpDir := os.TempDir()
-		rootPath := path.Join(tmpDir, "_TestFileopCreateFile_")
+		rootPath := path.Join(tmpDir, "_TestFileOpCreateFile_")
 		fs := NewFs()
 
 		BeforeEach(func() {
-			fs.MkdirAll(rootPath, os.ModePerm)
+			_ = fs.MkdirAll(rootPath, os.ModePerm)
 		})
 
 		AfterEach(func() {
-			fs.RemoveAll(rootPath)
+			_ = fs.RemoveAll(rootPath)
 		})
 
 		It("should create dir", func() {
 			path := path.Join(rootPath, "dir", "file")
 			f, _ := CreateFile(fs, path)
-			defer f.Close()
+			_ = f.Close()
 
 			Expect(f.Name()).To(Equal(path))
 		})
@@ -41,8 +41,8 @@ var _ = Describe("Fileop", func() {
 			bytes := []byte{1}
 			path := path.Join(rootPath, "file")
 			w, _ := CreateFile(fs, path)
-			w.Write(bytes)
-			w.Close()
+			_, _ = w.Write(bytes)
+			_ = w.Close()
 
 			read, _ := t.FsReadFile(fs, path)
 			Expect(read).To(Equal(bytes))
@@ -53,12 +53,12 @@ var _ = Describe("Fileop", func() {
 			bytes2 := []byte{2}
 			path := path.Join(rootPath, "file-existed")
 			w1, _ := t.FsCreate(fs, path)
-			w1.Write(bytes1)
-			w1.Close()
+			_, _ = w1.Write(bytes1)
+			_ = w1.Close()
 
 			w2, _ := CreateFile(fs, path)
-			w2.Write(bytes2)
-			w2.Close()
+			_, _ = w2.Write(bytes2)
+			_ = w2.Close()
 
 			read, _ := t.FsReadFile(fs, path)
 			Expect(read).To(Equal(bytes2))
@@ -67,21 +67,21 @@ var _ = Describe("Fileop", func() {
 
 	Describe("OpenFile", func() {
 		tmpDir := os.TempDir()
-		rootPath := path.Join(tmpDir, "_TestFileopOpenFile_")
+		rootPath := path.Join(tmpDir, "_TestFileOpOpenFile_")
 		fs := NewFs()
 
 		BeforeEach(func() {
-			fs.MkdirAll(rootPath, os.ModePerm)
+			_ = fs.MkdirAll(rootPath, os.ModePerm)
 		})
 
 		AfterEach(func() {
-			fs.RemoveAll(rootPath)
+			_ = fs.RemoveAll(rootPath)
 		})
 
 		It("should create dir", func() {
 			path := path.Join(rootPath, "dir", "file")
 			f, _ := OpenFile(fs, path)
-			defer f.Close()
+			_ = f.Close()
 
 			Expect(f.Name()).To(Equal(path))
 		})
@@ -90,10 +90,10 @@ var _ = Describe("Fileop", func() {
 			bytes := []byte{1}
 			path := path.Join(rootPath, "file")
 			w, _ := OpenFile(fs, path)
-			w.Write(bytes)
-			w.Close()
+			_, _ = w.Write(bytes)
+			_ = w.Close()
 
-			read, _ := ioutil.ReadFile(path)
+			read, _ := os.ReadFile(path)
 			Expect(read).To(Equal(bytes))
 		})
 
@@ -102,13 +102,13 @@ var _ = Describe("Fileop", func() {
 			bytes2 := []byte{2}
 			path := path.Join(rootPath, "file-existed")
 			w1, _ := t.FsCreate(fs, path)
-			w1.Write(bytes1)
-			w1.Close()
+			_, _ = w1.Write(bytes1)
+			_ = w1.Close()
 
 			w2, _ := OpenFile(fs, path)
-			w2.Seek(0, 2)
-			w2.Write(bytes2)
-			w2.Close()
+			_, _ = w2.Seek(0, 2)
+			_, _ = w2.Write(bytes2)
+			_ = w2.Close()
 
 			read, _ := t.FsReadFile(fs, path)
 			Expect(read[:len(bytes1)]).To(Equal(bytes1))
@@ -146,7 +146,7 @@ var _ = Describe("Fileop", func() {
 		It("should keep url scheme + host + path", func() {
 			scheme := "http"
 			host := "domain.com"
-			dir := "/fileop/keep/host/path"
+			dir := "/file-op/keep/host/path"
 			file := "file"
 			url, _ := url.Parse(scheme + "://" + host + dir + "/" + file)
 			_, gDir, gFile := generateCachePath(url)
@@ -176,9 +176,9 @@ var _ = Describe("Fileop", func() {
 		})
 
 		It("should use hash for long file", func() {
-			hostAndDir := "domain.com/fileop/hash/long/file"
+			hostAndDir := "domain.com/file-op/hash/long/file"
 			file := "file" + lotsOfA
-			url, _ := url.Parse("http://" + hostAndDir + "/" + file)
+			url, _ := url.Parse(fmt.Sprintf("https://%s/%s", hostAndDir, file))
 			_, _, gFile := generateCachePath(url)
 
 			expectIsHashOf(gFile[:len(gFile)-ShortHashLength-1], file)
@@ -186,7 +186,7 @@ var _ = Describe("Fileop", func() {
 
 		It("should keep query", func() {
 			scheme := "http"
-			hostAndDir := "domain.com/fileop/keep/query"
+			hostAndDir := "domain.com/file-op/keep/query"
 			file := "file"
 			query := "foo=bar"
 			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
@@ -198,7 +198,7 @@ var _ = Describe("Fileop", func() {
 
 		It("should keep query key only", func() {
 			scheme := "http"
-			hostAndDir := "domain.com/fileop/keep/query/key/only"
+			hostAndDir := "domain.com/file-op/keep/query/key/only"
 			file := "file"
 			query := "foo="
 			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
@@ -209,11 +209,11 @@ var _ = Describe("Fileop", func() {
 		})
 
 		It("should use hash for long query", func() {
-			hostAndDir := "domain.com/fileop/hash/long/query"
+			hostAndDir := "domain.com/file-op/hash/long/query"
 			file := "file"
 			queryLong := "long=" + strings.Repeat("a", 100)
 			query := queryLong + "&short=1"
-			url, _ := url.Parse("http://" + hostAndDir + "/" + file + "?" + query)
+			url, _ := url.Parse(fmt.Sprintf("https://%s/%s?%s", hostAndDir, file, query))
 			_, gDir, _ := generateCachePath(url)
 
 			queryLongElement := path.Base(gDir)
@@ -222,7 +222,7 @@ var _ = Describe("Fileop", func() {
 
 		It("should remove slashes from query", func() {
 			scheme := "http"
-			hostAndDir := "domain.com/fileop/remove/slashes/query"
+			hostAndDir := "domain.com/file-op/remove/slashes/query"
 			file := "file"
 			query := "foo=b/a%2Fr"
 			url, _ := url.Parse(scheme + "://" + hostAndDir + "/" + file + "?" + query)
@@ -232,8 +232,8 @@ var _ = Describe("Fileop", func() {
 		})
 
 		It("should generate different path for slashes", func() {
-			url0, _ := url.Parse("http://domain.com/fileop/diff/path/slashes")
-			url1, _ := url.Parse("http://domain.com/fileop/diff/path/slashes/")
+			url0, _ := url.Parse("https://domain.com/file-op/diff/path/slashes")
+			url1, _ := url.Parse("https://domain.com/file-op/diff/path/slashes/")
 			path0 := GenerateHTTPCachePath(rootPath, url0)
 			path1 := GenerateHTTPCachePath(rootPath, url1)
 

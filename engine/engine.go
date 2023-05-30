@@ -94,7 +94,14 @@ func (e *engine) init(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logg
 		}
 
 		input := BuildCacherInputFromCrawlerDownloaded(downloaded)
-		e.cacher.Write(input)
+		cacheError := e.cacher.Write(input)
+		if cacheError != nil {
+			e.logger.WithFields(logrus.Fields{
+				"url":        downloaded.Input.URL,
+				"statusCode": downloaded.StatusCode,
+				"cacheError": cacheError,
+			}).Error("Failed to write cache")
+		}
 
 		e.mutex.Lock()
 		if !e.stopped.IsSet() {
@@ -107,12 +114,19 @@ func (e *engine) init(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logg
 	})
 
 	downloadAndServe := func(issue *web.ServerIssue) {
-		e.cacher.WritePlaceholder(issue.URL, e.bumpTTL)
-		downloaded := e.crawler.Download(crawler.QueueItem{
-			URL:           issue.URL,
-			ForceDownload: true,
-		})
-		web.ServeDownloaded(downloaded, issue.Info)
+		placeholderError := e.cacher.WritePlaceholder(issue.URL, e.bumpTTL)
+		if placeholderError != nil {
+			e.logger.WithFields(logrus.Fields{
+				"url":              issue.URL,
+				"placeholderError": placeholderError,
+			}).Error("Failed to write placeholder")
+		} else {
+			downloaded := e.crawler.Download(crawler.QueueItem{
+				URL:           issue.URL,
+				ForceDownload: true,
+			})
+			web.ServeDownloaded(downloaded, issue.Info)
+		}
 	}
 	e.server.SetOnServerIssue(func(issue *web.ServerIssue) {
 		switch issue.Type {
@@ -123,7 +137,7 @@ func (e *engine) init(fs cacher.Fs, httpClient *http.Client, logger *logrus.Logg
 		case web.CacheError:
 			downloadAndServe(issue)
 		case web.CacheExpired:
-			e.cacher.Bump(issue.URL, e.bumpTTL)
+			_ = e.cacher.Bump(issue.URL, e.bumpTTL)
 			e.crawler.Enqueue(crawler.QueueItem{
 				URL:           issue.URL,
 				ForceDownload: true,

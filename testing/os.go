@@ -3,7 +3,6 @@ package testing
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -61,14 +60,14 @@ func FsCreate(fs cacher.Fs, name string) (cacher.File, error) {
 	return fs.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 }
 
-// FsReadFile works similar to ioutil.ReadFile
+// FsReadFile works similar to os.ReadFile
 func FsReadFile(fs cacher.Fs, name string) ([]byte, error) {
 	f, err := fs.OpenFile(name, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
 
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }
 
 func (fs *fakeFs) Getwd() (string, error) {
@@ -188,7 +187,10 @@ func (fs *fakeFs) OpenFile(name string, flag int, perm os.FileMode) (cacher.File
 	node.mutex.Unlock()
 
 	if flag&os.O_APPEND != 0 {
-		f.Seek(0, io.SeekEnd)
+		_, seekError := f.Seek(0, io.SeekEnd)
+		if seekError != nil {
+			return nil, fmt.Errorf("f.Seek(0, end): %w", seekError)
+		}
 	}
 
 	fs.logger.WithFields(logrus.Fields{
@@ -201,7 +203,7 @@ func (fs *fakeFs) OpenFile(name string, flag int, perm os.FileMode) (cacher.File
 	return f, nil
 }
 
-func (fs *fakeFs) RemoveAll(path string) error {
+func (fs *fakeFs) RemoveAll(_ string) error {
 	panic("Not implemented")
 }
 
@@ -310,7 +312,10 @@ func (ff *fakeFile) Write(p []byte) (int, error) {
 }
 
 func (ff *fakeFile) WriteAt(p []byte, off int64) (int, error) {
-	ff.Seek(off, io.SeekStart)
+	_, seekError := ff.Seek(off, io.SeekStart)
+	if seekError != nil {
+		return 0, fmt.Errorf("f.Seek(%d, start): %w", off, seekError)
+	}
 	return ff.Write(p)
 }
 

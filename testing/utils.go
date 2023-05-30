@@ -7,14 +7,14 @@ import (
 
 	"github.com/daohoangson/go-sitemirror/cacher"
 
-	"gopkg.in/jarcoal/httpmock.v1"
+	"github.com/jarcoal/httpmock"
 )
 
 // InvalidURL an invalid url as in RFC 6874
 // Source: https://golang.org/src/net/url/url_test.go
 const InvalidURL = `http://[fe80::1%en0]/`
 
-// TransparentDataURI a valid data uri for the (probaby) smallest transparent gif
+// TransparentDataURI a valid data uri for (probably) the smallest transparent gif
 // Source: http://stackoverflow.com/questions/6018611/smallest-data-uri-image-possible-for-a-transparent-image
 const TransparentDataURI = `data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7`
 

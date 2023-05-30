@@ -282,7 +282,7 @@ func (c *crawler) Start() {
 				for {
 					if v, ok := <-c.queue.Recv; ok {
 						if item, ok := v.(QueueItem); ok {
-							downloaded := c.doDownload(workerID, item)
+							downloaded := c.doDownload(item)
 
 							c.doAutoQueue(workerID, item, downloaded)
 						}
@@ -325,7 +325,7 @@ func (c *crawler) Enqueue(item QueueItem) {
 }
 
 func (c *crawler) Download(item QueueItem) *Downloaded {
-	return c.doDownload(0, item)
+	return c.doDownload(item)
 }
 
 func (c *crawler) Downloaded() (*Downloaded, bool) {
@@ -359,7 +359,7 @@ func (c *crawler) doEnqueue(item QueueItem) {
 	c.logger.WithField("item", item).Debug("Enqueued")
 }
 
-func (c *crawler) doDownload(workerID uint64, item QueueItem) *Downloaded {
+func (c *crawler) doDownload(item QueueItem) *Downloaded {
 	var (
 		start          = time.Now()
 		loggerContext  = c.logger.WithField("item", item)

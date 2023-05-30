@@ -23,14 +23,14 @@ var _ = Describe("Utils", func() {
 		Context("should keep url intact", func() {
 			It("base is not absolute", func() {
 				url1, _ := neturl.Parse("base/not/absolute")
-				url2, _ := neturl.Parse("http://domain.com/url")
+				url2, _ := neturl.Parse("https://domain.com/url")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal(url2.String()))
 			})
 
 			It("url is not absolute", func() {
-				url1, _ := neturl.Parse("http://domain.com/base")
+				url1, _ := neturl.Parse("https://domain.com/base")
 				url2, _ := neturl.Parse("url/not/absolute")
 				reduced := ReduceURL(url1, url2)
 
@@ -38,7 +38,7 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("scheme mismatched", func() {
-				url1, _ := neturl.Parse("http://domain.com/base")
+				url1, _ := neturl.Parse("https://domain.com/base")
 				url2, _ := neturl.Parse("ftp://domain.com/url")
 				reduced := ReduceURL(url1, url2)
 
@@ -46,8 +46,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("host mismatched", func() {
-				url1, _ := neturl.Parse("http://domain.com/base")
-				url2, _ := neturl.Parse("http://domain2.com/url")
+				url1, _ := neturl.Parse("https://domain.com/base")
+				url2, _ := neturl.Parse("https://domain2.com/url")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal(url2.String()))
@@ -57,8 +57,8 @@ var _ = Describe("Utils", func() {
 
 		Context("self", func() {
 			It("is file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/self")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/self")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/self")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/self")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./self"))
@@ -66,8 +66,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("is dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/self/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/self/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/self/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/self/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./"))
@@ -77,8 +77,8 @@ var _ = Describe("Utils", func() {
 
 		Context("siblings", func() {
 			It("file to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/siblings")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/siblings")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./ok"))
@@ -86,8 +86,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/siblings/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/siblings/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../ok"))
@@ -95,8 +95,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("file to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/siblings")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/siblings")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./ok/"))
@@ -104,8 +104,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/siblings/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/siblings/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../ok/"))
@@ -115,8 +115,8 @@ var _ = Describe("Utils", func() {
 
 		Context("to grand child", func() {
 			It("file to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/child")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/child")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./url/to/grand/child"))
@@ -124,8 +124,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/child")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/child")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./to/grand/child"))
@@ -133,8 +133,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("file to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/child/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/child/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./url/to/grand/child/"))
@@ -142,8 +142,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/child/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/child/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./to/grand/child/"))
@@ -153,8 +153,8 @@ var _ = Describe("Utils", func() {
 
 		Context("to grand parent", func() {
 			It("file to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/parent")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/parent")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../../ok"))
@@ -162,8 +162,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/parent/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/parent/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../../../ok"))
@@ -171,8 +171,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("file to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/parent")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/parent")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../../ok/"))
@@ -180,8 +180,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/to/grand/parent/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/ok/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/to/grand/parent/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/ok/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../../../ok/"))
@@ -191,8 +191,8 @@ var _ = Describe("Utils", func() {
 
 		Context("from root", func() {
 			It("file to file", func() {
-				url1, _ := neturl.Parse("http://domain.com")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/from/root")
+				url1, _ := neturl.Parse("https://domain.com")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/from/root")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./reduce/url/from/root"))
@@ -200,8 +200,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to file", func() {
-				url1, _ := neturl.Parse("http://domain.com/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/from/root")
+				url1, _ := neturl.Parse("https://domain.com/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/from/root")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./reduce/url/from/root"))
@@ -209,8 +209,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("file to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/from/root/")
+				url1, _ := neturl.Parse("https://domain.com")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/from/root/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./reduce/url/from/root/"))
@@ -218,8 +218,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/")
-				url2, _ := neturl.Parse("http://domain.com/reduce/url/from/root/")
+				url1, _ := neturl.Parse("https://domain.com/")
+				url2, _ := neturl.Parse("https://domain.com/reduce/url/from/root/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("./reduce/url/from/root/"))
@@ -237,8 +237,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("file to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/to/root")
-				url2, _ := neturl.Parse("http://domain.com/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/to/root")
+				url2, _ := neturl.Parse("https://domain.com/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../../../"))
@@ -246,8 +246,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("dir to dir", func() {
-				url1, _ := neturl.Parse("http://domain.com/reduce/url/to/root/")
-				url2, _ := neturl.Parse("http://domain.com/")
+				url1, _ := neturl.Parse("https://domain.com/reduce/url/to/root/")
+				url2, _ := neturl.Parse("https://domain.com/")
 				reduced := ReduceURL(url1, url2)
 
 				Expect(reduced).To(Equal("../../../../"))
@@ -291,8 +291,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("should handle common prefix but not whole part", func() {
-				path1 := "/oneone"
-				path2 := "/onetwo"
+				path1 := "/one-one"
+				path2 := "/one-two"
 				lcp := LongestCommonPrefix(path1, path2)
 
 				Expect(lcp).To(Equal("/"))
@@ -365,8 +365,8 @@ var _ = Describe("Utils", func() {
 			})
 
 			It("should handle common prefix but not whole part", func() {
-				path1 := "oneone"
-				path2 := "onetwo"
+				path1 := "one-one"
+				path2 := "one-two"
 				lcp := LongestCommonPrefix(path1, path2)
 
 				Expect(lcp).To(Equal(""))

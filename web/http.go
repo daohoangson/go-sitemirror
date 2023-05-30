@@ -32,7 +32,7 @@ func ServeDownloaded(downloaded *crawler.Downloaded, info internal.ServeInfo) {
 	info.WriteBody([]byte(downloaded.Body))
 }
 
-// ServeHTTPCache seves user request with content from cached data
+// ServeHTTPCache serves user request with content from cached data
 func ServeHTTPCache(input io.Reader, info internal.ServeInfo) {
 	r := bufio.NewReader(input)
 

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -52,12 +51,12 @@ var _ = Describe("HTTP", func() {
 			Expect(w.Header().Get(cacher.HeaderContentType)).To(Equal(contentType))
 			Expect(w.Header().Get(cacher.HeaderContentLength)).To(Equal(fmt.Sprintf("%d", len(downloaded.Body))))
 
-			wBody, _ := ioutil.ReadAll(w.Body)
+			wBody, _ := io.ReadAll(w.Body)
 			Expect(string(wBody)).To(Equal(downloaded.Body))
 		})
 
 		It("should write Location header", func() {
-			location := "http://domain.com/http/ServeDownloaded/write/location/header"
+			location := "https://domain.com/http/ServeDownloaded/write/location/header"
 			downloaded := &crawler.Downloaded{
 				StatusCode: http.StatusMovedPermanently,
 			}
@@ -88,7 +87,7 @@ var _ = Describe("HTTP", func() {
 			Expect(w.Header().Get(cacher.HeaderContentType)).To(Equal(contentType))
 			Expect(w.Header().Get(cacher.HeaderContentLength)).To(Equal(fmt.Sprintf("%d", len(content))))
 
-			wBody, _ := ioutil.ReadAll(w.Body)
+			wBody, _ := io.ReadAll(w.Body)
 			Expect(len(wBody)).To(Equal(len(content)))
 			Expect(string(wBody)).To(Equal(string(content)))
 		})
@@ -246,7 +245,7 @@ var _ = Describe("HTTP", func() {
 			si.Flush()
 
 			buffer := &bytes.Buffer{}
-			w.Header().Write(buffer)
+			_ = w.Header().Write(buffer)
 			Expect(buffer.String()).To(Equal("Two: 2\r\n"))
 		})
 

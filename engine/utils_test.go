@@ -20,7 +20,7 @@ var _ = Describe("Utils", func() {
 		})
 
 		It("should sync url", func() {
-			url, _ := url.Parse("http://domain.com/engine/utils")
+			url, _ := url.Parse("https://domain.com/engine/utils")
 			d := &crawler.Downloaded{Input: &crawler.Input{URL: url}}
 			i := BuildCacherInputFromCrawlerDownloaded(d)
 			Expect(i.URL).To(Equal(url))
@@ -44,7 +44,7 @@ var _ = Describe("Utils", func() {
 
 		It("should sync header location", func() {
 			headerKey := cacher.HeaderLocation
-			headerValue := "http://domain.com/engine/utils/sync/header/location"
+			headerValue := "https://domain.com/engine/utils/sync/header/location"
 			d := &crawler.Downloaded{}
 			d.AddHeader(headerKey, headerValue)
 

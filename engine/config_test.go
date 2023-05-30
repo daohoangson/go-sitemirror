@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"gopkg.in/jarcoal/httpmock.v1"
+	"github.com/jarcoal/httpmock"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/daohoangson/go-sitemirror/cacher"
@@ -214,7 +214,7 @@ var _ = Describe("Config", func() {
 
 		Describe("MirrorURLs", func() {
 			It("should parse", func() {
-				url := "http://domain.com"
+				url := "https://domain.com"
 				c := parseConfigWithDefaultArg0("-mirror", url)
 
 				Expect(len(c.MirrorURLs)).To(Equal(1))
@@ -222,8 +222,8 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should parse multiple", func() {
-				url1 := "http://domain.com/one"
-				url2 := "http://domain.com/two"
+				url1 := "https://domain.com/one"
+				url2 := "https://domain.com/two"
 				c := parseConfigWithDefaultArg0("-mirror", url1, "-mirror", url2)
 
 				Expect(len(c.MirrorURLs)).To(Equal(2))
@@ -275,7 +275,7 @@ var _ = Describe("Config", func() {
 
 		BeforeEach(func() {
 			fs = t.NewFs()
-			fs.MkdirAll(rootPath, 0777)
+			_ = fs.MkdirAll(rootPath, 0777)
 		})
 
 		It("should return", func() {
@@ -400,7 +400,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should mirror url", func() {
-				url := "http://domain.com/engine/FromConfig/mirror/url"
+				url := "https://domain.com/engine/FromConfig/mirror/url"
 				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 				e := fromConfigWithDefaultArg0(
@@ -417,7 +417,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should mirror with port", func() {
-				url := "http://domain.com/engine/FromConfig/mirror/with/port"
+				url := "https://domain.com/engine/FromConfig/mirror/with/port"
 				httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(200, ""))
 
 				e := fromConfigWithDefaultArg0(
@@ -435,8 +435,8 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should mirror multiple", func() {
-				url1 := "http://domain1.com/engine/FromConfig/mirror/multiple"
-				url2 := "http://domain2.com/engine/FromConfig/mirror/multiple"
+				url1 := "https://domain1.com/engine/FromConfig/mirror/multiple"
+				url2 := "https://domain2.com/engine/FromConfig/mirror/multiple"
 				httpmock.RegisterResponder("GET", url1, httpmock.NewStringResponder(200, ""))
 				httpmock.RegisterResponder("GET", url2, httpmock.NewStringResponder(200, ""))
 

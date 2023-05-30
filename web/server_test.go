@@ -31,7 +31,7 @@ var _ = Describe("Server", func() {
 
 	BeforeEach(func() {
 		fs = t.NewFs()
-		fs.MkdirAll(rootPath, 0777)
+		_ = fs.MkdirAll(rootPath, 0777)
 	})
 
 	It("should work with init(nil, nil)", func() {
@@ -42,12 +42,12 @@ var _ = Describe("Server", func() {
 
 	Describe("ListenAndServe", func() {
 		It("should listen and serve", func() {
-			root, _ := url.Parse("http://listen.and.serve.com")
+			root, _ := url.Parse("https://listen.and.serve.com")
 			s := newServer()
 
 			l, err := s.ListenAndServe(root, 0)
 			Expect(err).ToNot(HaveOccurred())
-			l.Close()
+			_ = l.Close()
 		})
 
 		It("should listen and serve cross-host", func() {
@@ -55,13 +55,13 @@ var _ = Describe("Server", func() {
 
 			l, err := s.ListenAndServe(nil, 0)
 			Expect(err).ToNot(HaveOccurred())
-			l.Close()
+			_ = l.Close()
 		})
 
 		It("should response", func() {
-			root, _ := url.Parse("http://response.com")
+			root, _ := url.Parse("https://response.com")
 			s := newServer()
-			s.ListenAndServe(root, 0)
+			_, _ = s.ListenAndServe(root, 0)
 			defer s.Stop()
 
 			port, _ := s.GetListeningPort(root.Host)
@@ -70,7 +70,7 @@ var _ = Describe("Server", func() {
 		})
 
 		It("should not listen on invalid port", func() {
-			root, _ := url.Parse("http://not.listen.invalid.port.com")
+			root, _ := url.Parse("https://not.listen.invalid.port.com")
 			s := newServer()
 			_, err := s.ListenAndServe(root, -1)
 
@@ -78,7 +78,7 @@ var _ = Describe("Server", func() {
 		})
 
 		It("should not listen twice for the same host", func() {
-			root, _ := url.Parse("http://not.listen.twice.same.host.com")
+			root, _ := url.Parse("https://not.listen.twice.same.host.com")
 			s := newServer()
 
 			_, err1 := s.ListenAndServe(root, 0)
@@ -91,10 +91,10 @@ var _ = Describe("Server", func() {
 
 		Describe("GetListenerPort", func() {
 			It("should return port", func() {
-				root, _ := url.Parse("http://return.port.com")
+				root, _ := url.Parse("https://return.port.com")
 				s := newServer()
 
-				s.ListenAndServe(root, 0)
+				_, _ = s.ListenAndServe(root, 0)
 				defer s.Stop()
 
 				port, _ := s.GetListeningPort(root.Host)
@@ -136,7 +136,7 @@ var _ = Describe("Server", func() {
 
 	Describe("Serve", func() {
 		It("should response with 404", func() {
-			root, _ := url.Parse("http://domain.com")
+			root, _ := url.Parse("https://domain.com")
 			s := newServer()
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("", "/Serve/404", nil)
@@ -146,7 +146,7 @@ var _ = Describe("Server", func() {
 		})
 
 		It("should disallow robots", func() {
-			root, _ := url.Parse("http://domain.com")
+			root, _ := url.Parse("https://domain.com")
 			s := newServer()
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("", "/robots.txt", nil)
@@ -158,12 +158,12 @@ var _ = Describe("Server", func() {
 
 		It("should response with 501 (empty file -> no first line)", func() {
 			urlPath := "/Serve/501"
-			url, _ := url.Parse("http://domain.com" + urlPath)
+			url, _ := url.Parse("https://domain.com" + urlPath)
 			cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 			cacheDir, _ := path.Split(cachePath)
-			fs.MkdirAll(cacheDir, 0777)
+			_ = fs.MkdirAll(cacheDir, 0777)
 			f, _ := t.FsCreate(fs, cachePath)
-			f.Close()
+			_ = f.Close()
 
 			s := newServer()
 			w := httptest.NewRecorder()
@@ -234,7 +234,7 @@ var _ = Describe("Server", func() {
 
 		Describe("SetOnServerIssue", func() {
 			It("should trigger func on method not allowed", func() {
-				root, _ := url.Parse("http://domain.com")
+				root, _ := url.Parse("https://domain.com")
 				s := newServer()
 				w := httptest.NewRecorder()
 				req := httptest.NewRequest("POST", "/SetOnServerIssue/method/not/allowed", nil)
@@ -253,7 +253,7 @@ var _ = Describe("Server", func() {
 			})
 
 			It("should trigger func on cache not found", func() {
-				root, _ := url.Parse("http://domain.com")
+				root, _ := url.Parse("https://domain.com")
 				s := newServer()
 				w := httptest.NewRecorder()
 				req := httptest.NewRequest("", "/SetOnServerIssue/cache/not/found", nil)
@@ -273,12 +273,12 @@ var _ = Describe("Server", func() {
 
 			It("should trigger func on cache error", func() {
 				urlPath := "/SetOnServerIssue/cache/error"
-				url, _ := url.Parse("http://domain.com" + urlPath)
+				url, _ := url.Parse("https://domain.com" + urlPath)
 				cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
-				fs.MkdirAll(cacheDir, 0777)
+				_ = fs.MkdirAll(cacheDir, 0777)
 				f, _ := t.FsCreate(fs, cachePath)
-				f.Close()
+				_ = f.Close()
 
 				s := newServer()
 				w := httptest.NewRecorder()
@@ -299,17 +299,17 @@ var _ = Describe("Server", func() {
 
 			It("should trigger func on cache expired", func() {
 				urlPath := "/SetOnServerIssue/cache/expired"
-				url, _ := url.Parse("http://domain.com" + urlPath)
+				url, _ := url.Parse("https://domain.com" + urlPath)
 				cachePath := cacher.GenerateHTTPCachePath(rootPath, url)
 				cacheDir, _ := path.Split(cachePath)
-				fs.MkdirAll(cacheDir, 0777)
+				_ = fs.MkdirAll(cacheDir, 0777)
 				f, _ := t.FsCreate(fs, cachePath)
-				f.Write([]byte(fmt.Sprintf(
+				_, _ = f.Write([]byte(fmt.Sprintf(
 					"HTTP 200\n%s: %d\n\n",
 					cacher.CustomHeaderExpires,
 					time.Now().Add(-1*time.Hour).UnixNano(),
 				)))
-				f.Close()
+				_ = f.Close()
 
 				s := newServer()
 				w := httptest.NewRecorder()
@@ -350,28 +350,28 @@ var _ = Describe("Server", func() {
 
 	Describe("Stop", func() {
 		It("should stop all", func() {
-			root1, _ := url.Parse("http://stop.all.one.com")
-			root2, _ := url.Parse("http://stop.all.two.com")
+			root1, _ := url.Parse("https://stop.all.one.com")
+			root2, _ := url.Parse("https://stop.all.two.com")
 			s := newServer()
 
-			s.ListenAndServe(root1, 0)
-			s.ListenAndServe(root2, 0)
+			_, _ = s.ListenAndServe(root1, 0)
+			_, _ = s.ListenAndServe(root2, 0)
 
 			hosts := s.Stop()
 			Expect(len(hosts)).To(Equal(2))
 		})
 
 		It("should stop all except one", func() {
-			root1, _ := url.Parse("http://stop.all.except.one.com")
-			root2, _ := url.Parse("http://stop.all.except.two.com")
-			root3, _ := url.Parse("http://stop.all.except.three.com")
+			root1, _ := url.Parse("https://stop.all.except.one.com")
+			root2, _ := url.Parse("https://stop.all.except.two.com")
+			root3, _ := url.Parse("https://stop.all.except.three.com")
 			s := newServer()
 
-			s.ListenAndServe(root1, 0)
+			_, _ = s.ListenAndServe(root1, 0)
 			l2, _ := s.ListenAndServe(root2, 0)
-			s.ListenAndServe(root3, 0)
+			_, _ = s.ListenAndServe(root3, 0)
 
-			l2.Close()
+			_ = l2.Close()
 
 			hosts := s.Stop()
 			sort.Strings(hosts)

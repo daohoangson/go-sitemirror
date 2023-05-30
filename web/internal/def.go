@@ -43,7 +43,7 @@ const (
 	ErrorWriteBody
 	// ErrorCopyBody serve info error type when occur an error during body copy
 	ErrorCopyBody
-	// ErrorCrossHostRefOnNonCrossHost serve info error type when a cross-host reference found in non cross-host context
+	// ErrorCrossHostRefOnNonCrossHost serve info error type when a cross-host reference is found in non cross-host context
 	ErrorCrossHostRefOnNonCrossHost
 )
 

@@ -17,30 +17,48 @@ var (
 )
 
 // WriteHTTP writes cache data in http format
-func WriteHTTP(w io.Writer, input *Input) {
+func WriteHTTP(w io.Writer, input *Input) error {
 	bw := bufio.NewWriter(w)
-	defer bw.Flush()
+	defer func() { _ = bw.Flush() }()
 
-	bw.WriteString(fmt.Sprintf("HTTP %d\n", input.StatusCode))
-
-	if input.URL != nil {
-		bw.WriteString(fmt.Sprintf("%s: %s\n", CustomHeaderURL, input.URL.String()))
+	_, statusCodeError := bw.WriteString(fmt.Sprintf("HTTP %d\n", input.StatusCode))
+	if statusCodeError != nil {
+		return fmt.Errorf("bw.WriteString(StatusCode): %w", statusCodeError)
 	}
 
-	WriteHTTPCachingHeaders(bw, input)
-	writeHTTPHeader(bw, input)
-	writeHTTPBody(bw, input)
+	if input.URL != nil {
+		_, urlError := bw.WriteString(fmt.Sprintf("%s: %s\n", CustomHeaderURL, input.URL.String()))
+		if urlError != nil {
+			return fmt.Errorf("bw.WriteString(URL): %w", urlError)
+		}
+	}
+
+	cachingHeadersError := WriteHTTPCachingHeaders(bw, input)
+	if cachingHeadersError != nil {
+		return fmt.Errorf("WriteHTTPCachingHeaders: %w", cachingHeadersError)
+	}
+
+	httpHeaderError := writeHTTPHeader(bw, input)
+	if httpHeaderError != nil {
+		return fmt.Errorf("writeHTTPHeader: %w", httpHeaderError)
+	}
+
+	_, bodyError := writeHTTPBody(bw, input)
+	return fmt.Errorf("writeHTTPBody: %w", bodyError)
 }
 
 // WriteHTTPCachingHeaders writes caching related headers
 // like last modified, cache control, expires.
-func WriteHTTPCachingHeaders(bw *bufio.Writer, input *Input) {
+func WriteHTTPCachingHeaders(bw *bufio.Writer, input *Input) error {
 	var (
 		now     = time.Now()
 		expires *time.Time
 	)
 
-	bw.WriteString(fmt.Sprintf("%s: %s\n", HeaderLastModified, now.Format(http.TimeFormat)))
+	_, lastModifiedError := bw.WriteString(fmt.Sprintf("%s: %s\n", HeaderLastModified, now.Format(http.TimeFormat)))
+	if lastModifiedError != nil {
+		return fmt.Errorf("bw.WriteString(LastModified): %w", lastModifiedError)
+	}
 
 	if expires == nil {
 		inputHeaderExpires := input.Header.Get(HeaderExpires)
@@ -69,42 +87,62 @@ func WriteHTTPCachingHeaders(bw *bufio.Writer, input *Input) {
 	}
 
 	if expires != nil {
-		bw.WriteString(fmt.Sprintf("%s: public, max-age=%d\n%s: %s\n",
+		_, cacheControlError := bw.WriteString(fmt.Sprintf("%s: public, max-age=%d\n%s: %s\n",
 			HeaderCacheControl, expires.Unix()-now.Unix(),
 			HeaderExpires, expires.Format(http.TimeFormat),
 		))
-		bw.WriteString(formatExpiresHeader(*expires))
+		if cacheControlError != nil {
+			return fmt.Errorf("bw.WriteString(CacheControl): %w", cacheControlError)
+		}
+
+		_, expiresError := bw.WriteString(formatExpiresHeader(*expires))
+		if expiresError != nil {
+			return fmt.Errorf("bw.WriteString(Expires): %w", expiresError)
+		}
 	}
+
+	return nil
 }
 
 func formatExpiresHeader(expires time.Time) string {
 	return fmt.Sprintf("%s: %020d\n", CustomHeaderExpires, expires.UnixNano())
 }
 
-func writeHTTPHeader(bw *bufio.Writer, input *Input) {
+func writeHTTPHeader(bw *bufio.Writer, input *Input) error {
 	if input.Header == nil {
-		return
+		return nil
 	}
 
 	for headerKey, headerValues := range input.Header {
 		switch headerKey {
 		case HeaderCacheControl:
+			continue
 		case HeaderExpires:
+			continue
 		default:
 			for _, headerValue := range headerValues {
-				bw.WriteString(fmt.Sprintf("%s: %s\n", headerKey, headerValue))
+				_, writeError := bw.WriteString(fmt.Sprintf("%s: %s\n", headerKey, headerValue))
+				if writeError != nil {
+					return fmt.Errorf("bw.WriteString(%s): %w", headerKey, writeError)
+				}
 			}
 		}
 	}
+
+	return nil
 }
 
-func writeHTTPBody(bw *bufio.Writer, input *Input) {
+func writeHTTPBody(bw *bufio.Writer, input *Input) (int, error) {
 	bodyLen := len(input.Body)
 	if bodyLen > 0 {
-		bw.WriteString(fmt.Sprintf("Content-Length: %d\n\n", bodyLen))
-		bw.WriteString(input.Body)
+		_, contentLengthError := bw.WriteString(fmt.Sprintf("Content-Length: %d\n\n", bodyLen))
+		if contentLengthError != nil {
+			return 0, fmt.Errorf("bw.WriteString(Content-Length): %w", contentLengthError)
+		}
+
+		return bw.WriteString(input.Body)
 	} else {
-		bw.WriteString("\n")
+		return bw.WriteString("\n")
 	}
 }
 

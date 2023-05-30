@@ -86,8 +86,8 @@ func ParseConfig(arg0 string, otherArgs []string, output io.Writer) (*Config, er
 	config.LoggerLevel = configLoggerLevel(ConfigDefaultLoggerLevel)
 	fs.Var(&config.LoggerLevel, "log", "Logging output level")
 
-	fs.Var(&config.HostRewrites, "rewrite", "Link rewrites, must be 'source.domain.com=http://target.domain.com/some/path'")
-	fs.Var(&config.HostsWhitelist, "whitelist", "Restricted list of crawlable hosts")
+	fs.Var(&config.HostRewrites, "rewrite", "Link rewrites, must be 'source.domain.com=https://domain.com/some/path'")
+	fs.Var(&config.HostsWhitelist, "whitelist", "Restricted list of crawl-able hosts")
 	fs.DurationVar(&config.BumpTTL, "cache-bump", ConfigDefaultBumpTTL, "Validity of cache bump")
 	fs.DurationVar(&config.AutoEnqueueInterval, "auto-refresh", ConfigDefaultAutoEnqueueInterval, "Interval for url auto refreshes, default=no refresh")
 	fs.DurationVar(&config.HttpTimeout, "http-timeout", ConfigDefaultHttpTimeout, "HTTP request timeout")
@@ -165,12 +165,18 @@ func FromConfig(fs cacher.Fs, config *Config) Engine {
 			}
 		}
 
-		crawler.SetWorkerCount(uint64(config.Crawler.WorkerCount))
+		setWorkerCountError := crawler.SetWorkerCount(uint64(config.Crawler.WorkerCount))
+		if setWorkerCountError != nil {
+			panic(setWorkerCountError)
+		}
 	}
 
 	{
 		if config.Port > ConfigDefaultPort {
-			e.Mirror(nil, int(config.Port))
+			mirrorError := e.Mirror(nil, int(config.Port))
+			if mirrorError != nil {
+				panic(mirrorError)
+			}
 		}
 
 		if config.MirrorURLs != nil {
@@ -182,7 +188,10 @@ func FromConfig(fs cacher.Fs, config *Config) Engine {
 					port = mirrorPorts[i]
 				}
 
-				e.Mirror(url, port)
+				mirrorError := e.Mirror(url, port)
+				if mirrorError != nil {
+					panic(mirrorError)
+				}
 			}
 		}
 	}
@@ -265,7 +274,7 @@ func (f *configStringMap) String() string {
 
 func (f *configStringMap) Set(value string) error {
 	var (
-		help = errors.New("must be 'source.domain.com=http://target.domain.com/some/path'")
+		help = errors.New("must be 'source.domain.com=https://domain.com/some/path'")
 	)
 
 	parts := strings.Split(value, "=")

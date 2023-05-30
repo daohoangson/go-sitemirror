@@ -3,7 +3,7 @@ package crawler
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	neturl "net/url"
 	"regexp"
@@ -92,7 +92,7 @@ func Download(input *Input) *Downloaded {
 		result.Error = err
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	result.StatusCode = resp.StatusCode
 	if result.StatusCode >= 200 && result.StatusCode <= 299 {
@@ -134,7 +134,7 @@ func parseBody(resp *http.Response, result *Downloaded) error {
 }
 
 func parseBodyCSS(resp *http.Response, result *Downloaded) error {
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
 	var buffer bytes.Buffer
 	defer buffer.Reset()
@@ -390,7 +390,7 @@ func parseBodyHTMLTagStyle(tokenizer *html.Tokenizer, result *Downloaded) bool {
 			result.buffer.Write(raw)
 			return true
 		case html.TextToken:
-			parseBodyCSSString(string(raw), result)
+			_ = parseBodyCSSString(string(raw), result)
 		}
 	}
 }
@@ -414,7 +414,7 @@ func rewriteTokenAttr(token *html.Token, result *Downloaded) bool {
 		result.buffer.WriteString("=\"")
 
 		if attr.Key == "style" {
-			parseBodyCSSString(attr.Val, result)
+			_ = parseBodyCSSString(attr.Val, result)
 		} else {
 			result.buffer.WriteString(html.EscapeString(attr.Val))
 		}
@@ -432,7 +432,7 @@ func rewriteTokenAttr(token *html.Token, result *Downloaded) bool {
 }
 
 func parseBodyRaw(resp *http.Response, result *Downloaded) error {
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	result.Body = string(body)
 	return err
 }

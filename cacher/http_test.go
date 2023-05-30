@@ -23,7 +23,7 @@ var _ = Describe("Http", func() {
 		BeforeEach(func() {
 			buffer.Reset()
 
-			url, _ := neturl.Parse("http://domain.com/http/input/2xx")
+			url, _ := neturl.Parse("https://domain.com/http/input/2xx")
 			input2xx = &Input{
 				StatusCode: 200,
 				URL:        url,
@@ -35,7 +35,7 @@ var _ = Describe("Http", func() {
 			It("should write status code 100", func() {
 				status := 100
 				input := Input{StatusCode: status}
-				WriteHTTP(&buffer, &input)
+				_ = WriteHTTP(&buffer, &input)
 
 				written := buffer.String()
 				Expect(written).To(HavePrefix(fmt.Sprintf("HTTP %d\n", status)))
@@ -45,7 +45,7 @@ var _ = Describe("Http", func() {
 			It("should write status code 200", func() {
 				status := 200
 				input := Input{StatusCode: status}
-				WriteHTTP(&buffer, &input)
+				_ = WriteHTTP(&buffer, &input)
 
 				written := buffer.String()
 				Expect(written).To(HavePrefix(fmt.Sprintf("HTTP %d\n", status)))
@@ -54,7 +54,7 @@ var _ = Describe("Http", func() {
 			It("should write status code 301", func() {
 				status := 301
 				input := Input{StatusCode: status}
-				WriteHTTP(&buffer, &input)
+				_ = WriteHTTP(&buffer, &input)
 
 				written := buffer.String()
 				Expect(written).To(HavePrefix(fmt.Sprintf("HTTP %d\n", status)))
@@ -63,9 +63,9 @@ var _ = Describe("Http", func() {
 
 		It("should write url header", func() {
 			input := input2xx
-			url, _ := neturl.Parse("http://domain.com/http/url")
+			url, _ := neturl.Parse("https://domain.com/http/url")
 			input.URL = url
-			WriteHTTP(&buffer, input)
+			_ = WriteHTTP(&buffer, input)
 
 			written := buffer.String()
 			writtenMirroredUrl := getHeaderValue(written, CustomHeaderURL)
@@ -74,7 +74,7 @@ var _ = Describe("Http", func() {
 
 		It("should write Last-Modified header", func() {
 			input := input2xx
-			WriteHTTP(&buffer, input)
+			_ = WriteHTTP(&buffer, input)
 
 			written := buffer.String()
 			writtenLastModified := getHeaderValue(written, HeaderLastModified)
@@ -88,7 +88,7 @@ var _ = Describe("Http", func() {
 			It("should write our Expires header", func() {
 				input := input2xx
 				input.TTL = time.Minute
-				WriteHTTP(&buffer, input)
+				_ = WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenExpires := getHeaderValue(written, CustomHeaderExpires)
@@ -102,7 +102,7 @@ var _ = Describe("Http", func() {
 			It("should write cache control headers", func() {
 				input := input2xx
 				input.TTL = time.Minute
-				WriteHTTP(&buffer, input)
+				_ = WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenCacheControl := getHeaderValue(written, HeaderCacheControl)
@@ -118,7 +118,7 @@ var _ = Describe("Http", func() {
 
 			It("should not write our Expires header", func() {
 				input := input2xx
-				WriteHTTP(&buffer, input)
+				_ = WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenExpires := getHeaderValue(written, CustomHeaderExpires)
@@ -132,36 +132,36 @@ var _ = Describe("Http", func() {
 						input := input2xx
 						input.Header.Add(HeaderExpires, expires)
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, HeaderExpires)
-						Expect(string(writtenExpires)).To(Equal(expires))
+						Expect(writtenExpires).To(Equal(expires))
 					})
 
 					It("should not pick up invalid date", func() {
 						input := input2xx
 						input.Header.Add(HeaderExpires, "Oops")
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, HeaderExpires)
-						Expect(string(writtenExpires)).To(Equal(""))
+						Expect(writtenExpires).To(Equal(""))
 					})
 
 					It("should not pick up date in the past", func() {
 						input := input2xx
 						input.Header.Add(HeaderExpires, time.Now().Add(-24*time.Hour).Format(http.TimeFormat))
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, HeaderExpires)
-						Expect(string(writtenExpires)).To(Equal(""))
+						Expect(writtenExpires).To(Equal(""))
 					})
 				})
 
@@ -171,8 +171,8 @@ var _ = Describe("Http", func() {
 						input := input2xx
 						input.Header.Add(HeaderCacheControl, fmt.Sprintf("max-age=%d", maxAge))
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
@@ -186,8 +186,8 @@ var _ = Describe("Http", func() {
 						input := input2xx
 						input.Header.Add(HeaderCacheControl, fmt.Sprintf("public, max-age=%d", maxAge))
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
@@ -200,36 +200,36 @@ var _ = Describe("Http", func() {
 						input := input2xx
 						input.Header.Add(HeaderCacheControl, "max-age=foo")
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
-						Expect(string(writtenExpires)).To(Equal(""))
+						Expect(writtenExpires).To(Equal(""))
 					})
 
 					It("should not pick up 0 max-age", func() {
 						input := input2xx
 						input.Header.Add(HeaderCacheControl, "max-age=0")
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
-						Expect(string(writtenExpires)).To(Equal(""))
+						Expect(writtenExpires).To(Equal(""))
 					})
 
 					It("should not pick up negative max-age", func() {
 						input := input2xx
 						input.Header.Add(HeaderCacheControl, "max-age=-1")
 						bw := bufio.NewWriter(&buffer)
-						WriteHTTPCachingHeaders(bw, input)
-						bw.Flush()
+						_ = WriteHTTPCachingHeaders(bw, input)
+						_ = bw.Flush()
 
 						written := buffer.String()
 						writtenExpires := getHeaderValue(written, CustomHeaderExpires)
-						Expect(string(writtenExpires)).To(Equal(""))
+						Expect(writtenExpires).To(Equal(""))
 					})
 				})
 			})
@@ -241,7 +241,7 @@ var _ = Describe("Http", func() {
 				headerValue := "plain/text"
 				input := input2xx
 				input.Header.Add(headerKey, headerValue)
-				WriteHTTP(&buffer, input)
+				_ = WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenContentType := getHeaderValue(written, headerKey)
@@ -252,7 +252,7 @@ var _ = Describe("Http", func() {
 			It("should write body string", func() {
 				input := input2xx
 				input.Body = "foo/bar"
-				WriteHTTP(&buffer, input)
+				_ = WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenContentLength := getHeaderValue(written, "Content-Length")
@@ -266,11 +266,11 @@ var _ = Describe("Http", func() {
 		Context("3xx", func() {
 			It("should write Location header", func() {
 				headerKey := HeaderLocation
-				headerValue := "http://domain.com/target/url"
-				url, _ := neturl.Parse("http://domain.com/http/input/3xx/location")
+				headerValue := "https://domain.com/target/url"
+				url, _ := neturl.Parse("https://domain.com/http/input/3xx/location")
 				input := &Input{StatusCode: 301, URL: url, Header: make(http.Header)}
 				input.Header.Add(headerKey, headerValue)
-				WriteHTTP(&buffer, input)
+				_ = WriteHTTP(&buffer, input)
 
 				written := buffer.String()
 				writtenLocation := getHeaderValue(written, headerKey)

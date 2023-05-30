@@ -59,7 +59,7 @@ type File interface {
 
 const (
 	// SchemeDefault the default scheme if none specified
-	SchemeDefault = "http"
+	SchemeDefault = "https"
 )
 
 const (
@@ -69,7 +69,7 @@ const (
 	CustomHeaderURL = "X-Mirror-Url"
 	// CustomHeaderCrossHostRef header key for cross host reference flag
 	CustomHeaderCrossHostRef = "X-Mirror-Cross-Host-Ref"
-	// CustomHeaderExpires header key for cache expire time in nano second
+	// CustomHeaderExpires header key for cache expire time in nanosecond
 	CustomHeaderExpires = "X-Mirror-Expires"
 )
 

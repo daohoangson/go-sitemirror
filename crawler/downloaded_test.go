@@ -16,7 +16,7 @@ import (
 )
 
 var _ = Describe("Downloaded", func() {
-	baseUrl, _ := neturl.Parse("http://domain.com/downloaded/base")
+	baseUrl, _ := neturl.Parse("https://domain.com/downloaded/base")
 	var downloaded *Downloaded
 
 	BeforeEach(func() {
@@ -89,15 +89,15 @@ var _ = Describe("Downloaded", func() {
 
 	Describe("ProcessURL", func() {
 		BeforeEach(func() {
-			defaultURL := "http://domain.com/ProcessURL/default"
+			defaultURL := "https://domain.com/ProcessURL/default"
 			parsedURL, _ := neturl.Parse(defaultURL)
 			downloaded.Input = &Input{URL: parsedURL}
 		})
 
 		It("should rewrite url", func() {
 			urlPath := "/ProcessURL/rewriter"
-			url := "http://domain2.com" + urlPath
-			parsedURL, _ := neturl.Parse("http://domain.com")
+			url := "https://domain2.com" + urlPath
+			parsedURL, _ := neturl.Parse("https://domain.com")
 			rewriter := func(url *neturl.URL) {
 				url.Host = "domain.com"
 			}
@@ -117,7 +117,7 @@ var _ = Describe("Downloaded", func() {
 
 		It("should remove #fragment", func() {
 			fragment := "#foo=bar"
-			url := "http://domain.com/ProcessURL/remove/fragment"
+			url := "https://domain.com/ProcessURL/remove/fragment"
 			_, err := downloaded.ProcessURL(HTMLTagA, url+fragment)
 
 			Expect(err).ToNot(HaveOccurred())
@@ -134,7 +134,7 @@ var _ = Describe("Downloaded", func() {
 		})
 
 		It("should not process with missing .Input", func() {
-			url := "http://domain.com/ProcessURL/not"
+			url := "https://domain.com/ProcessURL/not"
 			downloaded.Input = nil
 			_, err := downloaded.ProcessURL(HTMLTagA, url)
 
@@ -142,7 +142,7 @@ var _ = Describe("Downloaded", func() {
 		})
 
 		It("should not process with missing .Input.URL", func() {
-			url := "http://domain.com/ProcessURL/not"
+			url := "https://domain.com/ProcessURL/not"
 			downloaded.Input = &Input{}
 			_, err := downloaded.ProcessURL(HTMLTagA, url)
 
@@ -157,20 +157,20 @@ var _ = Describe("Downloaded", func() {
 
 		It("should not save #fragment url", func() {
 			downloaded.BaseURL = downloaded.Input.URL
-			downloaded.ProcessURL(HTMLTagA, "#fragment")
+			_, _ = downloaded.ProcessURL(HTMLTagA, "#fragment")
 
 			Expect(len(downloaded.GetDiscoveredURLs())).To(Equal(0))
 		})
 
 		It("should not save .Input.URL with #fragment", func() {
-			downloaded.ProcessURL(HTMLTagA, fmt.Sprintf("%s#fragment", downloaded.Input.URL))
+			_, _ = downloaded.ProcessURL(HTMLTagA, fmt.Sprintf("%s#fragment", downloaded.Input.URL))
 
 			Expect(len(downloaded.GetDiscoveredURLs())).To(Equal(0))
 		})
 
 		Describe("Reduce", func() {
 			It("should reduce url", func() {
-				url := "http://domain.com/Reduce/reduce"
+				url := "https://domain.com/Reduce/reduce"
 				parsedURL, _ := neturl.Parse(url)
 				reduced := downloaded.Reduce(parsedURL)
 
@@ -178,7 +178,7 @@ var _ = Describe("Downloaded", func() {
 			})
 
 			It("should reduce .Input.URL", func() {
-				url := "http://domain.com/Reduce/reduce/self"
+				url := "https://domain.com/Reduce/reduce/self"
 				parsedURL, _ := neturl.Parse(url)
 				downloaded.Input.URL = parsedURL
 				reduced := downloaded.Reduce(parsedURL)
@@ -188,7 +188,7 @@ var _ = Describe("Downloaded", func() {
 
 			Context("cross-host", func() {
 				It("should reduce", func() {
-					url := "http://domain2.com/Reduce/cross/host"
+					url := "https://domain2.com/Reduce/cross/host"
 					parsedURL, _ := neturl.Parse(url)
 					reduced := downloaded.Reduce(parsedURL)
 
@@ -196,7 +196,7 @@ var _ = Describe("Downloaded", func() {
 				})
 
 				It("should reduce without scheme", func() {
-					url := "http://domain2.com/Reduce/cross/host/without/scheme"
+					url := "https://domain2.com/Reduce/cross/host/without/scheme"
 					parsedURL, _ := neturl.Parse(url)
 					parsedURL.Scheme = ""
 					reduced := downloaded.Reduce(parsedURL)
@@ -205,15 +205,15 @@ var _ = Describe("Downloaded", func() {
 				})
 
 				It("should reduce cross scheme", func() {
-					url := "https://domain2.com/Reduce/cross/scheme"
+					url := "ftp://domain2.com/Reduce/cross/scheme"
 					parsedURL, _ := neturl.Parse(url)
 					reduced := downloaded.Reduce(parsedURL)
 
-					Expect(reduced).To(Equal("../../../https/domain2.com/Reduce/cross/scheme"))
+					Expect(reduced).To(Equal("../../../ftp/domain2.com/Reduce/cross/scheme"))
 				})
 
 				It("should set ref header", func() {
-					url := "http://domain2.com/Reduce/cross/host/ref/header"
+					url := "https://domain2.com/Reduce/cross/host/ref/header"
 					parsedURL, _ := neturl.Parse(url)
 					downloaded.Reduce(parsedURL)
 
@@ -221,7 +221,7 @@ var _ = Describe("Downloaded", func() {
 				})
 
 				It("should set ref header once", func() {
-					url := "http://domain2.com/Reduce/cross/host/ref/header/once"
+					url := "https://domain2.com/Reduce/cross/host/ref/header/once"
 					parsedURL, _ := neturl.Parse(url)
 					downloaded.Reduce(parsedURL)
 					downloaded.Reduce(parsedURL)
@@ -230,7 +230,7 @@ var _ = Describe("Downloaded", func() {
 				})
 
 				It("should not reduce", func() {
-					url := "http://domain2.com/Reduce/cross/host/not"
+					url := "https://domain2.com/Reduce/cross/host/not"
 					parsedURL, _ := neturl.Parse(url)
 					downloaded.Input.NoCrossHost = true
 					reduced := downloaded.Reduce(parsedURL)
@@ -254,7 +254,7 @@ var _ = Describe("Downloaded", func() {
 
 			urls := downloaded.GetAssetURLs()
 			Expect(len(urls)).To(Equal(1))
-			Expect(urls[0].String()).To(Equal("http://domain.com/downloaded/relative/assets"))
+			Expect(urls[0].String()).To(Equal("https://domain.com/downloaded/relative/assets"))
 		})
 	})
 
@@ -271,7 +271,7 @@ var _ = Describe("Downloaded", func() {
 
 			urls := downloaded.GetDiscoveredURLs()
 			Expect(len(urls)).To(Equal(1))
-			Expect(urls[0].String()).To(Equal("http://domain.com/downloaded/relative/discovered"))
+			Expect(urls[0].String()).To(Equal("https://domain.com/downloaded/relative/discovered"))
 		})
 	})
 })

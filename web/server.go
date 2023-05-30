@@ -36,7 +36,7 @@ var (
 	regexpCrossHostPath = regexp.MustCompile(`^/(https?)/([^/]+)(/.*)?$`)
 )
 
-// NewServer returns a new server intance
+// NewServer returns a new server instance
 func NewServer(cacher cacher.Cacher, logger *logrus.Logger) Server {
 	s := &server{}
 	s.init(cacher, logger)
@@ -216,7 +216,7 @@ func (s *server) serveCrossHost(w http.ResponseWriter, req *http.Request) intern
 	targetURL.Path = matches[3]
 
 	if len(targetURL.Path) == 0 {
-		// relative urls do not work correctly if user is on http://localhost/https/domain.com
+		// relative urls do not work correctly if user is on http://localhost/https/domain.com,
 		// so we will take care of it here and redirect to ./
 		si.SetStatusCode(http.StatusMovedPermanently)
 		si.AddHeader(cacher.HeaderLocation, fmt.Sprintf("/%s/%s/", targetURL.Scheme, targetURL.Host))
@@ -251,7 +251,7 @@ func (s *server) serveURL(url *url.URL, si internal.ServeInfo, req *http.Request
 			Info: si.OnCacheNotFound(err),
 		})
 	}
-	defer cache.Close()
+	defer func() { _ = cache.Close() }()
 
 	ServeHTTPCache(cache, si)
 	if si.HasError() {

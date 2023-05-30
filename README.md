@@ -1,9 +1,10 @@
 # go-sitemirror
 Website mirror app with priority for response consistency.
 
+[![Codecov](https://codecov.io/gh/daohoangson/go-sitemirror/branch/master/graph/badge.svg?token=GfOsrOi5X3)](https://codecov.io/gh/daohoangson/go-sitemirror)
 [![GoDoc](https://godoc.org/github.com/daohoangson/go-sitemirror/engine?status.svg)](https://godoc.org/github.com/daohoangson/go-sitemirror/engine)
-[![Go Report Card](https://goreportcard.com/badge/github.com/daohoangson/go-sitemirror)](https://goreportcard.com/report/github.com/daohoangson/go-sitemirror)
 [![GitHub Actions](https://github.com/daohoangson/go-sitemirror/actions/workflows/go.yml/badge.svg)](https://github.com/daohoangson/go-sitemirror/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/daohoangson/go-sitemirror)](https://goreportcard.com/report/github.com/daohoangson/go-sitemirror)
 
 ## Goal
 Easy to setup and run a mirror which copies content from some where else and provides a near exact web browsing experience in case the source server / network goes down.

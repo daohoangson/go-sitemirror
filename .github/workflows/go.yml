@@ -10,17 +10,26 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         go-version:
           - 1.11
           # - oldstable
           # - stable
+    
+    env:
+      GO111MODULE: on
+      TESTING_LOGGER_LEVEL: fatal
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
-    - run: ./testing/scripts.sh
+
+    - name: Run go fmt
+      run: test -z "$(gofmt -l .)"
+    - run: go test -covermode=atomic -coverprofile=coverage.out -race -v ./...
+
+    - uses: codecov/codecov-action@v3

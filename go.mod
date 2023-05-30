@@ -1,5 +1,7 @@
 module github.com/daohoangson/go-sitemirror
 
+go 1.20
+
 require (
 	github.com/Sirupsen/logrus v1.0.3
 	github.com/gorilla/css v1.0.0
@@ -8,7 +10,7 @@ require (
 	github.com/onsi/ginkgo v1.4.0
 	github.com/onsi/gomega v1.2.0
 	github.com/tevino/abool v1.0.0
-	golang.org/x/net v0.0.0-20171115151908-9dfe39835686
+	golang.org/x/net v0.7.0
 	gopkg.in/jarcoal/httpmock.v1 v1.0.0-20170412085702-cf52904a3cf0
 )
 
@@ -17,9 +19,10 @@ require (
 	github.com/hectane/go-attest v0.1.2 // indirect
 	github.com/sirupsen/logrus v1.9.2 // indirect
 	github.com/stretchr/testify v1.8.3 // indirect
-	golang.org/x/crypto v0.0.0-20171113213409-9f005a07e0d3 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/text v0.3.8 // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect

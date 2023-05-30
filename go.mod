@@ -1,5 +1,7 @@
 module github.com/daohoangson/go-sitemirror
 
+go 1.20
+
 require (
 	github.com/Sirupsen/logrus v1.0.3
 	github.com/gorilla/css v1.0.0

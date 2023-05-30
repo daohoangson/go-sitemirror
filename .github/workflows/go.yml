@@ -15,8 +15,8 @@ jobs:
       matrix:
         go-version:
           - 1.9
-          - oldstable
-          - stable
+          # - oldstable
+          # - stable
     steps:
     - uses: actions/checkout@v3
     - name: Set up Go

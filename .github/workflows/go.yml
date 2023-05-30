@@ -14,22 +14,25 @@ jobs:
       matrix:
         go-version:
           - 1.11
-          # - oldstable
-          # - stable
-    
+          - oldstable
+          - stable
+
     env:
       GO111MODULE: on
       TESTING_LOGGER_LEVEL: fatal
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Run go fmt
-      run: test -z "$(gofmt -l .)"
-    - run: go test -covermode=atomic -coverprofile=coverage.out -race -v ./...
+      - name: Run go fmt
+        run: test -z "$(gofmt -l .)"
+        if: matrix.go-version == 'stable'
 
-    - uses: codecov/codecov-action@v3
+      - run: go test -covermode=atomic -coverprofile=coverage.out -race -v ./...
+
+      - uses: codecov/codecov-action@v3
+        if: matrix.go-version == 'stable'

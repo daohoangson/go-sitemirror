@@ -27,7 +27,7 @@ const (
 	htmlAttrSrc           = "src"
 )
 
-//noinspection GoUnusedParameter
+// noinspection GoUnusedParameter
 func checkRedirect(*http.Request, []*http.Request) error {
 	// do not follow redirects
 	return http.ErrUseLastResponse

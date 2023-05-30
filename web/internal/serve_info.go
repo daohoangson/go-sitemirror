@@ -170,6 +170,8 @@ func (si *serveInfo) writeHeader() {
 			}
 		}
 
-		si.responseWriter.WriteHeader(si.statusCode)
+		if si.statusCode > 0 {
+			si.responseWriter.WriteHeader(si.statusCode)
+		}
 	}
 }

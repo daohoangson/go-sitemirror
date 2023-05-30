@@ -2,10 +2,11 @@
 
 set -e
 
+export GO111MODULE=on
 export TESTING_LOGGER_LEVEL=fatal
 
-go vet $(go list ./...)
+go vet ./...
 echo 'go vet ok'
 
-go test -v -race $(go list ./...)
+go test -v -race ./...
 echo 'go test ok'

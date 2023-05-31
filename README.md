@@ -18,40 +18,61 @@ Easy to set up and run a mirror which copies content from somewhere else and pro
 ## Usage
 
 ### Mirror everything at `:8080`
-Go to http://localhost:8080/https/github.com/ to see GitHub home page
+
+Go to http://localhost:8080/https/github.com/ to see GitHub home page.
+
+This is quite dangerous though, do **NOT** deploy this to the public internet to avoid abuses.
 
 ```bash
-  go-sitemirror -port 8080
+go-sitemirror -port 8080
 ```
 
 ### Mirror GitHub at `:8081`
-Go to http://localhost:8081/ to see GitHub home page
+
+Go to http://localhost:8081/ to see GitHub home page.
 
 ```bash
-  go-sitemirror -mirror https://github.com \
-    -mirror-port 8081 \
-    -auto-download-depth=0 \
-    -no-cross-host \
-    -whitelist github.com
+go-sitemirror -mirror https://github.com \
+  -mirror-port 8081 \
+  -auto-download-depth=0 \
+  -no-cross-host
 ```
 
 * `-auto-download-depth=0` to turn off auto downloader
 * `-no-cross-host` to not modify assets urls from other domains
-* `-whitelist` because we don't serve anything other than GitHub anyway
 
 ### Docker
 
 Do the same GitHub mirroring but with Docker.
 
 ```bash
-  docker run --rm -it \
-    -p 8081:8081 \
-    -v "$PWD/cache:/cache" \
-    ghcr.io/daohoangson/go-sitemirror -mirror https://github.com \
-    -mirror-port 8081 \
-    -auto-download-depth=0 \
-    -no-cross-host \
-    -whitelist github.com
+docker run --rm -it \
+  -p 8081:8081 \
+  -v "$PWD/cache:/cache" \
+  ghcr.io/daohoangson/go-sitemirror -mirror https://github.com \
+  -mirror-port 8081 \
+  -auto-download-depth=0 \
+  -no-cross-host
+```
+
+### Fly.io
+
+See PR https://github.com/daohoangson/go-sitemirror/pull/8 for a couple of deployed demos.
+The `fly.toml` looks something like this:
+
+```toml
+app = "app-name"
+
+[build]
+  image = "ghcr.io/daohoangson/go-sitemirror:latest"
+
+[experimental]
+  cmd = ["go-sitemirror", "-mirror", "https://github.com", "-mirror-port", "80", "-auto-download-depth", "0", "-no-cross-host"]
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  min_machines_running = 0
 ```
 
 ### All flags

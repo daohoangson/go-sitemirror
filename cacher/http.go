@@ -44,7 +44,11 @@ func WriteHTTP(w io.Writer, input *Input) error {
 	}
 
 	_, bodyError := writeHTTPBody(bw, input)
-	return fmt.Errorf("writeHTTPBody: %w", bodyError)
+	if bodyError != nil {
+		return fmt.Errorf("writeHTTPBody: %w", bodyError)
+	}
+
+	return nil
 }
 
 // WriteHTTPCachingHeaders writes caching related headers

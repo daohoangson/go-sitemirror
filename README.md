@@ -21,7 +21,7 @@ Easy to set up and run a mirror which copies content from somewhere else and pro
 Go to http://localhost:8080/https/github.com/ to see GitHub home page
 
 ```bash
-  go-sitemirror -p 8080
+  go-sitemirror -port 8080
 ```
 
 ### Mirror GitHub at `:8081`
@@ -30,10 +30,12 @@ Go to http://localhost:8081/ to see GitHub home page
 ```bash
   go-sitemirror -mirror https://github.com \
     -mirror-port 8081 \
+    -auto-download-depth=0 \
     -no-cross-host \
     -whitelist github.com
 ```
 
+* `-auto-download-depth=0` to turn off auto downloader
 * `-no-cross-host` to not modify assets urls from other domains
 * `-whitelist` because we don't serve anything other than GitHub anyway
 
@@ -45,8 +47,9 @@ Do the same GitHub mirroring but with Docker.
   docker run --rm -it \
     -p 8081:8081 \
     -v "$PWD/cache:/cache" \
-    xfrocks/go-sitemirror -mirror https://github.com \
+    ghcr.io/daohoangson/go-sitemirror -mirror https://github.com \
     -mirror-port 8081 \
+    -auto-download-depth=0 \
     -no-cross-host \
     -whitelist github.com
 ```

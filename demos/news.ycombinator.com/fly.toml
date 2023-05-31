@@ -1,0 +1,12 @@
+app = "hkn-mirror-by-daohoangson"
+
+[build]
+  image = "ghcr.io/daohoangson/go-sitemirror:v1.0.0"
+
+[experimental]
+  cmd = ["go-sitemirror", "-mirror", "https://news.ycombinator.com", "-mirror-port", "80", "-auto-download-depth", "0", "-no-cross-host"]
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  min_machines_running = 0
